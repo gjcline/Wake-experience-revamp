@@ -16,7 +16,17 @@ const flaggable = (g, id) => g.world.signals[id].sources.find((s) => ['report', 
 const pick = (g, sig, pred) => g.answers(sig).find(pred);
 const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.find((id) => flaggable(g, id));
 
-function finish(g, { through = [], reorder = false } = {}) {
+// answer every question in the meeting the same way: the first option, a follow-up, or a guess
+function meet(g, how = 'first') {
+  const P = g.meetingPlan();
+  for (const q of P.items.flatMap((x) => x.qs).concat(P.wrap)) {
+    const o = how === 'iou' ? (q.opts.find((x) => ['iou', 'later', 'rethink'].includes(x.effect)) || q.opts[0]) : how === 'guess' ? (q.opts.find((x) => ['guess', 'bounce', 'anyway', 'self', 'drop'].includes(x.effect)) || q.opts[0]) : q.opts[0];
+    g.answerQ(q.id, o.id);
+  }
+  return P;
+}
+
+function finish(g, { through = [], reorder = false, how = 'first' } = {}) {
   assert.ok(g.submitRound1(), 'submits');
   const b = g.startRound2();
   for (let i = 0; i < 30; i++) g.tickWake();
@@ -28,7 +38,8 @@ function finish(g, { through = [], reorder = false } = {}) {
   for (const id of picks) g.pick(id);
   assert.ok(g.briefing().ready);
   assert.ok(g.lockRound2());
-  const d = g.delivery(); g.presented('yours'); g.presented('wake');
+  const plan = meet(g, how);
+  const d = { plan, yours: g.meetingYours(), wake: g.meetingWake(), after: g.afterMeeting() }; g.presented('yours'); g.presented('wake');
   const wk = g.week(); const rc = g.recap(); g.complete();
   return { b, d, wk, rc };
 }
@@ -44,22 +55,28 @@ function invariants(g, out, name) {
   assert.ok(n >= 4 && n <= 5, name + ': four or five priorities');
   assert.ok(b.filtered.length >= 1, name + ': at least one false alarm filtered');
   for (const c of b.cards.filter((x) => !x.routine)) assert.ok(c.evidence.length >= 4 && c.owners.length >= 1 && new Set(c.evidence.map((e) => e.system)).size >= 2, name + ': card ' + c.id + ' is cross-system and owned');
-  assert.equal(d.yours.length, g.state.flags.length);
-  for (const y of d.yours) assert.ok(y.reactions.length >= 1 && y.statusLabel, name + ': every finding gets a reaction');
-  assert.equal(d.tally.wake.handed, g.state.wakeOrder.length, name + ': Wake briefing lands cleanly');
+  assert.equal(d.yours.items.length, g.state.flags.length);
+  for (const it of d.plan.items) assert.ok(it.qs.length >= (it.kind === 'finding' ? 2 : 1) && it.qs.every((q) => q.line && q.asker.name && q.opts.length >= 1), name + ': every item meets the room');
+  assert.equal(d.wake.answered, d.wake.asked, name + ': Wake answers every question in the room');
+  assert.equal(d.wake.ious, 0);
+  assert.ok(d.wake.minutes < d.yours.minutes, name + ': Wake\'s meeting is shorter');
   assert.ok(g.state.wakeOrder.length >= 3 && g.state.wakeOrder.length <= 5);
-  assert.equal(wk.filter((r) => !r.extra).length, n, name + ': the week covers every priority');
-  for (const r of wk) assert.ok(r.you.text && r.wake.text && r.label, name + ': week row complete');
+  assert.ok(d.after.mine.length >= 2 && d.after.done.length >= 4, name + ': the meeting creates work, or does it');
+  assert.equal(wk.rows.length, n, name + ': the week covers every priority');
+  for (const r of wk.rows) { assert.ok(r.label && r.metric.label); for (const L of [r.you, r.wake]) { assert.equal(L.days.length, 5); assert.ok(L.days.every((x) => x.shown && x.status), name + ': every day has a measure'); } }
+  assert.equal(wk.board.you.length, 5); assert.equal(wk.board.wake.length, 5);
+  const picked = g.state.wakeOrder.filter((id) => g.world.findingById[id]).length;
+  assert.equal(wk.board.wake[4].resolved, picked, name + ': everything Wake handed off is resolved by Friday');
+  assert.ok(wk.board.wake[4].profit > 0 && wk.board.wake[4].runRate > 0, name + ': Wake\'s plan creates value');
+  assert.ok(wk.board.wake[4].hours < wk.board.you[4].hours, name + ': fewer hours with Wake');
   assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer && rc.verdict);
-  assert.equal(rc.finale.rows.length, 6, name + ': six head-to-head measures');
-  for (const r of wk.filter((x) => !x.extra)) { assert.equal(r.you.days.length, 4); assert.equal(r.wake.days.length, 4); assert.ok(r.wake.days.every((x) => x.text), name + ': every day has a line'); }
-  assert.ok(d.minutes.wake <= d.minutes.yours || d.yours.length < d.wake.length, name + ': Wake\'s meeting is shorter for the same number of items');
-  const text = JSON.stringify([b, d, wk, rc.finale, rc.moment, rc.closer]) + rc.report.toText() + rc.report.toHTML();
+  assert.equal(rc.score.rows.length, 9, name + ': nine head-to-head measures');
+  const text = JSON.stringify([b, d, wk, rc.score.rows, rc.moment, rc.closer]) + rc.report.toText() + rc.report.toHTML();
   assert.ok(!/\{[A-Za-z]+\}/.test(text), name + ': unresolved token ' + (text.match(/\{[A-Za-z]+\}/) || [''])[0]);
   assert.ok(!text.includes('—') && !text.includes('undefined') && !text.includes('NaN'), name + ': clean text');
   assert.ok(!/\b(F[1-5]|falseAlarm|offTarget|counter)\b/.test(rc.report.toText()), name + ': no internal labels in the report');
   const types = new Set(g.tracker.log.map((e) => e.type));
-  for (const t of ['session_start', 'round1_started', 'flag_added', 'round1_submitted', 'round2_started', 'wake_picked', 'round2_locked', 'presented_yours', 'presented_wake', 'week_played', 'recap_viewed', 'session_complete']) assert.ok(types.has(t), name + ': log has ' + t);
+  for (const t of ['session_start', 'round1_started', 'flag_added', 'round1_submitted', 'round2_started', 'wake_picked', 'round2_locked', 'meeting_answer', 'presented_yours', 'presented_wake', 'week_played', 'recap_viewed', 'session_complete']) assert.ok(types.has(t), name + ': log has ' + t);
   assert.equal(g.session().summary.flags.length, g.state.flags.length);
 }
 
@@ -126,23 +143,32 @@ for (const [name, play] of Object.entries(PATHS)) {
 }
 
 test('expected outcomes', () => {
-  const run = (play, seed = 12) => { const g = mk(seed, 'multi', 'coo'); g.startRound1(); play(g); const out = finish(g); return { g, ...out }; };
-  const A = run(PATHS.aligned);
-  assert.ok(A.d.yours.every((y) => y.handling === 'aligned' && y.status === 'handed'), 'aligned answers with owners hand off cleanly');
-  assert.ok(A.wk.filter((r) => !r.extra).every((r) => r.you.dir === 'up'), 'aligned plans improve the week');
-  const C = run(PATHS.counter);
-  assert.ok(C.d.yours.every((y) => y.handling === 'counter' && y.status === 'pushback'), 'obvious moves get pushback');
-  const D = run(PATHS.distracted);
-  assert.ok(D.d.yours.every((y) => ['falseAlarm', 'noise'].includes(y.kind)), 'false alarms and noise are recognized');
-  assert.ok(D.d.yours.every((y) => ['explained', 'offTarget'].includes(y.status)));
-  assert.ok(A.wk.filter((r) => !r.extra).every((r) => r.wake.dir === 'up'), 'everything Wake handed off improves');
+  const run = (play, how = 'first', seed = 12) => { const g = mk(seed, 'multi', 'coo'); g.startRound1(); play(g); const out = finish(g, { how }); return { g, ...out }; };
+  const A = run(PATHS.aligned, 'iou');
+  assert.ok(A.d.plan.items.every((y) => y.handling === 'aligned'), 'aligned answers read as aligned');
+  assert.ok(A.d.yours.items.every((y) => y.decision === 'parked' || y.decision === 'next'), 'what you cannot answer gets parked');
+  assert.ok(A.d.yours.ious >= A.d.yours.items.length, 'every unanswered question is a follow-up');
+  assert.ok(A.wk.board.you[4].resolved < A.wk.board.wake[4].resolved, 'parked work resolves less by Friday');
+  assert.ok(A.wk.board.you[4].profit > 0, 'your plan still creates value');
+  const G = run(PATHS.aligned, 'guess');
+  assert.ok(G.d.yours.items.filter((y) => !['F2', 'F4'].includes(y.fid)).every((y) => ['decided', 'guess'].includes(y.decision)), 'a guess keeps it moving');
+  assert.ok(G.d.yours.items.filter((y) => ['F2', 'F4'].includes(y.fid)).every((y) => y.decision === 'parked'), 'no one signs off on a ballpark');
+  assert.ok(G.wk.board.you[4].profit > A.wk.board.you[4].profit, 'deciding sooner is worth more');
+  const C = run(PATHS.counter, 'guess');
+  assert.ok(C.d.plan.items.every((y) => y.handling === 'counter' && y.qs[0].type === 'counter'), 'obvious moves get pushback');
+  assert.ok(C.wk.rows.filter((r) => C.d.yours.items.some((y) => y.fid === r.id)).every((r) => r.you.mode === 'counter'), 'pushing through runs the counter move');
+  assert.ok(C.wk.rows.some((r) => r.you.days.some((x) => x.status === 'worse')), 'and some of it gets worse');
+  const D = run(PATHS.distracted, 'guess');
+  assert.ok(D.d.plan.items.every((y) => ['falseAlarm', 'noise'].includes(y.kind)), 'false alarms and noise are recognized');
+  assert.ok(D.d.yours.items.every((y) => y.decision === 'dropped'));
   const W = run(PATHS.writer);
-  assert.deepEqual(W.d.yours.map((y) => y.handling), ['counter', 'partial', 'unclear'], 'written text is read for intent');
-  assert.ok(W.d.yours[2].reactions.some((r) => /done look like/.test(r.line)), 'vague writing draws a question');
+  assert.deepEqual(W.d.plan.items.map((y) => y.handling), ['counter', 'partial', 'unclear'], 'written text is read for intent');
   const T = run(PATHS.tinkerer);
   assert.equal(T.g.state.flags.length, 3);
   assert.equal(T.g.state.flags[0].attached.length, 1, 'attached and detached context');
-  assert.ok(T.d.yours[0].handling === 'aligned' && T.d.yours[0].text.includes('tell me Wednesday'), 'edits change the answer and keep the note');
+  assert.ok(T.d.plan.items[0].handling === 'aligned' && T.d.plan.items[0].text.includes('tell me Wednesday'), 'edits change the answer and keep the note');
+  assert.ok(T.d.plan.items[0].qs.find((q) => q.type === 'why').evidence, 'context you brought answers the room');
+  assert.ok(T.d.yours.answered >= 1);
   const sum = T.g.session().summary;
   assert.equal(sum.contextAttached, 1);
   assert.equal(sum.contextThatFits, 1, 'context from the same story counts as support');
@@ -160,8 +186,8 @@ test('false alarm: checking is not the same as reacting', () => {
   g2.flag({ signals: [s], source: flaggable(g2, s), choice: react.id });
   for (const x of [g, g2]) { const f = Object.values(x.world.findings)[0]; const t = coreSig(x, f); x.flag({ signals: [t], source: flaggable(x, t), choice: x.answers(t)[0].id }); x.flag({ signals: [coreSig(x, x.world.findings[1])], source: flaggable(x, coreSig(x, x.world.findings[1])), choice: x.answers(coreSig(x, x.world.findings[1]))[0].id }); }
   const o1 = finish(g), o2 = finish(g2);
-  assert.equal(o1.d.yours[0].handling, 'checked');
-  assert.equal(o2.d.yours[0].handling, 'react');
+  assert.equal(o1.d.plan.items[0].handling, 'checked');
+  assert.equal(o2.d.plan.items[0].handling, 'react');
 });
 
 test('common answers: four styles, about 8 to 12 words, every flaggable figure', () => {
@@ -281,5 +307,5 @@ test('round 2: picks, trace, arrivals, and the inbox Wake already read', () => {
   assert.ok(inbox.some((e) => e.tags.length), 'emails Wake used are tagged with their insight');
   for (const x of ['x_forecast', 'x_pacing', 'x_brief']) { const v = g.openR2(x); assert.ok(v && (v.blocks || v.memo)); }
   assert.ok(g.lockRound2());
-  assert.equal(g.delivery().wake.length, 4);
+  assert.equal(g.meetingWake().items.length, 4);
 });

@@ -560,7 +560,7 @@ export function generateScenario(shell, role, seed) {
       recognize: [[d, 'Thank you. Between us, fewer regulars are coming back than before.']],
       partial: [['marketing', 'I can pull the second-visit numbers. Give me a few days.']],
       unclear: [[d, 'We\'re having a record month. What do you want changed?']] };
-    const calls = R.i(110, 170);
+    const calls = R.i(110, 170); V.calls = calls;
     content.week.F3 = { label: M ? D.name + ' · regulars' : 'Regulars',
       aligned: [calls + ' follow-up calls made. ' + Math.round(calls * R.u(0.24, 0.3)) + ' regulars rebooked.', 'up'],
       partial: ['Second-visit numbers due next week. Returning slips to ' + (D.n.repeat - 1) + '%.', 'flat'],
@@ -1044,7 +1044,10 @@ export function generateScenario(shell, role, seed) {
   const pct = (a, b2) => ((a / b2) * 100).toFixed(1) + '%';
   const levers = [];
   if (A) levers.push(['Labor' + atL(A) + ' back to its normal share', money((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000 * k4) + ' a month', 'Schedule template fix, no headcount change']);
-  if (B) levers.push([(M ? B.name + ' ' : '') + 'capacity lost to the {equipment}', money(o('F2', 'rev') ? (B.b.rev - B.n.rev) * 1000 * k4 : V.down * (B.b.rev * 1000 / (SD.days * 10)) * 0.5 * 2.16) + ' a month', 'Recovered once the replacement is in']);
+  // Lost work while the {equipment} is down, per week: the revenue drop when it shows, otherwise
+  // the extra work turned away at the usual ticket, otherwise a conservative share of capacity.
+  const f2Week = B ? Math.round(o('F2', 'rev') ? (B.b.rev - B.n.rev) * 1000 : !partner ? Math.max(1, B.n.turned - B.b.turned) * B.n.ticket : B.b.rev * 1000 * 0.04) : 0;
+  if (B) levers.push([(M ? B.name + ' ' : '') + 'capacity lost to the {equipment}', money(f2Week * k4) + ' a month', 'Recovered once the replacement is in']);
   if (D) levers.push(['Returning {customers}' + atL(D) + ' at risk', money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * k4) + ' a month', 'Shows up when the intro offer ends']);
   levers.push(['{supplier} billing above contract', money(V.annual / 12) + ' a month', 'Recoverable now: ' + money(V.over)]);
   if (E) levers.push(['New-hire turnover' + atL(E), money(3 * 4200) + ' so far', 'Replacement hiring and training cost']);
@@ -1061,7 +1064,7 @@ export function generateScenario(shell, role, seed) {
       tue: { aligned: '{Lead} coverage moved back to the ' + peaks + '.', partial: F('analyst') + ' starts digging. Schedule unchanged.', unclear: F(a) + ' waits for direction.', untouched: 'Same schedule. Same ' + peak + ' crunch.', cut: 'Hours cut ten percent.', hire: 'Two hires approved. They start in three weeks.' } };
   }
   if (B) {
-    out.F2 = { value: Math.round(o('F2', 'rev') ? (B.b.rev - B.n.rev) * 1000 : V.down * (B.b.rev * 1000 / (SD.days * 10)) * 0.5), label: 'Unplanned downtime', unit: 'hrs', good: 'down',
+    out.F2 = { value: f2Week, label: 'Unplanned downtime', unit: 'hrs', good: 'down',
       days: { aligned: [0, 0, 0, 0], other: [0, 1, 9, 13] },
       tue: { aligned: 'Replacement ordered. Overflow plan set.', route: partner ? 'Overflow sent to ' + C.name + ' again.' : 'Backlog pushed to Saturday.', repair: 'Technician out again.', recognize: (partner ? C.name : 'The team') + ' celebrates the record week.', partial: F('opsdir') + ' weighs repair against replace.', unclear: 'Patched again.', untouched: 'Running on the last repair.' } };
   }
@@ -1084,6 +1087,68 @@ export function generateScenario(shell, role, seed) {
   }
   for (const r of routineKept) out[r.id] = { value: 0, label: 'Status', unit: 'done', good: 'up', days: { aligned: [0, 0, 1, 1], other: [0, 0, 0, 0] }, tue: { aligned: 'Assigned. Under way.', untouched: 'Not on the list.' } };
   content.out = out;
+
+  // ------------------------------------------------ the finale model
+  // One model per problem, used by the meeting and the week. Days run MON (after the meeting)
+  // to FRI. 'weekly' is what the problem is worth each week, in this company's own numbers.
+  // 'kind' says whether fixing it saves cost or protects revenue. 'sq' is what happens if
+  // nobody is assigned: people on site still notice what they can see.
+  const CM = Math.round((1 - V.matNow / 100 - 0.2) * 100) / 100;
+  const model = {};
+  const fin = { revWeek: Math.round(revTotal * 1000), cm: CM };
+  if (A) {
+    const wN = A.n.wait, wn = A.b.wait, wk = Math.round((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000);
+    model.F1 = { kind: 'cost', weekly: wk, run: Math.round(wk * 52 * 0.6),
+      metric: { label: 'Wait past the promised time', short: 'Wait', unit: 'min', good: 'down', start: wN, target: wn + 4, ok: { op: 'le', v: wn + 5 }, drift: 0.5, ramp: [0.3, 0.6, 0.85, 1, 1] },
+      sq: { e: 0.3, s: 3, text: F(a) + ' pulls a {lead} onto the ' + peak + ' shift on their own.' },
+      act: { aligned: '{Lead} coverage moves back to the ' + peaks + '.', partial: F('analyst') + ' starts digging into the schedule.', unclear: F(a) + ' asks what to change first.', counter: { cut: 'Hours cut ten percent' + atL(A) + '.', hire: 'Two hires approved. They start in three weeks.' } },
+      q: { why: ['opsdir', 'Labor has been creeping up for weeks. What is actually driving it?'], cost: [ctrl, 'What is it costing us a week?'] },
+      costLine: 'About ' + money(wk) + ' a week. Labor is ' + (A.n.labor - A.b.labor).toFixed(1) + ' points above its normal share of ' + money(A.n.rev * 1000) + ' in weekly revenue' + atL(A) + '.',
+      money: [] };
+  }
+  if (B) {
+    const q = money(V.quote), pay = Math.max(1, Math.ceil(V.quote / Math.max(1, f2Week * CM)));
+    model.F2 = { kind: 'revenue', weekly: f2Week, run: Math.round(f2Week * CM * 52 * 0.75),
+      metric: { label: 'Unplanned downtime', short: 'Downtime', unit: 'hrs', good: 'down', start: 0, path: [0, 1, 1, 9, 13], ok: { op: 'le', v: 1 }, ramp: [1, 1, 1, 1, 1] },
+      sq: { e: 0, s: 9, text: '' },
+      act: { aligned: 'Replacement ordered. Overflow plan set for the next failure.', partial: F('opsdir') + ' weighs repair against replace.', unclear: F(b) + ' calls for another repair.', counter: { route: partner ? 'Overflow sent to ' + C.name + ' again.' : 'Backlog pushed to Saturday.', repair: 'Technician out again.', recognize: (partner ? C.name : 'The team') + ' celebrates the record week.' } },
+      fail: { held: 'The {equipment} fails again. The overflow plan holds. Nothing is turned away.', lost: partner ? 'The {equipment} fails again. ' + C.name + ' covers it on overtime.' : 'The {equipment} fails again. Work is turned away.' },
+      q: { why: ['opsdir', 'Is it the {equipment} itself, or how we are running it?'], cost: [ctrl, 'Before I sign ' + q + ', what is the downtime costing us?'] },
+      costLine: 'About ' + money(f2Week) + ' a week in lost work' + (partner ? ', plus ' + C.name + '\'s overtime' : '') + '. The ' + q + ' replacement pays back in about ' + (WORDS[pay] || pay) + ' weeks.',
+      money: [L_('rev', B), ...(partner ? [] : [L_('turned', B)])] };
+  }
+  {
+    const ow = V.overWeek;
+    model.F4 = { kind: 'cost', weekly: ow, credit: V.over, run: ow * 52,
+      metric: { label: 'Billed over contract', short: 'Overbilled', unit: '$', good: 'down', start: 0, path: [0.2, 0.4, 0.6, 0.8, 1].map((x) => Math.round(ow * x)), ok: { op: 'p', v: 0.9 }, ramp: [1, 1, 1, 1, 1] },
+      sq: { e: 0, s: 9, text: '' },
+      act: { aligned: 'Dispute sent with six weeks of invoices.', partial: 'Invoices under review, line by line.', unclear: 'Filed as product mix.', counter: { raiseprice: 'Prices raised two percent.', cut: 'Usage tightened at every {unit}.', freeze: 'Discretionary spend frozen.' } },
+      creditText: '{supplier} credits ' + money(V.over) + '. Contract pricing restored.',
+      q: { why: [ctrl, 'I had that down as product mix. What makes it something else?'], cost: ['opsdir', 'How much are we talking about?'] },
+      costLine: money(V.over) + ' paid above contract in six weeks. About ' + money(V.annual) + ' a year if it keeps running.',
+      money: ['ap.total'] };
+  }
+  if (D) {
+    const r0 = D.n.repeat, rebook = Math.round(V.calls * 0.27), tk = Math.round(D.n.ticket);
+    model.F3 = { kind: 'revenue', weekly: rebook * tk, run: Math.round(rebook * tk * CM * 52 * 0.35), calls: V.calls, rebook, ticket: tk,
+      metric: { label: 'Returning {customers}', short: 'Returning', unit: '%', good: 'up', start: r0, target: r0 + 3, ok: { op: 'ge', v: r0 + 2 }, drift: -0.25, ramp: [0.2, 0.45, 0.7, 0.9, 1] },
+      sq: { e: 0, s: 9, text: '' },
+      act: { aligned: 'Central office starts {followup}.', partial: 'Second-visit analysis started.', unclear: 'Another full book of first visits.', counter: { promoMore: 'Offer extended.', promoStop: 'Offer ended.', recognize: 'Team recognized for a record month.' } },
+      q: { why: ['marketing', (M ? D.name + ' is' : 'We are') + ' having a record month. Why would we touch it?'], cost: [ctrl, 'What is it worth if we fix it?'] },
+      costLine: 'About ' + money(rebook * tk) + ' this week in rebooked {visits}, and ' + money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * 4.33) + ' a month at risk when the offer ends.',
+      money: [] };
+  }
+  if (E) {
+    model.F5 = { kind: 'cost', weekly: 4200, perExit: 4200, run: Math.round(0.6 * 52 * 4200 * 2 / 3),
+      metric: { label: 'New-hire exits', short: 'Exits', unit: 'count', good: 'down', start: 0, path: [0, 0, 0, 0, 1], ok: { op: 'le', v: 0 }, ramp: [1, 1, 1, 1, 1] },
+      sq: { e: 0, s: 9, text: '' },
+      act: { aligned: 'Two weeks of schedules being built, with help.', partial: 'Exit notes under review.', unclear: F(e) + ' covers another shift personally.', counter: { pay: 'Starting pay raised a dollar.', hire: 'More roles posted.' } },
+      exit: { held: 'Schedules posted a week ahead. No new exits.', lost: 'A fourth new hire gives notice.' },
+      q: { why: ['hr', 'People leave. What makes these three different?'], cost: [ctrl, 'What does each of these exits cost us?'] },
+      costLine: 'About ' + money(4200) + ' each to replace and train. Three in five weeks, and the next is already likely.',
+      money: [] };
+  }
+  content.model = model; content.fin = fin;
 
   const projFlag = (r) => ({ t: pct(r.proj, r.plan), tone: r.proj < r.plan * 0.98 ? 'neg' : '' });
   sources.x_forecast = { id: 'x_forecast', kind: 'exec', r2: true, from: null, when: 'Updated 7:48 AM', title: 'Revenue and margin forecast', sub: 'Month pace against plan, and what moves it', cat: 'exec', volume: 0, lines: [],
@@ -1133,7 +1198,7 @@ export function generateScenario(shell, role, seed) {
     briefing: content.briefing, reactions: content.reactions, weekText: { ...content.week,
       falseAlarm: { react: ['Time went into something that was already explained.', 'flat'], checked: ['Checked. Nothing needed.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] },
       noise: { you: ['Time went into something that didn\'t move the week.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] } },
-    context: content.context, quiet: content.quiet, obvious, phone, sharpen, outcomes: content.out,
+    context: content.context, quiet: content.quiet, obvious, phone, sharpen, outcomes: content.out, model: content.model, fin: content.fin,
     answers: content.answers, ansKey,
     owners: CENTRAL.concat(locations.map((L) => L.manager)),
     system: { rep_fin: 'Accounting', rep_labor: 'Payroll + scheduling', rep_ops: SD.system, rep_cx: 'CRM + reviews', rep_mnt: 'Maintenance', rep_ap: 'Purchasing', rep_hr: 'HR system', cal: 'Calendar', email: 'Inbox', message: 'Phone', note: 'Desk', location: 'Location scorecards' },

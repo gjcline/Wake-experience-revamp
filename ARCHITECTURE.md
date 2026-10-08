@@ -15,11 +15,16 @@ and narrates the player through it with a live guide.
 3. Rewind to 7:48. Round 2, with Wake. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
-4. The meeting. Walk to the meeting room. Present your briefing: the room reacts to exactly
-   what you wrote. Present Wake's: every item lands on an owner. Then see who left with what.
-5. The week. Walk back. Both plans run side by side through Friday, one line per issue.
-6. The ending. Three honest comparisons, one moment taken from the player's own morning,
-   and a one-page report.
+4. The meeting, twice. The room asks what any leadership team asks: what is driving it, what
+   it is costing us, who owns it, how we will know. On your own, what you brought decides
+   what you can answer; the rest becomes follow-ups in people's queues, and each item acts the
+   day after its last follow-up lands. With Wake, the same questions are answered in the room.
+   Then the result: two meeting timelines, the duel, and the work each meeting created.
+5. The week. Walk back. Both plans run Monday afternoon to Friday on the city map, with a
+   six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,
+   team hours, open follow-ups) and each problem's own measure.
+6. Friday evening, then the final score (nine measures), thirteen weeks at this pace, one
+   moment taken from the player's own morning, and a dark one-page after-action report.
 
 ## Layout
 
@@ -41,17 +46,19 @@ and narrates the player through it with a live guide.
                    intelligence.js  Wake's pass over the same signal set: gather, detect, connect, filter, rank
                    judge.js         reads a finding: the picked answer (fixed intent), any words written,
                                     the owner and attached context -> handling, reactions, status
-                   game.js          the Simulation Engine: rounds, clock, flags, briefing, delivery, week
-                   recap.js         the verdict, the moment, and the designed one-page report (screen + download)
+                   game.js          the Simulation Engine: rounds, clock, flags, briefing
+                   finale.js        the meeting questions and answers, follow-up queues, Wake's meeting, the
+                                    afternoon after, the week model (per-problem measure, weekly value from the
+                                    company's own numbers, what happens when nobody is assigned), the score
+                   recap.js         the verdict, the moment, and the one-page report (screen + download)
     src/ui/        round1.js        the desk: reports, location map and scorecards, inbox, phone, calendar,
                                     notes, team, connected data, the composer, attaching context, the guide steps
                    round2.js        the Wake desk: the load-in, insights on the computer (5 to 8, pick 3 to 5),
                                     source trace pop-ups back to the Round 1 originals, exec briefs, the drafted
                                     Thursday brief, inbox tagged by insight, phone with send to Wake, the annotated
                                     calendar, team assignments, and the guided tour
-                   finale.js        the meeting (two presentations with readiness, meeting clock, head-to-head,
-                                    who left with clear work), the week as a two-player versus screen in days and
-                                    dollars, the final score, the moment that mattered, and the report
+                   finale.js        the meeting room (questions, answers, follow-ups), Wake's meeting, the result,
+                                    the week as a two-player match on the city map, the final score and the report
                    app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
                                     plus the live guide
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound

@@ -200,20 +200,28 @@ function round2() {
 function walkToMeeting() {
   leave();
   arcade.walkScene(game, { day: 'MONDAY', time: '10:00 AM', people: 'meeting', route: 'toMeeting', from: { x: 284, y: 180 }, view: [144, 168, 2.6],
-    lines: ['MONDAY  10:00 AM', 'This is where data turns into work. Your team will act on exactly what you hand them.', 'You\'ll present twice. Your briefing first, then Wake\'s.'],
+    lines: ['MONDAY  10:00 AM', 'Your team is in the room. They will act on exactly what you hand them, and they will have questions.', 'You\'ll run this meeting twice. First with the briefing you built on your own, then with the one you built with Wake.'],
     cta: 'START PRESENTING ▶' }, () => finale().meeting());
 }
 
 function walkBack() {
   leave();
   arcade.walkScene(game, { day: 'MONDAY', time: '10:52 AM', people: 'office', route: 'toOffice', from: { x: 110, y: 178 }, view: [272, 170, 3],
-    lines: ['MONDAY  11:00 AM', 'Both plans go to work now.', 'Player 1 is the plan you built on your own. Player 2 is the plan you built with Wake.', 'Same company, same week. Watch them run side by side through Friday.'],
+    lines: ['MONDAY  11:00 AM', 'Both plans go to work now.', 'Player 1 is the plan that left your meeting. Player 2 is the plan that left Wake\'s.', 'Same company, same people, same week. Watch them play out side by side, Monday to Friday.'],
     cta: 'PLAY OUT THE WEEK ▶' }, () => finale().week());
+}
+
+// Friday evening: the office empties out, then the final score.
+function friday(then) {
+  leave();
+  arcade.walkScene(game, { day: 'FRIDAY', time: '6:10 PM', people: 'night', route: null, from: { x: 284, y: 180 }, view: [204, 150, 2.2], night: true,
+    lines: ['FRIDAY  6:10 PM', 'The week is in. Both plans had the same five days.', 'Time to count it up.'],
+    cta: 'SEE THE FINAL SCORE ▶' }, then);
 }
 
 // The finale: meeting, week, final score. Built per game so it reads the current one.
 function finale() {
-  return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onRestart: restart, post, HOST });
+  return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.

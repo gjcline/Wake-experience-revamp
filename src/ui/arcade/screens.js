@@ -218,8 +218,8 @@ export function createArcade({ root, reduced, onPicked }) {
           item('pin', 'ROUND 1 · ON YOUR OWN', 'Your desk holds everything your team sent. Flag at least 3 figures that matter and decide what should happen with each.'),
           item('clock', 'THE MEETING TIME', 'Your meeting starts at 10:00 AM. Have your briefing ready by then.'),
           item('wake', 'ROUND 2 · WITH WAKE', 'Same desk, same data, same 7:48 AM. This time Wake is running underneath it.'),
-          item('table', 'THE MEETING', 'Present both briefings to your team and see how each one lands. Then watch both plans play out over the week.'),
-          item('eye', 'NO SCORE', 'No points and no right answers. A guide walks you through every step.')),
+          item('table', 'THE MEETING', 'Run the meeting with each briefing. Your team will ask questions, and you answer with what you brought. Then both plans play out over the week.'),
+          item('eye', 'THE SCORE', 'No trick questions. A guide walks you through every step. The score is kept on Friday.')),
         h('div', { class: 'a-row' }, h('span', { class: 'a-small' }, 'ABOUT 15 MINUTES'), abtn('PRESS START', go, 'a-btn primary blink-soft'))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   }
@@ -302,8 +302,8 @@ export function createArcade({ root, reduced, onPicked }) {
     clear();
     const n = h('div', { class: 'count' });
     root.querySelector('.a-screen').appendChild(n);
-    for (const v of ['3', '2', '1']) { n.textContent = v; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); sfx.count(); await wait(650); }
-    n.textContent = 'GO!'; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop', 'go'); sfx.go();
+    for (const v of ['3', '2', '1']) { n.textContent = v; n.classList.remove('cd-pop'); void n.offsetWidth; n.classList.add('cd-pop'); sfx.count(); await wait(650); }
+    n.textContent = 'GO!'; n.classList.remove('cd-pop'); void n.offsetWidth; n.classList.add('cd-pop', 'go'); sfx.go();
     await wait(600);
     onPicked(pick.shell, pick.role, pick.seed);
   }

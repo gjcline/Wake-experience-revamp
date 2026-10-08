@@ -5,6 +5,7 @@
 // Renders what the engine returns. No business logic lives here.
 
 import { h, avatar } from './art.js';
+import { citySVG } from './arcade/citymap.js';
 import { drawDesk, OBJECTS, DW, DH } from './arcade/desk.js';
 import { sfx } from './arcade/sound.js';
 import { fmtClock } from '../engine/config.js';
@@ -374,16 +375,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     if (pop && pop.type === 'score') openScore(pop.loc, true);
     if (pop && pop.type === 'all') openAll(true);
   }
-  function mapSVG() {
-    // a quiet pixel street map: river, park, a grid of roads
-    let r = '';
-    for (let x = 0; x <= 100; x += 12.5) r += `<rect x="${x}" y="0" width="1.1" height="70" fill="#2A2550"/>`;
-    for (let y = 4; y <= 70; y += 11) r += `<rect x="0" y="${y}" width="100" height="1.1" fill="#2A2550"/>`;
-    r += '<path d="M0 52 C20 46 30 60 50 54 S80 40 100 46 L100 52 C80 47 70 62 50 60 S20 52 0 58 Z" fill="#1E3B5C"/>';
-    r += '<rect x="64" y="12" width="14" height="9" fill="#1F3A2A"/><rect x="8" y="26" width="9" height="7" fill="#1F3A2A"/>';
-    r += '<rect x="0" y="33" width="100" height="2" fill="#3B3570"/><rect x="45" y="0" width="2" height="70" fill="#3B3570"/>';
-    return `<svg viewBox="0 0 100 70" preserveAspectRatio="none" shape-rendering="crispEdges" aria-hidden="true"><rect width="100" height="70" fill="#15122B"/>${r}</svg>`;
-  }
+  const mapSVG = citySVG;
   function openScore(locId, quiet) {
     closeDoc();
     const id = 'loc_' + locId;

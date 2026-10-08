@@ -103,7 +103,7 @@
 .card-ready h1 { font-size: clamp(26px, 4vw, 40px); color: var(--a-yellow); text-shadow: 4px 4px 0 var(--a-pink); }
 .card-ready dd { color: var(--a-yellow); }
 .count { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(7, 6, 15, .88); font: 400 clamp(90px, 22vw, 220px)/1 var(--px); color: var(--a-yellow); text-shadow: .06em .06em 0 var(--a-pink); }
-.count.pop { animation: pop .5s steps(4) both; }
+.count.cd-pop { animation: pop .5s steps(4) both; }
 .count.go { color: var(--a-cyan); }
 @keyframes pop { from { transform: scale(2.2); opacity: 0; } 60% { transform: scale(.94); opacity: 1; } }
 

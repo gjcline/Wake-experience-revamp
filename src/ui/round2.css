@@ -63,7 +63,7 @@
 .ins-rank { font: 400 26px/1 var(--px); color: var(--a-cyan); padding-top: 2px; }
 .ins-main { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .ins-place { font: 400 9px/1.4 var(--px); color: var(--a-dim); letter-spacing: .05em; }
-.ins h3 { font-size: 20px; line-height: 1.3; font-weight: 700; }
+.ins h3 { font: 600 21px/1.25 var(--disp); }
 .built { display: flex; flex-direction: column; gap: 6px; }
 .b-l, .mono-l { font: 400 8px/1.4 var(--px); color: var(--a-dim); letter-spacing: .06em; }
 .src-row { display: flex; flex-wrap: wrap; gap: 6px; }
