@@ -1,0 +1,18 @@
+{
+  "name": "wake-experience",
+  "version": "0.1.0",
+  "description": "The Wake Experience: a playable business simulation",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/paths.test.mjs",
+    "start": "node build.mjs && npx serve dist"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "private": true,
+  "type": "module"
+}
