@@ -62,6 +62,7 @@ export function buildWorld(shellId, roleId, seed = 1) {
   world.sharpen = deep(sc.sharpen, t);
   world.context = deep(sc.context, t);
   world.quiet = sc.quiet;
+  world.outcomes = deep(sc.outcomes, t);
   world.obvious = sc.obvious;
   world.phone = sc.phone;
   world.owners = sc.owners;

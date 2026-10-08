@@ -340,16 +340,25 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
   }
 
   // ------------------------------------------------------------ the meeting
+  // Each item takes meeting time. A clean hand-off is quick; questions and pushback are not.
+  const MINUTES = { handed: 4, questions: 8, pushback: 10, explained: 6, offTarget: 5 };
+  const WAKE_MINUTES = 2, OPENING = 3;
   function delivery() {
+    const sysName = (id) => { const s = world.signals[id]; const src = world.sources[s.sources.find((x) => world.sources[x].kind !== 'location') || s.sources[0]]; return sysOf(src); };
     const yours = state.flags.map((f, i) => {
       const j = judgeFlag(world, f);
+      const fits = j.attached.filter((x) => x.fits);
+      const lines = 1 + fits.reduce((n, x) => n + x.signals.length, 0);
+      const systems = new Set([sysName(f.signals[0])].concat(fits.map((x) => world.system[x.kind] || x.kind))).size;
       return { n: i + 1, what: f.what, text: f.text, owner: f.owner ? person(f.owner) : null, status: j.status, statusLabel: STATUS[j.status],
-        reactions: j.reactions.map((r) => ({ ...r, ...person(r.who) })), finding: j.finding, kind: j.kind, handling: j.handling, attached: j.attached, backed: j.backed };
+        reactions: j.reactions.map((r) => ({ ...r, ...person(r.who) })), finding: j.finding, kind: j.kind, handling: j.handling, attached: j.attached, backed: j.backed,
+        minutes: MINUTES[j.status], ready: { lines, systems, owner: !!f.owner, action: j.kind !== 'finding' ? 'off' : ['aligned', 'counter'].includes(j.handling) ? 'clear' : 'vague', check: false } };
     });
     const wake = state.wakeOrder.map((fid, i) => {
       const c = card(fid), b = world.briefing[fid];
-      return { n: i + 1, headline: c.headline, text: c.action, check: c.check, owners: c.owners, status: 'handed', statusLabel: STATUS.handed,
-        reactions: [{ ...person(b.owner[0]), who: b.owner[0], line: b.onIt }], finding: fid };
+      return { n: i + 1, headline: c.headline, text: c.action, check: c.check, owners: c.owners, status: 'handed', statusLabel: STATUS.handed, place: c.place,
+        reactions: [{ ...person(b.owner[0]), who: b.owner[0], line: b.onIt }], finding: fid, routine: c.routine, minutes: WAKE_MINUTES,
+        ready: { lines: c.signals, systems: c.systems, owner: true, action: 'clear', check: true }, keys: c.keys };
     });
     const board = {};
     const put = (key, side, item) => { (board[key] = board[key] || { person: key === 'none' ? { key: 'none', name: 'Nobody', title: 'No owner named' } : person(key), you: [], wake: [] })[side].push(item); };
@@ -357,37 +366,88 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     const taskFor = Object.fromEntries(Object.values(state.sharpened).filter((x) => x.addOwner).map((x) => [x.addOwner, x.task]));
     for (const w of wake) for (const o of w.owners) put(o.key, 'wake', { text: o.key === world.briefing[w.finding].owner[0] ? w.text : (taskFor[o.key] || w.text), status: 'handed', statusLabel: STATUS.handed });
     const tally = (list) => Object.fromEntries(Object.keys(STATUS).map((k) => [k, list.filter((x) => x.status === k).length]));
-    return { yours, wake, board: Object.values(board), tally: { yours: tally(yours), wake: tally(wake) } };
+    const mins = (list) => OPENING + list.reduce((n, x) => n + x.minutes, 0);
+    return { yours, wake, board: Object.values(board), tally: { yours: tally(yours), wake: tally(wake) }, minutes: { yours: mins(yours), wake: mins(wake) } };
   }
   function presented(which) { rec(which === 'wake' ? 'presented_wake' : 'presented_yours'); }
 
   // ------------------------------------------------------------ the week
+  // Tuesday to Friday, both plans side by side: one measure per problem, and the dollars.
+  const RAMP = [0.15, 0.45, 0.75, 1], HURT = [-0.1, -0.3, -0.6, -1];
+  const fmtMeasure = (O, v) => O.unit === '$' ? '$' + Math.round(v).toLocaleString('en-US') : O.unit === 'done' ? (v ? 'Done' : 'Open') : O.unit === '%' ? v + '%' : O.unit === 'count' ? (v === 1 ? '1 exit' : v + ' exits') : O.unit ? v + ' ' + O.unit : String(v);
+  function lane(fid, key, handling) {
+    const O = world.outcomes[fid], T = world.weekText[fid];
+    const vals = O.days[key] || O.days[handling] || O.days.other || O.days.untouched || [0, 0, 0, 0];
+    const fin = T[key] || T[handling] || T.partial || T.untouched;
+    const start = O.start !== undefined ? O.start : 0;
+    const dirOf = (v, prev) => (v === prev ? 'flat' : (O.good === 'down' ? v < prev : v > prev) ? 'up' : 'down');
+    const value = O.value || 0;
+    const money = vals.map((_, d) => Math.round(handling === 'aligned' ? value * RAMP[d] + (O.credit && d >= 2 ? O.credit : 0) : handling === 'counter' ? value * 0.5 * HURT[d] : 0));
+    const days = vals.map((v, d) => ({
+      v, shown: fmtMeasure(O, v), dir: d === 3 ? fin[1] : dirOf(v, d ? vals[d - 1] : start),
+      text: d === 0 ? (O.tue[key] || O.tue[handling] || O.tue.untouched || '') : d === 3 ? fin[0] : O.label + ': ' + fmtMeasure(O, v) + '.',
+      money: money[d],
+    }));
+    const stake = value + (O.credit || 0);
+    return { key, handling, days, money: money[3], captured: handling === 'aligned', stake, start: fmtMeasure(O, start), series: [start].concat(vals), label: O.label, good: O.good };
+  }
   function week() {
     const judged = state.flags.map((f) => judgeFlag(world, f));
     const rows = state.wake.findings.map((wf) => {
       const T = world.weekText[wf.id];
       const mine = judged.filter((j) => j.finding === wf.id);
       const best = mine.length ? bestHandling(mine) : null;
-      const you = best ? (T[best.key] || T[best.handling] || T.partial) : T.untouched;
-      const w = state.assigned[wf.id] ? T.aligned : T.untouched;
-      return { id: wf.id, label: T.label, you: { text: you[0], dir: you[1], handled: best ? best.handling : 'untouched' }, wake: { text: w[0], dir: w[1] } };
+      const you = best ? lane(wf.id, best.key, best.handling) : lane(wf.id, 'untouched', 'untouched');
+      const wk = state.assigned[wf.id] ? lane(wf.id, 'aligned', 'aligned') : lane(wf.id, 'untouched', 'untouched');
+      return { id: wf.id, label: T.label, place: wf.place, you: { ...you, text: you.days[3].text, dir: you.days[3].dir, handled: you.handling }, wake: { ...wk, text: wk.days[3].text, dir: wk.days[3].dir } };
     });
-    for (const id of state.wakeOrder) if (world.routineById[id]) { const T = world.weekText[id]; rows.push({ id, label: T.label, you: { text: T.untouched[0], dir: 'flat', handled: 'untouched' }, wake: { text: T.aligned[0], dir: T.aligned[1] }, extra: true }); }
+    for (const id of state.wakeOrder) if (world.routineById[id]) {
+      const T = world.weekText[id], wk = lane(id, 'aligned', 'aligned'), you = lane(id, 'untouched', 'untouched');
+      rows.push({ id, label: T.label, extra: true, routine: true, you: { ...you, text: T.untouched[0], dir: 'flat', handled: 'untouched' }, wake: { ...wk, text: wk.days[3].text, dir: wk.days[3].dir } });
+    }
     const seen = new Set();
     for (const j of judged) {
       if (j.kind === 'finding' || seen.has(j.signal)) continue;
       seen.add(j.signal);
-      const s = world.signals[j.signal];
-      const W = world.weekText;
-      const you = j.kind === 'falseAlarm' ? W.falseAlarm[j.handling === 'checked' ? 'checked' : 'react'] : W.noise.you;
-      const wake = j.kind === 'falseAlarm' ? W.falseAlarm.wake : W.noise.wake;
-      rows.push({ id: j.signal, label: s.label, you: { text: you[0], dir: you[1], handled: j.handling }, wake: { text: wake[0], dir: wake[1] }, extra: true });
+      const s = world.signals[j.signal], W = world.weekText;
+      const fa = j.kind === 'falseAlarm', hours = fa ? (j.handling === 'checked' ? 1 : 4) : 3;
+      const you = fa ? W.falseAlarm[j.handling === 'checked' ? 'checked' : 'react'] : W.noise.you;
+      const wake = fa ? W.falseAlarm.wake : W.noise.wake;
+      const yd = [{ text: 'Team pulls the numbers on it.', dir: 'flat' }, { text: 'Two conversations about it.', dir: 'flat' }, { text: fa ? 'Turns out it was already explained.' : 'Nothing moves.', dir: 'flat' }, { text: you[0], dir: you[1] }].map((x) => ({ ...x, shown: '', money: 0 }));
+      const wd = [{ text: 'Cleared at 7:48 AM.', dir: 'flat' }, { text: 'No time spent.', dir: 'flat' }, { text: 'No time spent.', dir: 'flat' }, { text: wake[0], dir: wake[1] }].map((x) => ({ ...x, shown: '', money: 0 }));
+      rows.push({ id: j.signal, label: s.label, extra: true, distraction: true, hours, you: { days: yd, text: you[0], dir: you[1], handled: j.handling, money: 0, stake: 0 }, wake: { days: wd, text: wake[0], dir: wake[1], money: 0, stake: 0 } });
     }
     rec('week_played', { rows: rows.map((r) => [r.id, r.you.handled]) });
     return rows;
   }
 
-  function recap() { const r = buildRecap(world, state, { delivery: delivery(), week: week(), QUIET: world.quiet }); rec('recap_viewed'); return r; }
+  // The final score: the same morning, two ways, in six measures.
+  function finale() {
+    const d = delivery(), wk = week(), n = world.findings.length;
+    const found = new Set(state.flags.map((f) => judgeFlag(world, f)).filter((j) => j.finding).map((j) => j.finding)).size;
+    const main = wk.filter((r) => !r.extra);
+    const sum = (side, k) => main.reduce((t, r) => t + (r[side][k] || 0), 0);
+    const left = (side) => main.reduce((t, r) => t + (r[side].captured ? 0 : r[side].stake || 0), 0);
+    const hours = wk.filter((r) => r.distraction).reduce((t, r) => t + r.hours, 0) + d.yours.filter((y) => y.status === 'questions' || y.status === 'pushback').length;
+    const people = (side) => new Set(d.board.filter((b) => b.person.key !== 'none' && b[side].some((x) => x.status === 'handed')).map((b) => b.person.key)).size;
+    const yourReady = state.submittedAt, wakeReady = state.wakeDoneAt;
+    const rows = [
+      { id: 'ready', label: 'Briefing ready', you: fmtClock(yourReady), wake: fmtClock(wakeReady), note: 'Wake\'s read was waiting at 7:48 AM', youWins: yourReady < wakeReady, tie: yourReady === wakeReady },
+      { id: 'found', label: 'Problems found', you: found + ' of ' + n, wake: n + ' of ' + n, youWins: false, tie: found === n },
+      { id: 'meeting', label: 'Meeting time', you: d.minutes.yours + ' min', wake: d.minutes.wake + ' min', youWins: d.minutes.yours < d.minutes.wake, tie: d.minutes.yours === d.minutes.wake },
+      { id: 'handed', label: 'Handed off cleanly', you: d.tally.yours.handed + ' of ' + d.yours.length, wake: d.tally.wake.handed + ' of ' + d.wake.length, youWins: d.tally.yours.handed / Math.max(1, d.yours.length) > d.tally.wake.handed / Math.max(1, d.wake.length), tie: d.tally.yours.handed / Math.max(1, d.yours.length) === d.tally.wake.handed / Math.max(1, d.wake.length) },
+      { id: 'value', label: 'Value captured this week', you: money(sum('you', 'money')), wake: money(sum('wake', 'money')), youWins: sum('you', 'money') > sum('wake', 'money'), tie: sum('you', 'money') === sum('wake', 'money') },
+      { id: 'hours', label: 'Team hours spent chasing', you: hours + ' hrs', wake: '0 hrs', youWins: false, tie: hours === 0 },
+    ];
+    return {
+      rows, wakeAhead: rows.filter((r) => !r.youWins && !r.tie).length, youAhead: rows.filter((r) => r.youWins).length,
+      found, n, minutes: d.minutes, people: { you: people('you'), wake: people('wake') },
+      value: { you: sum('you', 'money'), wake: sum('wake', 'money'), youLeft: left('you'), wakeLeft: left('wake') }, hours,
+    };
+  }
+  const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
+
+  function recap() { const r = buildRecap(world, state, { delivery: delivery(), week: week(), finale: finale(), trace }); rec('recap_viewed'); return r; }
   function complete() { state.phase = 'complete'; rec('session_complete'); }
   function exported(how) { rec('report_exported', { how }); }
 
@@ -421,7 +481,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     startRound2, briefing, assign, moveWake, putThrough, lockRound2,
     tickWake, listR2, unreadR2, openR2, insights, insight, trace, pick, assignments, r2Ready, MIN_PICKS, MAX_PICKS,
     traced: (id) => rec('trace_opened', { signal: id }),
-    delivery, presented, week, recap, complete, exported, session, person,
+    delivery, presented, week, finale, recap, complete, exported, session, person,
     clockLabel: () => fmtClock(state.clock),
   };
 }

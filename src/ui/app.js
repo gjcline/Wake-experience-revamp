@@ -11,6 +11,7 @@ import { createField } from './field.js';
 import { createArcade } from './arcade/screens.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
+import { createFinale } from './finale.js';
 
 const HOST = (typeof window !== 'undefined' && window.WAKE_HOST) || 'web';
 const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -200,150 +201,19 @@ function walkToMeeting() {
   leave();
   arcade.walkScene(game, { day: 'MONDAY', time: '10:00 AM', people: 'meeting', route: 'toMeeting', from: { x: 284, y: 180 }, view: [144, 168, 2.6],
     lines: ['MONDAY  10:00 AM', 'This is where data turns into work. Your team will act on exactly what you hand them.', 'You\'ll present twice. Your briefing first, then Wake\'s.'],
-    cta: 'START PRESENTING ▶' }, meeting);
-}
-
-function meeting() {
-  const w = game.world, Dl = game.delivery();
-  const tiles = {};
-  const ROOM = w.central.concat(w.locations.map((l) => l.manager));
-  const board = h('div', { class: 'board' }, ROOM.concat(['me', 'none']).map((k) => {
-    const p = k === 'none' ? { name: 'Nobody', title: 'No owner' } : game.person(k);
-    const cnt = h('span', { class: 'cnt' });
-    const el = h('div', { class: 'tile' + (k === 'none' ? ' nobody' : ''), 'data-k': k }, k === 'none' ? h('span', { class: 'avwrap q' }, '?') : av(k, 40), h('b', {}, first(p.name)), h('span', { class: 'ttl' }, k === 'me' ? 'You' : k === 'none' ? 'Unassigned' : (w.locations.find((l) => l.manager === k) || {}).name || p.title.split(',')[0]), cnt);
-    tiles[k] = { el, cnt, you: 0, wake: 0 };
-    return el;
-  }));
-  const head = h('div', { class: 'meet-head' });
-  const stageEl = h('div', { class: 'meet-stage' });
-  show('day', 'meeting', h('header', { class: 'bar' }, h('div', { class: 'when' }, h('span', { class: 'round-tag' }, 'THE MEETING'), h('b', { class: 'clock' }, '10:00 AM'), h('span', { class: 'co' }, w.shell.company))),
-    head, board, stageEl);
-
-  const land = (key, side) => { const t = tiles[key] || tiles.none; t[side] += 1; t.el.classList.remove('hit'); void t.el.offsetWidth; t.el.classList.add('hit', side); t.cnt.replaceChildren(t.you ? h('i', { class: 'y' }, String(t.you)) : '', t.wake ? h('i', { class: 'w' }, String(t.wake)) : ''); };
-  const resetBoard = () => Object.values(tiles).forEach((t) => { t.you = 0; t.wake = 0; t.cnt.replaceChildren(); t.el.classList.remove('hit', 'you', 'wake'); });
-  const chip = (status, label) => h('span', { class: 'status s-' + status }, label.toUpperCase());
-
-  async function presentYours(i) {
-    const Y = Dl.yours;
-    head.replaceChildren(h('h1', {}, 'PRESENTATION 1 OF 2 · YOUR BRIEFING'), h('p', { class: 'lede' }, 'You hand over each finding exactly as you wrote it. Watch how the room takes it.'));
-    if (i >= Y.length) return yoursDone();
-    const y = Y[i];
-    const reacts = h('div', { class: 'reacts' });
-    const nextB = btn(i === Y.length - 1 ? 'FINISH YOUR BRIEFING ▶' : 'NEXT FINDING ▶', () => presentYours(i + 1), 'btn primary');
-    nextB.hidden = true;
-    stageEl.replaceChildren(h('article', { class: 'deliver you' },
-      h('div', { class: 'dl-top' }, h('span', { class: 'rank' }, y.n + '/' + Y.length), h('span', { class: 'quiet' }, 'You flagged: ' + y.what.label + (y.what.value ? ' (' + y.what.value + ')' : ''))),
-      h('div', { class: 'said-you' }, av('me', 36), h('p', {}, '"' + y.text + '"')),
-      h('p', { class: 'quiet' }, y.owner ? 'For ' + y.owner.name : 'No owner named'), reacts, nextB));
-    sfx.blip();
-    for (const r of y.reactions) { await wait(700); reacts.appendChild(h('div', { class: 'react-line' }, av(r.who, 32), h('div', {}, h('b', {}, first(r.name)), h('p', {}, r.line)))); sfx.type(); }
-    await wait(500);
-    reacts.appendChild(chip(y.status, y.statusLabel));
-    land(y.owner ? y.owner.key : 'none', 'you'); sfx[y.status === 'handed' ? 'coin' : 'back']();
-    nextB.hidden = false; nextB.focus({ preventScroll: true });
-  }
-  function tallyLine(t) { return Object.entries(t).filter(([, v]) => v).map(([k, v]) => h('span', { class: 'status s-' + k }, v + ' ' + ({ handed: 'handed off', questions: 'with questions', pushback: 'pushed back', explained: 'already explained', offTarget: 'not a priority' })[k])); }
-  function yoursDone() {
-    game.presented('yours');
-    stageEl.replaceChildren(h('div', { class: 'summary' }, h('h2', {}, 'YOUR BRIEFING'), h('div', { class: 'tally-line' }, tallyLine(Dl.tally.yours)),
-      h('p', { class: 'lede' }, 'Now run the same meeting with Wake\'s briefing.'), btn('PRESENT WAKE\'S BRIEFING ▶', () => { resetBoard(); presentWake(); }, 'btn primary')));
-  }
-  async function presentWake() {
-    root.className = 'wx arcade wake';
-    head.replaceChildren(h('h1', {}, 'PRESENTATION 2 OF 2 · WAKE\'S BRIEFING'), h('p', { class: 'lede' }, 'Each item arrives with the evidence, the owner and the number to watch.'));
-    const current = h('div', {});
-    const done = h('ul', { class: 'done-list' });
-    let fast = reduced;
-    const skip = btn('SKIP ▶', () => { fast = true; }, 'btn small');
-    stageEl.replaceChildren(current, done, h('div', { class: 'row' }, skip));
-    for (const x of Dl.wake) {
-      current.replaceChildren(h('article', { class: 'deliver wk' }, h('div', { class: 'dl-top' }, h('span', { class: 'rank' }, x.n + '/' + Dl.wake.length), h('strong', {}, x.headline)),
-        h('p', {}, x.text), h('p', { class: 'quiet' }, 'For ' + x.owners.map((o) => o.name).join(' and ') + ' · ' + x.check),
-        h('div', { class: 'react-line' }, av(x.reactions[0].who, 32), h('div', {}, h('b', {}, first(x.reactions[0].name)), h('p', {}, x.reactions[0].line))), chip('handed', 'Handed off')));
-      x.owners.forEach((o) => land(o.key, 'wake')); sfx.coin();
-      await wait(fast ? 0 : 1700);
-      done.appendChild(h('li', {}, h('span', { class: 'status s-handed' }, '✓'), h('b', {}, x.owners.map((o) => first(o.name)).join(' + ')), ' ' + x.text));
-    }
-    current.replaceChildren();
-    skip.remove();
-    game.presented('wake');
-    stageEl.appendChild(h('div', { class: 'summary' }, h('h2', {}, 'WAKE\'S BRIEFING'), h('div', { class: 'tally-line' }, tallyLine(Dl.tally.wake)), btn('SEE WHO LEFT WITH WHAT ▶', whoGotWhat, 'btn primary')));
-  }
-  function whoGotWhat() {
-    const rows = Dl.board.slice().sort((a, b) => (b.wake.length + b.you.length) - (a.wake.length + a.you.length));
-    head.replaceChildren(h('h1', {}, 'WHO LEFT THE ROOM WITH WHAT'), h('p', { class: 'lede' }, 'Same team, same hour. Here is the work each person walked out with.'));
-    board.remove();
-    stageEl.replaceChildren(h('div', { class: 'wgw' },
-      h('div', { class: 'wgw-row head' }, h('span', {}, ''), h('b', { class: 'y' }, 'YOUR BRIEFING'), h('b', { class: 'w' }, 'WAKE\'S BRIEFING')),
-      rows.map((r) => h('div', { class: 'wgw-row' },
-        h('div', { class: 'who' }, r.person.key === 'none' ? h('span', { class: 'avwrap q' }, '?') : av(r.person.key, 32), h('b', {}, r.person.name)),
-        h('div', { class: 'cellw y' }, r.you.length ? r.you.map((x) => h('p', {}, '"' + x.text + '" ', h('span', { class: 'status s-' + x.status }, x.statusLabel.toUpperCase()))) : h('p', { class: 'quiet' }, 'Nothing')),
-        h('div', { class: 'cellw w' }, r.wake.length ? r.wake.map((x) => h('p', {}, x.text)) : h('p', { class: 'quiet' }, 'Nothing'))))),
-      h('div', { class: 'row' }, btn('BACK TO YOUR OFFICE ▶', walkBack, 'btn primary')));
-    window.scrollTo(0, 0);
-  }
-  presentYours(0);
+    cta: 'START PRESENTING ▶' }, () => finale().meeting());
 }
 
 function walkBack() {
   leave();
   arcade.walkScene(game, { day: 'MONDAY', time: '10:52 AM', people: 'office', route: 'toOffice', from: { x: 110, y: 178 }, view: [272, 170, 3],
-    lines: ['MONDAY  10:52 AM', 'Both plans go to work now.', 'Watch them run side by side through Friday.'],
-    cta: 'PLAY OUT THE WEEK ▶' }, week);
+    lines: ['MONDAY  11:00 AM', 'Both plans go to work now.', 'Player 1 is the plan you built on your own. Player 2 is the plan you built with Wake.', 'Same company, same week. Watch them run side by side through Friday.'],
+    cta: 'PLAY OUT THE WEEK ▶' }, () => finale().week());
 }
 
-// ------------------------------------------------------------------ the week
-function week() {
-  const rows = game.week();
-  const ARROW = { up: '▲', flat: '■', down: '▼' };
-  const days = ['TUE', 'WED', 'THU', 'FRI'].map((d) => h('span', {}, d));
-  const table = h('div', { class: 'lanes' }, h('div', { class: 'lane-row head' }, h('span', {}, ''), h('b', { class: 'y' }, 'YOUR PLAN'), h('b', { class: 'w' }, 'WAKE\'S PLAN')));
-  const next = btn('SEE THE DIFFERENCE ▶', ending, 'btn primary');
-  next.hidden = true;
-  show('wake', 'week', h('h1', {}, 'THE WEEK · TWO PLANS'), h('p', { class: 'lede' }, 'Same company, same week. Your plan on the left, Wake\'s on the right.'), h('div', { class: 'days' }, days), table, h('div', { class: 'row' }, next));
-  (async () => {
-    for (const d of days) { d.classList.add('on'); sfx.blip(); await wait(380); }
-    for (const r of rows) {
-      const el = h('div', { class: 'lane-row' + (r.extra ? ' extra' : '') },
-        h('b', { class: 'lbl' }, r.label),
-        h('p', { class: 'cell ' + r.you.dir }, h('i', {}, ARROW[r.you.dir]), r.you.text),
-        h('p', { class: 'cell ' + r.wake.dir }, h('i', {}, ARROW[r.wake.dir]), r.wake.text));
-      table.appendChild(el); sfx[r.you.dir === 'up' ? 'coin' : 'type']();
-      await wait(650);
-    }
-    next.hidden = false; next.focus({ preventScroll: true });
-  })();
-}
-
-// ------------------------------------------------------------------ the ending
-function ending() {
-  const R = game.recap();
-  game.complete(); post();
-  const S = R.stats;
-  const stat = (big, small) => h('div', { class: 'stat' }, h('b', {}, big), h('span', {}, small));
-  const reportEl = h('div', { class: 'paper', hidden: true });
-  const status = h('span', { class: 'quiet', 'aria-live': 'polite' });
-  reportEl.replaceChildren(h('h2', {}, 'YOUR REPORT'), h('p', { class: 'meta' }, R.report.meta), ...R.report.sections.map((s) => h('section', {}, h('h3', {}, s.title), s.lines.map((l) => h('p', {}, l)))));
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(R.report.toText()); status.textContent = 'Report copied.'; game.exported('copy'); }
-    catch (e) { const ta = h('textarea', { id: 'wx-copy', class: 'copybox', rows: '8', readonly: true }); ta.value = R.report.toText(); reportEl.prepend(ta); ta.select(); status.textContent = 'Select all and copy.'; }
-  };
-  const download = () => { const a = h('a', { href: URL.createObjectURL(new Blob([R.report.toHTML()], { type: 'text/html' })), download: 'wake-experience.html' }); document.body.appendChild(a); a.click(); a.remove(); game.exported('download'); status.textContent = 'Report downloaded.'; };
-  const email = () => { window.location.href = 'mailto:?subject=' + encodeURIComponent('The Wake Experience') + '&body=' + encodeURIComponent(R.report.toText().slice(0, 1800)); game.exported('email'); };
-  const actions = HOST === 'artifact' ? [btn('COPY REPORT', copy, 'btn small')] : [btn('DOWNLOAD', download, 'btn small'), btn('EMAIL', email, 'btn small'), btn('COPY', copy, 'btn small')];
-  const toggle = btn('VIEW YOUR REPORT ▼', () => { reportEl.hidden = !reportEl.hidden; toggle.textContent = reportEl.hidden ? 'VIEW YOUR REPORT ▼' : 'HIDE YOUR REPORT ▲'; if (!reportEl.hidden) reportEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' }); }, 'btn');
-  const parts = [
-    h('h1', {}, 'SAME COMPANY. SAME DATA. SAME MORNING.'),
-    h('div', { class: 'vs' },
-      h('section', { class: 'col you' }, h('h2', {}, 'ON YOUR OWN'), stat(S.you.ready, 'briefing ready, after ' + S.you.took + ' of reading'), stat(S.you.real + ' of ' + S.wake.findings, 'real issues found'), stat(S.you.handed + ' of ' + S.you.flags, 'handed off cleanly')),
-      h('section', { class: 'col wk' }, h('h2', {}, 'WITH WAKE'), stat('7:48 AM', 'briefing waiting before you sat down, decisions done by ' + S.wake.ready), stat(S.wake.findings + ' of ' + S.wake.findings, 'found, ' + S.wake.filtered + ' false alarms filtered'), stat(S.wake.handed + ' of ' + S.wake.handed, 'handed off cleanly'))),
-    h('section', { class: 'moment' }, h('p', { class: 'stamp' }, 'THE MOMENT THAT MATTERED'), h('h2', {}, R.moment.title), R.moment.lines.map((l) => h('p', {}, l)), R.moment.wake ? h('p', { class: 'wake-line' }, R.moment.wake) : null),
-    h('p', { class: 'closer' }, R.closer),
-    h('div', { class: 'row' }, toggle, h('span', { class: 'row' }, actions, status)),
-  ];
-  show('wake', 'ending', h('div', { class: 'reveal end-copy' }, parts), reportEl,
-    h('div', { class: 'row end' }, btn('PLAY AGAIN', restart, 'link'), h('a', { class: 'link', href: 'https://wakepe.com', target: '_blank', rel: 'noopener' }, 'wakepe.com')));
-  (async () => { for (const p of parts) { p.classList.add('in'); sfx.blip(); await wait(550); } })();
+// The finale: meeting, week, final score. Built per game so it reads the current one.
+function finale() {
+  return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onRestart: restart, post, HOST });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.

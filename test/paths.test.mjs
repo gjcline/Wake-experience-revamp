@@ -50,8 +50,11 @@ function invariants(g, out, name) {
   assert.ok(g.state.wakeOrder.length >= 3 && g.state.wakeOrder.length <= 5);
   assert.equal(wk.filter((r) => !r.extra).length, n, name + ': the week covers every priority');
   for (const r of wk) assert.ok(r.you.text && r.wake.text && r.label, name + ': week row complete');
-  assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer);
-  const text = JSON.stringify([b, d, wk, rc.stats, rc.moment, rc.closer]) + rc.report.toText() + rc.report.toHTML();
+  assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer && rc.verdict);
+  assert.equal(rc.finale.rows.length, 6, name + ': six head-to-head measures');
+  for (const r of wk.filter((x) => !x.extra)) { assert.equal(r.you.days.length, 4); assert.equal(r.wake.days.length, 4); assert.ok(r.wake.days.every((x) => x.text), name + ': every day has a line'); }
+  assert.ok(d.minutes.wake <= d.minutes.yours || d.yours.length < d.wake.length, name + ': Wake\'s meeting is shorter for the same number of items');
+  const text = JSON.stringify([b, d, wk, rc.finale, rc.moment, rc.closer]) + rc.report.toText() + rc.report.toHTML();
   assert.ok(!/\{[A-Za-z]+\}/.test(text), name + ': unresolved token ' + (text.match(/\{[A-Za-z]+\}/) || [''])[0]);
   assert.ok(!text.includes('—') && !text.includes('undefined') && !text.includes('NaN'), name + ': clean text');
   assert.ok(!/\b(F[1-5]|falseAlarm|offTarget|counter)\b/.test(rc.report.toText()), name + ': no internal labels in the report');

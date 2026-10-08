@@ -42,15 +42,18 @@ and narrates the player through it with a live guide.
                    judge.js         reads a finding: the picked answer (fixed intent), any words written,
                                     the owner and attached context -> handling, reactions, status
                    game.js          the Simulation Engine: rounds, clock, flags, briefing, delivery, week
-                   recap.js         the ending and the report
+                   recap.js         the verdict, the moment, and the designed one-page report (screen + download)
     src/ui/        round1.js        the desk: reports, location map and scorecards, inbox, phone, calendar,
                                     notes, team, connected data, the composer, attaching context, the guide steps
                    round2.js        the Wake desk: the load-in, insights on the computer (5 to 8, pick 3 to 5),
                                     source trace pop-ups back to the Round 1 originals, exec briefs, the drafted
                                     Thursday brief, inbox tagged by insight, phone with send to Wake, the annotated
                                     calendar, team assignments, and the guided tour
-                   app.js           the Round 1 complete screen, the reset, Wake reading the morning, the meeting
-                                    and everything after, plus the live guide
+                   finale.js        the meeting (two presentations with readiness, meeting clock, head-to-head,
+                                    who left with clear work), the week as a two-player versus screen in days and
+                                    dollars, the final score, the moment that mattered, and the report
+                   app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
+                                    plus the live guide
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
 

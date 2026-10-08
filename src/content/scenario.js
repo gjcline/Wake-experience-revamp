@@ -1048,6 +1048,43 @@ export function generateScenario(shell, role, seed) {
   if (D) levers.push(['Returning {customers}' + atL(D) + ' at risk', money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * k4) + ' a month', 'Shows up when the intro offer ends']);
   levers.push(['{supplier} billing above contract', money(V.annual / 12) + ' a month', 'Recoverable now: ' + money(V.over)]);
   if (E) levers.push(['New-hire turnover' + atL(E), money(3 * 4200) + ' so far', 'Replacement hiring and training cost']);
+  // ------------------------------------------------ the week: how each decision plays out
+  // One measure per problem, tracked Tuesday to Friday, and the dollars at stake each week
+  // (the same estimates as the forecast). A decision that fits captures the value; a delay
+  // captures nothing; a move that makes it worse costs half of it again.
+  const out = {};
+  const ramp = (a, b2) => [0, 1, 2, 3].map((i) => Math.round(a + (b2 - a) * (i + 1) / 4));
+  if (A) {
+    const wN = A.n.wait, wn = A.b.wait;
+    out.F1 = { value: Math.round((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000), label: '{WaitLabel}', unit: 'min', good: 'down', start: wN,
+      days: { aligned: [wN - 3, wN - 8, wn + 7, wn + 4], partial: [wN, wN + 1, wN - 1, wN - 1], unclear: [wN, wN + 1, wN, wN], untouched: [wN + 1, wN, wN + 2, wN + 2], cut: ramp(wN, wN + 12), hire: [wN, wN + 1, wN + 2, wN + 1] },
+      tue: { aligned: '{Lead} coverage moved back to the ' + peaks + '.', partial: F('analyst') + ' starts digging. Schedule unchanged.', unclear: F(a) + ' waits for direction.', untouched: 'Same schedule. Same ' + peak + ' crunch.', cut: 'Hours cut ten percent.', hire: 'Two hires approved. They start in three weeks.' } };
+  }
+  if (B) {
+    out.F2 = { value: Math.round(o('F2', 'rev') ? (B.b.rev - B.n.rev) * 1000 : V.down * (B.b.rev * 1000 / (SD.days * 10)) * 0.5), label: 'Unplanned downtime', unit: 'hrs', good: 'down',
+      days: { aligned: [0, 0, 0, 0], other: [0, 1, 9, 13] },
+      tue: { aligned: 'Replacement ordered. Overflow plan set.', route: partner ? 'Overflow sent to ' + C.name + ' again.' : 'Backlog pushed to Saturday.', repair: 'Technician out again.', recognize: (partner ? C.name : 'The team') + ' celebrates the record week.', partial: F('opsdir') + ' weighs repair against replace.', unclear: 'Patched again.', untouched: 'Running on the last repair.' } };
+  }
+  {
+    const ow = V.overWeek;
+    out.F4 = { value: Math.round(V.annual / 52), credit: V.over, label: 'Billed over contract this week', unit: '$', good: 'down',
+      days: { aligned: [0, 0, 0, 0], other: [ow * 0.25, ow * 0.5, ow * 0.75, ow].map(Math.round) },
+      tue: { aligned: 'Dispute sent with six weeks of invoices.', raiseprice: 'Prices raised two percent.', cut: 'Usage tightened at every {unit}.', freeze: 'Discretionary spend frozen.', partial: 'Invoices under review.', unclear: 'Filed as mix.', untouched: 'Invoices paid as billed.' } };
+  }
+  if (D) {
+    const r0 = D.n.repeat;
+    out.F3 = { value: Math.round((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000), label: 'Returning {customers}', unit: '%', good: 'up', start: r0,
+      days: { aligned: [r0, r0 + 1, r0 + 2, r0 + 3], partial: [r0, r0, r0 - 1, r0 - 1], promoMore: [r0, r0 - 1, r0 - 1, r0 - 2], promoStop: [r0, r0 - 1, r0 - 1, r0 - 1], other: [r0, r0, r0 - 1, r0 - 1] },
+      tue: { aligned: 'Central office starts {followup}.', promoMore: 'Offer extended.', promoStop: 'Offer ended.', recognize: 'Team recognized for a record month.', partial: 'Second-visit analysis started.', unclear: 'Another full book of first visits.', untouched: 'Another full book of first visits.' } };
+  }
+  if (E) {
+    out.F5 = { value: 4200, label: 'New-hire exits this week', unit: 'count', good: 'down',
+      days: { aligned: [0, 0, 0, 0], other: [0, 0, 0, 1] },
+      tue: { aligned: 'Two weeks of schedules being built, with help.', pay: 'Starting pay raised a dollar.', hire: 'More roles posted.', partial: 'Exit notes under review.', unclear: F(e) + ' covers another shift.', untouched: 'Next schedule posted a day ahead again.' } };
+  }
+  for (const r of routineKept) out[r.id] = { value: 0, label: 'Status', unit: 'done', good: 'up', days: { aligned: [0, 0, 1, 1], other: [0, 0, 0, 0] }, tue: { aligned: 'Assigned. Under way.', untouched: 'Not on the list.' } };
+  content.out = out;
+
   const projFlag = (r) => ({ t: pct(r.proj, r.plan), tone: r.proj < r.plan * 0.98 ? 'neg' : '' });
   sources.x_forecast = { id: 'x_forecast', kind: 'exec', r2: true, from: null, when: 'Updated 7:48 AM', title: 'Revenue and margin forecast', sub: 'Month pace against plan, and what moves it', cat: 'exec', volume: 0, lines: [],
     intro: 'Projected from this week\'s run rate. Plan is the monthly budget.',
@@ -1096,7 +1133,7 @@ export function generateScenario(shell, role, seed) {
     briefing: content.briefing, reactions: content.reactions, weekText: { ...content.week,
       falseAlarm: { react: ['Time went into something that was already explained.', 'flat'], checked: ['Checked. Nothing needed.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] },
       noise: { you: ['Time went into something that didn\'t move the week.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] } },
-    context: content.context, quiet: content.quiet, obvious, phone, sharpen,
+    context: content.context, quiet: content.quiet, obvious, phone, sharpen, outcomes: content.out,
     answers: content.answers, ansKey,
     owners: CENTRAL.concat(locations.map((L) => L.manager)),
     system: { rep_fin: 'Accounting', rep_labor: 'Payroll + scheduling', rep_ops: SD.system, rep_cx: 'CRM + reviews', rep_mnt: 'Maintenance', rep_ap: 'Purchasing', rep_hr: 'HR system', cal: 'Calendar', email: 'Inbox', message: 'Phone', note: 'Desk', location: 'Location scorecards' },
