@@ -877,7 +877,7 @@ export function generateScenario(shell, role, seed) {
   const startTexts = [];
   const addText = (id, from, when, body, signals, sh, cat) => {
     const prev = startTexts.find((t) => sources[t].from === from);
-    if (prev) { const p = sources[prev]; p.body = p.body.concat(body); p.signals = p.lines = p.signals.concat(signals); if (sh && sharpen[prev]) sharpen[prev].line += ' ' + sh.line; else if (sh) sharpen[prev] = sh; return; }
+    if (prev) { const p = sources[prev]; p.body = p.body.concat(body); p.signals = p.lines = p.signals.concat(signals); if (sh && sharpen[prev]) { if (sh.finding && sh.finding !== sharpen[prev].finding) sharpen[prev].also = sh; else sharpen[prev].line += ' ' + sh.line; } else if (sh) sharpen[prev] = sh; return; }
     text(id, from, when, body, signals, sh, cat); startTexts.push(id);
   };
   if (C) addText('msg_c', c, 'Sat 6:31 PM', ['Record week' + atL(C) + '!! Biggest since we opened.', 'Team is wiped but proud. Just wanted you to hear it from me first.'], ['msg.record'],
@@ -973,7 +973,8 @@ export function generateScenario(shell, role, seed) {
   // ------------------------------------------------ Round 2 and the meeting
   const obvious = [A && L_('labor', A), A && 'msg.hire', X && L_('rev', X), X && L_('labor', X), Y && 'eml.angry', wantCash && 'cash', C && L_('rev', C), C && 'msg.record', D && 'promo', D && L_('rev', D)].filter(Boolean);
   const phone = startTexts.filter((t) => sharpen[t]);
-  for (const t of phone) if (sharpen[t].finding && !findings.some((f) => f.id === sharpen[t].finding)) sharpen[t] = { finding: null, line: 'Not connected to any priority this week.' };
+  const live = (x) => !x.finding || findings.some((f) => f.id === x.finding);
+  for (const t of phone) { if (sharpen[t].also && !live(sharpen[t].also)) delete sharpen[t].also; if (!live(sharpen[t])) sharpen[t] = sharpen[t].also || { finding: null, line: 'Not connected to any priority this week.' }; }
   const order = {
     email: ['eml_flash', 'eml_hire', 'eml_hr', 'eml_angry', 'eml_promo', 'eml_bank', 'eml_benefits', 'eml_it', 'eml_party', 'eml_quote', 'eml_price'].filter((k) => sources[k]),
     message: startTexts.slice(),
@@ -982,13 +983,116 @@ export function generateScenario(shell, role, seed) {
     calendar: ['cal'], note: ['note_role', 'note_mine'], team: ['team'],
   };
 
+  // ------------------------------------------------ Round 2: what Wake adds to the desk
+  // A text that arrives during the morning can be sent to Wake too.
+  if (B) sharpen.msg_b2 = { finding: 'F2', line: F(b) + ' reports it failed again this morning. Urgency raised to today.', urgent: true };
+
+  // Routine items: real, small, and lower priority. They sit below the problems so the
+  // player still has to decide what goes on the list.
+  const routine = [];
+  const addRoutine = (r) => { routine.push({ urgency: R.u(0.15, 0.3), impact: R.u(0.15, 0.3), loc: null, ...r }); };
+  const openWO = woList.filter((x) => /^Open/.test(x[3]));
+  if (openWO.length) {
+    const [, L0, asset0] = openWO[0];
+    addRoutine({ id: 'R_mnt', topic: 'Maintenance', owner: 'opsdir', evidence: openWO.map((x) => x[5]).concat(['pmc']),
+      headline: openWO.length > 1 ? openWO.length + ' work orders are still open.' : asset0 + (M ? ' at ' + L0.name : '') + ' is still open.',
+      why: openWO.map((x) => x[2] + (M ? ' at ' + x[1].name : '') + ': ' + x[4].replace(/\.$/, '').toLowerCase() + ', ' + x[3].toLowerCase()).join('. ') + '. Preventive maintenance is at ' + S.pmc.value + ' against a 95% target.',
+      action: 'Close the open work orders this week.', check: 'Closed by Friday.', onIt: 'I\'ll get them closed out this week.',
+      week: ['Closed out Wednesday.', 'up'] });
+  }
+  const roleIds = Object.keys(S).filter((k) => k.startsWith('role.')).sort((p, q) => parseInt(S[q].value.replace(/\D/g, ''), 10) - parseInt(S[p].value.replace(/\D/g, ''), 10));
+  if (roleIds.length >= 2) addRoutine({ id: 'R_roles', topic: 'Hiring', owner: 'hr', evidence: roleIds.slice(0, 3),
+    headline: roleIds.length + ' {frontline} roles are open across the company.', why: 'The oldest has been ' + S[roleIds[0]].value + '. ' + (M ? 'Longest open: ' + roleIds.slice(0, 3).map((k) => locations.find((L) => L.id === S[k].loc).name + ', ' + S[k].value.replace('open ', '')).join('; ') + '. ' : '') + 'Every open shift is covered by overtime or a manager until they are filled.',
+    action: 'Prioritize the two oldest roles and ask managers for referrals.', check: 'Two offers out within two weeks.', onIt: 'I\'ll push the oldest two and ask for referrals.', week: ['Two candidates moved to final interviews.', 'up'] });
+  addRoutine({ id: 'R_pto', topic: 'Scheduling', owner: 'hr', evidence: ['pto', 'swap'],
+    headline: S.pto.value + ' time-off requests are waiting on approval.', why: 'Next week\'s schedules are due Tuesday. Requests still pending then get built around late. Shift swaps are ' + S.swap.value + ' this week against a norm of ' + S.swap.delta.replace('norm ', '') + '.',
+    action: 'Clear pending time-off requests before Tuesday\'s schedules.', check: 'All requests answered by Tuesday noon.', onIt: 'I\'ll clear the queue before schedules go out.', week: ['Requests cleared Tuesday. Schedules went out clean.', 'up'] });
+  const praised = reviewQuotes.filter((q) => q[0] === 5);
+  if (praised.length) { const L = praised[0][1]; addRoutine({ id: 'R_praise', topic: '{Customers}', owner: L.manager, evidence: ['reviews.' + L.id], loc: L.id,
+    headline: (M ? L.name : 'The team') + ' is getting five-star reviews by name.', why: 'Recent reviews call out the team directly: ' + praised.filter((q) => q[1] === L).map((q) => '"' + q[2] + '"').join(' ') + ' Recognition is cheapest when it is specific.',
+    action: 'Share the reviews with the team at this week\'s huddle.', check: 'Shared at the next huddle.', onIt: 'I\'ll read them out at the huddle. They\'ll love it.', week: ['Shared at Thursday\'s huddle.', 'up'] }); }
+  const fNum = findings.length;
+  const keepRoutine = Math.max(5 - fNum, Math.min(8 - fNum, R.i(2, 3)));
+  const routineKept = R.shuffle(routine).slice(0, keepRoutine);
+  for (const r of routineKept) {
+    content.briefing[r.id] = { headline: r.headline, why: r.why, keys: r.evidence.slice(0, 4), action: r.action, owner: [r.owner], check: r.check, onIt: r.onIt };
+    content.week[r.id] = { label: r.topic + ' · ' + r.headline.split(' ').slice(0, 4).join(' ').replace(/[.:]$/, ''), aligned: r.week, untouched: ['Not on the list this week.', 'flat'] };
+  }
+
+  // The calendar, annotated: what each meeting means now, plus holds Wake suggests.
+  const allEv = today.concat(...Object.values(weeks));
+  const note = (id, text) => { const e = allEv.find((x) => x.id === id); if (e) e.wake = text; };
+  note('ev_meet', 'Your briefing is the agenda. Everything you assign this morning is on it.');
+  if (A) note('ev_check', 'Bring the schedule fix. ' + F(a) + '\'s labor and wait goals trace to one template change.');
+  if (D && o('F3', 'deskreq')) note('ev_int', 'This hire restarts {followup}' + atL(D) + '. Regulars are slipping while the role is open.');
+  note('ev_contract', 'Settle the invoice overage before this review. ' + money(V.over) + ' billed above contract.');
+  note('ev_thu', 'Your brief is drafted and on your desk.');
+  if (X) note('ev_closed', 'This explains last week\'s soft numbers' + atL(X) + '. No action needed.');
+  if (wantCash) note('ev_prem', 'This explains the dip in operating cash. No action needed.');
+  if (E) note('ev_exit', 'Two of three exit notes say the same thing. It\'s in your priorities.');
+  note('ev_sched', E ? (M ? E.name + ' has been posting 1 to 2 days ahead. ' : 'Schedules have been going out 1 to 2 days ahead. ') + 'Worth checking Tuesday.' : 'Every {unit} is on track to post on time.');
+  const holds = [];
+  if (B) holds.push({ id: 'ev_w_eq', start: '11:00', end: '11:15', title: 'Approve the {equipment} replacement', place: 'Call with ' + F(b), kind: 'wake', detail: { people: [b, 'vendor'], lines: ['Suggested by Wake. The quote expires in ' + (30 - V.unanswered) + ' days and carries a three week lead time.'] } });
+  holds.push({ id: 'ev_w_ap', start: '4:00', end: '4:15', title: 'Invoice dispute to {supplier}', place: 'With ' + F(ctrl), kind: 'wake', detail: { people: [ctrl], lines: ['Suggested by Wake. Six weeks of invoices against the contract price list, ' + money(V.over) + ' to recover.'] } });
+  sources.cal.wakeToday = holds;
+
+  // Executive documents Wake keeps current. Built from the same numbers, nothing new.
+  const k4 = 4.33;
+  const kmoney2 = (k) => (k >= 1000 ? '$' + (k / 1000).toFixed(2) + 'M' : kmoney(k));
+  const fc = locations.map((L) => ({ L, plan: L.b.rev * k4 * 1.02, proj: L.n.rev * k4 }));
+  const planT = fc.reduce((n, r) => n + r.plan, 0), projT = fc.reduce((n, r) => n + r.proj, 0);
+  const pct = (a, b2) => ((a / b2) * 100).toFixed(1) + '%';
+  const levers = [];
+  if (A) levers.push(['Labor' + atL(A) + ' back to its normal share', money((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000 * k4) + ' a month', 'Schedule template fix, no headcount change']);
+  if (B) levers.push([(M ? B.name + ' ' : '') + 'capacity lost to the {equipment}', money(o('F2', 'rev') ? (B.b.rev - B.n.rev) * 1000 * k4 : V.down * (B.b.rev * 1000 / (SD.days * 10)) * 0.5 * 2.16) + ' a month', 'Recovered once the replacement is in']);
+  if (D) levers.push(['Returning {customers}' + atL(D) + ' at risk', money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * k4) + ' a month', 'Shows up when the intro offer ends']);
+  levers.push(['{supplier} billing above contract', money(V.annual / 12) + ' a month', 'Recoverable now: ' + money(V.over)]);
+  if (E) levers.push(['New-hire turnover' + atL(E), money(3 * 4200) + ' so far', 'Replacement hiring and training cost']);
+  const projFlag = (r) => ({ t: pct(r.proj, r.plan), tone: r.proj < r.plan * 0.98 ? 'neg' : '' });
+  sources.x_forecast = { id: 'x_forecast', kind: 'exec', r2: true, from: null, when: 'Updated 7:48 AM', title: 'Revenue and margin forecast', sub: 'Month pace against plan, and what moves it', cat: 'exec', volume: 0, lines: [],
+    intro: 'Projected from this week\'s run rate. Plan is the monthly budget.',
+    blocks: [
+      { title: 'Month pace', cols: [M ? 'Location' : '', 'Plan', 'Projected', 'Pace'], rows: fc.map((r) => ({ cells: [{ t: M ? r.L.name : 'This month' }, { t: kmoney2(r.plan) }, { t: kmoney2(r.proj) }, projFlag(r)] })).concat(M ? [{ total: true, cells: [{ t: 'Total' }, { t: kmoney2(planT) }, { t: kmoney2(projT) }, { t: pct(projT, planT), tone: projT < planT * 0.98 ? 'neg' : '' }] }] : []) },
+      { title: 'Margin lines', cols: ['', 'Now', 'Plan', ''], rows: [
+        { cells: [{ t: 'Labor, % of revenue' }, { t: laborAvg.toFixed(1) + '%' }, { t: '30.0%' }, { t: laborAvg > 30.4 ? 'Above plan' : 'On plan', tone: laborAvg > 30.4 ? 'neg' : '' }] },
+        { cells: [{ t: '{Materials}, % of revenue' }, { t: V.matNow.toFixed(1) + '%' }, { t: V.matBase.toFixed(1) + '%' }, { t: 'Above plan', tone: 'neg' }] },
+      ] },
+      { title: 'What moves the forecast', note: 'Wake estimates, from this week\'s numbers.', cols: ['', 'Size', 'Note'], rows: levers.map(([a1, b1, c1]) => ({ cells: [{ t: a1 }, { t: b1 }, { t: c1 }] })) },
+    ] };
+  const KPI = [
+    ['Revenue vs plan', '≥ 98% pace', (L) => { const r = fc.find((z) => z.L === L); return [pct(r.proj, r.plan), r.proj >= r.plan * 0.98]; }],
+    ['Labor, % of revenue', '≤ 30.5%', (L) => [L.n.labor.toFixed(1) + '%', L.n.labor <= 30.5]],
+    ['{WaitLabel}', '≤ 15 min', (L) => [L.n.wait + ' min', L.n.wait <= 15]],
+    ['Overtime hours', '≤ 20 a week', (L) => [String(L.n.ot), L.n.ot <= 20]],
+    ['Satisfaction', '≥ 4.5', (L) => [L.n.csat.toFixed(1), L.n.csat >= 4.5]],
+    ['Returning {customers}', '≥ 55%', (L) => [L.n.repeat + '%', L.n.repeat >= 55]],
+    ['Schedules posted ahead', '≥ 6 days', (L) => [L.n.post.toFixed(1) + ' days', L.n.post >= 6]],
+  ];
+  let onPace = 0, cellsN = 0;
+  const kRows = KPI.map(([label, target, fn]) => ({ cells: [{ t: label }, { t: target }].concat(locations.map((L) => { const [v, ok] = fn(L); cellsN += 1; if (ok) onPace += 1; return { t: (ok ? '● ' : '▲ ') + v, tone: ok ? 'pos' : 'neg' }; })) }));
+  sources.x_pacing = { id: 'x_pacing', kind: 'exec', r2: true, from: null, when: 'Updated 7:48 AM', title: 'Targets and pacing', sub: 'Every {unit} against this quarter\'s targets', cat: 'exec', volume: 0, lines: [],
+    intro: onPace + ' of ' + cellsN + ' measures on pace. ● on pace  ▲ off pace.',
+    blocks: [{ title: 'This quarter', cols: ['Measure', 'Target'].concat(locations.map((L) => (M ? L.name : 'This week'))), rows: kRows }] };
+  const para = [];
+  para.push('Labor is ' + laborAvg.toFixed(1) + '% of revenue this week, ' + (laborAvg >= laborBase ? 'up ' : 'down ') + Math.abs(laborAvg - laborBase).toFixed(1) + ' points on the eight week average.' + (A ? ' The increase is concentrated' + atL(A) + ', and it is a scheduling problem, not a headcount problem: {lead} coverage moved to the ' + offPeak + ' block ' + WORDS[V.f1Weeks] + ' weeks ago while demand moved later. The fix is a schedule change this week, with no new hires. We expect labor back near ' + A.b.labor.toFixed(1) + '%' + atL(A) + ' within three weeks.' : ''));
+  para.push('{Materials} cost is up ' + V.matUp.toFixed(1) + ' points. Most of it is {supplier} billing above our contract rate, which is locked through ' + lockDate + '. ' + money(V.over) + ' is recoverable and we are disputing it this week.');
+  if (B) para.push('The {equipment}' + atL(B) + ' has failed three times in six weeks. We are replacing it (' + money(V.quote) + ', three week lead time) rather than repairing it again' + (partner ? ', which also takes the overtime pressure off ' + C.name : '') + '.');
+  const watch = [];
+  if (D) watch.push((M ? D.name + '\'s' : 'Our') + ' returning {customers} are down ' + (D.b.repeat - D.n.repeat) + ' points behind a strong month of new ones; {followup} restarts this week');
+  if (E) watch.push('new-hire exits' + atL(E) + ' trace to late schedules; posting a week ahead from now on');
+  if (wantCash) watch.push('the dip in cash is the annual insurance premium, paid on schedule');
+  if (watch.length) para.push('Also on our list: ' + watch.join('; ') + '.');
+  sources.x_brief = { id: 'x_brief', kind: 'exec', r2: true, from: null, when: 'Drafted 7:48 AM', title: 'Brief for Thursday\'s ' + thu.toLowerCase().replace(' with ' + bossName.toLowerCase(), ''), sub: 'Draft answer to ' + bossName + '\'s question', cat: 'exec', volume: 0, lines: [],
+    to: bossName, ask: role.note.text, memo: para };
+  sources.x_list = { id: 'x_list', kind: 'exec', r2: true, title: 'Executive briefs', cat: 'exec', volume: 0, lines: [] };
+
   keyAnswers();
   const headcount = locations.reduce((n, L) => n + L.staff, 0) + CENTRAL.length + R.i(2, 6);
   return {
     seed, company, supplier, equipCo, hq, headcount, N, M, monday: dShort(monday), mondayLong: DAYS[1] + ', ' + MONTH[monday.getUTCMonth()] + ' ' + monday.getUTCDate(), weekEnd, lockDate, bossName,
     vocabExtra: { supplier, peak, peaks, offPeak, offPeaks, peakTime },
     locations: locations.map(({ b: _b, n: _n, rev: _r, ...L }) => L), pins, characters, central: CENTRAL,
-    signals: Object.values(S), sources, events, findings, order,
+    signals: Object.values(S), sources, events, findings, routine: routineKept, order,
     briefing: content.briefing, reactions: content.reactions, weekText: { ...content.week,
       falseAlarm: { react: ['Time went into something that was already explained.', 'flat'], checked: ['Checked. Nothing needed.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] },
       noise: { you: ['Time went into something that didn\'t move the week.', 'flat'], wake: ['Filtered at 7:48 AM. No time spent.', 'flat'] } },

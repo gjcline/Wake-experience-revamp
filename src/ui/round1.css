@@ -4,7 +4,7 @@
    palette. Blue is reserved for one job: adding context to a finding. */
 .wx { --a-blue: #4D8DFF; --p-ink: #17151F; --p-dim: #5E5A6E; --p-line: #E4E2EC; --p-soft: #F7F6FA; }
 
-.round1 .panel { position: fixed; z-index: 12; top: calc(52px + env(safe-area-inset-top, 0px)); bottom: 84px; left: max(10px, calc(50vw - 700px)); right: max(10px, calc(50vw - 700px)); inset-block-end: 84px; }
+:is(.round1, .round2) .panel { position: fixed; z-index: 12; top: calc(52px + env(safe-area-inset-top, 0px)); bottom: 84px; left: max(10px, calc(50vw - 700px)); right: max(10px, calc(50vw - 700px)); inset-block-end: 84px; }
 .panel-head { display: flex; align-items: center; gap: 18px; padding: 12px 18px 12px; box-shadow: 0 3px 0 var(--a-line); position: relative; z-index: 7; background: var(--a-panel); }
 .ph-title { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
 .ph-title h2 { font: 400 13px/1.3 var(--px); color: var(--a-yellow); }
@@ -259,7 +259,7 @@
 .open-lbl { font: 400 9px/1 var(--px); color: var(--a-dim); }
 
 @media (max-width: 760px) {
-  .round1 .panel { top: calc(48px + env(safe-area-inset-top, 0px)); left: 0; right: 0; bottom: 80px; padding-top: 0; }
+  :is(.round1, .round2) .panel { top: calc(48px + env(safe-area-inset-top, 0px)); left: 0; right: 0; bottom: 80px; padding-top: 0; }
   .panel-head { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
   .ph-title .sys { display: none; }
   .pclock { font-size: 22px; }
@@ -283,7 +283,7 @@
 }
 
 /* documents read clean: no scanlines while the workspace is open */
-.wx.arcade:has(.round1 .panel:not([hidden]))::after { opacity: 0; }
+.wx.arcade:has(:is(.round1, .round2) .panel:not([hidden]))::after { opacity: 0; }
 @media (max-width: 760px) {
   .finding-row { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px 12px; }
   .finding-row .row-tools { grid-column: 1 / -1; justify-content: flex-end; }
@@ -294,6 +294,6 @@
 .wx { --doc: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
 .docp, .docp h3, .docp-sys, .dblock h4, .dtable th, .kpi strong, .k-l, .sc-note b, .calv, .cal-col h3, .tab, .wk-day > b, .calpop .pop-body, .calpop h3, .pp-kind, .now-line span { font-family: var(--doc) !important; }
 @media (min-width: 761px) {
-  .round1 .panel { top: calc(10px + env(safe-area-inset-top, 0px)); }
+  :is(.round1, .round2) .panel { top: calc(10px + env(safe-area-inset-top, 0px)); }
   .panel-head { padding-right: 130px; }
 }

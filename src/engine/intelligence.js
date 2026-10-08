@@ -12,7 +12,7 @@ export function runWake(world, signalEngine, state) {
   for (const src of sources) for (const id of src.lines) ids.add(id);
   const gathered = Array.from(ids).map((id) => world.signals[id]);
   const records = sources.reduce((n, s) => n + (s.volume || 0), 0);
-  const systems = new Set(sources.filter((s) => s.kind !== 'location' && s.kind !== 'team' && s.cat !== 'general').map((s) => s.cat));
+  const systems = new Set(sources.filter((s) => s.kind !== 'location' && s.kind !== 'team' && s.kind !== 'exec' && s.cat !== 'general').map((s) => s.cat));
 
   // 2. Normalize + 4. Detect: deviation from each signal's own baseline (Signal Engine).
   const moved = gathered.filter((s) => s.outOfRange);

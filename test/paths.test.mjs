@@ -19,11 +19,15 @@ const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.fi
 function finish(g, { through = [], reorder = false } = {}) {
   assert.ok(g.submitRound1(), 'submits');
   const b = g.startRound2();
+  for (let i = 0; i < 30; i++) g.tickWake();
   for (const id of through) g.putThrough(id);
-  if (reorder && b.cards.length > 1) g.moveWake(b.cards[b.cards.length - 1].id, -1);
-  for (const c of b.cards) g.assign(c.id);
+  const ins = g.insights();
+  // pick the top of Wake's list, or (reorder) swap one priority for a routine item
+  const picks = ins.slice(0, Math.min(5, g.world.findings.length)).map((x) => x.id);
+  if (reorder) { picks.pop(); picks.push(ins[ins.length - 1].id); }
+  for (const id of picks) g.pick(id);
   assert.ok(g.briefing().ready);
-  g.lockRound2();
+  assert.ok(g.lockRound2());
   const d = g.delivery(); g.presented('yours'); g.presented('wake');
   const wk = g.week(); const rc = g.recap(); g.complete();
   return { b, d, wk, rc };
@@ -34,13 +38,16 @@ function invariants(g, out, name) {
   const n = g.world.findings.length;
   assert.equal(g.state.phase, 'complete');
   assert.ok(g.state.clock <= g.world.day.meetingAt, name + ': clock never passes 10:00');
-  assert.equal(b.cards.length, n, name + ': every problem in the company surfaces');
+  assert.equal(b.cards.filter((c) => !c.routine).length, n, name + ': every problem in the company surfaces');
+  assert.ok(b.cards.length >= 5 && b.cards.length <= 8, name + ': five to eight insights');
+  assert.ok(b.cards.slice(0, n).every((c) => !c.routine), name + ': the problems rank above the routine items');
   assert.ok(n >= 4 && n <= 5, name + ': four or five priorities');
   assert.ok(b.filtered.length >= 1, name + ': at least one false alarm filtered');
-  for (const c of b.cards) assert.ok(c.evidence.length >= 4 && c.owners.length >= 1 && new Set(c.evidence.map((e) => e.system)).size >= 2, name + ': card ' + c.id + ' is cross-system and owned');
+  for (const c of b.cards.filter((x) => !x.routine)) assert.ok(c.evidence.length >= 4 && c.owners.length >= 1 && new Set(c.evidence.map((e) => e.system)).size >= 2, name + ': card ' + c.id + ' is cross-system and owned');
   assert.equal(d.yours.length, g.state.flags.length);
   for (const y of d.yours) assert.ok(y.reactions.length >= 1 && y.statusLabel, name + ': every finding gets a reaction');
-  assert.equal(d.tally.wake.handed, n, name + ': Wake briefing lands cleanly');
+  assert.equal(d.tally.wake.handed, g.state.wakeOrder.length, name + ': Wake briefing lands cleanly');
+  assert.ok(g.state.wakeOrder.length >= 3 && g.state.wakeOrder.length <= 5);
   assert.equal(wk.filter((r) => !r.extra).length, n, name + ': the week covers every priority');
   for (const r of wk) assert.ok(r.you.text && r.wake.text && r.label, name + ': week row complete');
   assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer);
@@ -49,7 +56,7 @@ function invariants(g, out, name) {
   assert.ok(!text.includes('—') && !text.includes('undefined') && !text.includes('NaN'), name + ': clean text');
   assert.ok(!/\b(F[1-5]|falseAlarm|offTarget|counter)\b/.test(rc.report.toText()), name + ': no internal labels in the report');
   const types = new Set(g.tracker.log.map((e) => e.type));
-  for (const t of ['session_start', 'round1_started', 'flag_added', 'round1_submitted', 'round2_started', 'wake_assigned', 'round2_locked', 'presented_yours', 'presented_wake', 'week_played', 'recap_viewed', 'session_complete']) assert.ok(types.has(t), name + ': log has ' + t);
+  for (const t of ['session_start', 'round1_started', 'flag_added', 'round1_submitted', 'round2_started', 'wake_picked', 'round2_locked', 'presented_yours', 'presented_wake', 'week_played', 'recap_viewed', 'session_complete']) assert.ok(types.has(t), name + ': log has ' + t);
   assert.equal(g.session().summary.flags.length, g.state.flags.length);
 }
 
@@ -125,6 +132,7 @@ test('expected outcomes', () => {
   const D = run(PATHS.distracted);
   assert.ok(D.d.yours.every((y) => ['falseAlarm', 'noise'].includes(y.kind)), 'false alarms and noise are recognized');
   assert.ok(D.d.yours.every((y) => ['explained', 'offTarget'].includes(y.status)));
+  assert.ok(A.wk.filter((r) => !r.extra).every((r) => r.wake.dir === 'up'), 'everything Wake handed off improves');
   const W = run(PATHS.writer);
   assert.deepEqual(W.d.yours.map((y) => y.handling), ['counter', 'partial', 'unclear'], 'written text is read for intent');
   assert.ok(W.d.yours[2].reactions.some((r) => /done look like/.test(r.line)), 'vague writing draws a question');
@@ -221,7 +229,7 @@ test('Wake is fair: same data, nothing invented, everything it uses was on the d
     g.flag({ signals: [coreSig(g, w.findings[2])], source: flaggable(g, coreSig(g, w.findings[2])), choice: g.answers(coreSig(g, w.findings[2]))[0].id });
     g.submitRound1();
     const b = g.startRound2();
-    assert.equal(b.cards.length, w.findings.length);
+    assert.equal(b.cards.filter((c) => !c.routine).length, w.findings.length);
   }
 });
 
@@ -246,4 +254,29 @@ test('all shells, roles and sizes play through cleanly', () => {
     const all = JSON.stringify(Object.values(g.world.sources).map((s) => [s.title, s.body, s.blocks, s.tiles, s.today, s.weeks, s.note, s.list]));
     assert.ok(!/\{[A-Za-z]+\}/.test(all) && !/undefined|NaN|—/.test(all), 'clean desk text for ' + shell + '/' + role);
   }
+});
+
+test('round 2: picks, trace, arrivals, and the inbox Wake already read', () => {
+  const g = mk(12, 'multi', 'coo'); g.startRound1();
+  for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[0].id }); }
+  g.submitRound1(); g.startRound2();
+  const ins = g.insights();
+  assert.ok(ins.every((i) => i.sources.length >= 1 && i.owners.length >= 1 && i.headline && i.action));
+  for (const i of ins) for (const src of i.sources) {
+    const t = g.trace(src.key);
+    assert.ok(t.source.title && t.excerpt && t.reading, 'trace for ' + src.key);
+    if (t.excerpt.kind === 'report') assert.ok(t.excerpt.rows.some((r) => r.some((c) => c.hl)), 'the traced line is highlighted');
+  }
+  assert.equal(g.lockRound2(), false, 'cannot lock with fewer than 3');
+  for (const i of ins) g.pick(i.id);
+  assert.equal(g.state.picked.length, 5, 'no more than 5');
+  g.pick(ins[0].id); assert.equal(g.state.picked.length, 4, 'unpick works');
+  const fired = []; for (let i = 0; i < 200; i++) fired.push(...g.tickWake().fired);
+  assert.equal(g.state.wakeClock, g.world.day.meetingAt);
+  assert.ok(fired.length >= 3, 'the morning still arrives');
+  const inbox = g.listR2('email');
+  assert.ok(inbox.some((e) => e.tags.length), 'emails Wake used are tagged with their insight');
+  for (const x of ['x_forecast', 'x_pacing', 'x_brief']) { const v = g.openR2(x); assert.ok(v && (v.blocks || v.memo)); }
+  assert.ok(g.lockRound2());
+  assert.equal(g.delivery().wake.length, 4);
 });

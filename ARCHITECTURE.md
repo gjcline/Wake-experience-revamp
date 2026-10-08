@@ -45,7 +45,12 @@ and narrates the player through it with a live guide.
                    recap.js         the ending and the report
     src/ui/        round1.js        the desk: reports, location map and scorecards, inbox, phone, calendar,
                                     notes, team, connected data, the composer, attaching context, the guide steps
-                   app.js           every screen after Round 1, plus the live guide
+                   round2.js        the Wake desk: the load-in, insights on the computer (5 to 8, pick 3 to 5),
+                                    source trace pop-ups back to the Round 1 originals, exec briefs, the drafted
+                                    Thursday brief, inbox tagged by insight, phone with send to Wake, the annotated
+                                    calendar, team assignments, and the guided tour
+                   app.js           the Round 1 complete screen, the reset, Wake reading the morning, the meeting
+                                    and everything after, plus the live guide
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
 

@@ -53,6 +53,8 @@ export function buildWorld(shellId, roleId, seed = 1) {
   world.characters = deep(sc.characters, t);
   world.central = sc.central;
   world.findings = deep(sc.findings, t);
+  world.routine = deep(sc.routine, t);
+  world.routineById = Object.fromEntries(world.routine.map((r) => [r.id, r]));
   world.events = sc.events;
   world.briefing = deep(sc.briefing, t);
   world.reactions = deep(sc.reactions, t);

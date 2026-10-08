@@ -10,6 +10,7 @@ import { sfx } from './arcade/sound.js';
 import { createField } from './field.js';
 import { createArcade } from './arcade/screens.js';
 import { round1 as runRound1 } from './round1.js';
+import { round2 as runRound2 } from './round2.js';
 
 const HOST = (typeof window !== 'undefined' && window.WAKE_HOST) || 'web';
 const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -39,6 +40,7 @@ function createCoach() {
   const box = h('div', { class: 'coach', hidden: true, role: 'status', 'aria-live': 'polite' });
   document.body.append(ring, box);
   let steps = [], i = -1, timer = null, inline = null;
+  const recent = {}; // actions taken a moment before the step that asks for them
   function place() {
     const st = steps[i]; if (!st) return;
     const t = st.target ? document.querySelector(st.target) : null;
@@ -46,7 +48,7 @@ function createCoach() {
     if (st.inline) {
       // the guide lives inside the thing it points at, so nothing it explains is ever dimmed
       if (t && t.offsetParent !== null) {
-        if (!inline || !t.contains(inline)) { if (inline) inline.remove(); inline = h('div', { class: 'coach-inline' }, h('b', {}, 'GUIDE'), h('p', {}, st.text), st.wait && !st.next ? h('span', { class: 'coach-wait' }, '▶ ' + (st.hint || 'Go ahead')) : st.next ? btn(st.next, () => advance(), 'btn primary small') : null); t.prepend(inline); }
+        if (!inline || !t.contains(inline)) { if (inline) inline.remove(); inline = h('div', { class: 'coach-inline' }, h('b', {}, 'GUIDE'), h('p', {}, st.text), st.wait && !st.next ? h('span', { class: 'coach-wait' }, '▶ ' + (st.hint || 'Go ahead')) : st.next ? btn(st.next, () => advance(), 'btn primary small') : null); t.prepend(inline); try { inline.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ } }
         const r = t.getBoundingClientRect();
         ring.hidden = false; box.hidden = true;
         Object.assign(ring.style, { left: Math.max(2, r.left - 6) + 'px', top: Math.max(2, r.top - 6) + 'px', width: Math.min(vw - 4, r.width + 12) + 'px', height: Math.min(vh * 3, r.height + 12) + 'px' });
@@ -85,11 +87,14 @@ function createCoach() {
     const t = st.target ? document.querySelector(st.target) : null;
     if (t && t.offsetParent !== null) { const r = t.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight - 90) t.scrollIntoView({ block: r.height > window.innerHeight * 0.6 ? 'start' : 'center', behavior: 'auto' }); }
     sfx.blip(); place();
+    const waits = [].concat(st.wait || []);
+    if (waits.some((ev) => recent[ev] && Date.now() - recent[ev] < 1500)) setTimeout(() => { if (steps[i] === st) go(i + 1); }, 200);
   }
   function stop() { steps = []; i = -1; box.hidden = true; ring.hidden = true; clearInterval(timer); if (inline) { inline.remove(); inline = null; } }
   return {
     run(list) { steps = list; clearInterval(timer); timer = setInterval(place, 250); i = -1; go(0); },
     emit(ev) {
+      recent[ev] = Date.now();
       const st = steps[i]; if (!st) return;
       if (st.back && st.back === ev) { setTimeout(() => go(Math.max(0, i - 1)), 120); return; }
       if (st.wait && (st.wait === ev || (Array.isArray(st.wait) && st.wait.includes(ev)))) setTimeout(() => go(i + 1), 120);
@@ -112,117 +117,82 @@ const restart = () => { coach.stop(); game = null; arcade.start(); };
 
 // ------------------------------------------------------------------ ROUND 1: on your own
 function round1() {
-  runRound1({ game, show, coach, reduced, onSubmit: () => { leave(); rewind(); }, setCleanup: (fn) => { cleanup = fn; } });
+  runRound1({ game, show, coach, reduced, onSubmit: () => { leave(); roundOneDone(); }, setCleanup: (fn) => { cleanup = fn; } });
 }
 
-// ------------------------------------------------------------------ rewind
-function rewind() {
-  const s = game.state, D = game.world.day;
+// ------------------------------------------------------------------ round 1 complete
+// Centered, like the end of a stage. It reads as progress, not as a do-over.
+function roundOneDone() {
+  const s = game.state, w = game.world;
+  const opened = Object.entries(s.sources).filter(([id, x]) => x.opened && !['team', 'exec'].includes(w.sources[id].kind)).length;
+  const total = Object.entries(s.sources).filter(([id, x]) => x.available && !['team', 'exec'].includes(w.sources[id].kind) && id !== 'loc_all').length;
+  const stat = (big, small) => h('div', { class: 'cstat' }, h('b', {}, big), h('span', {}, small));
+  const go = btn('TRY IT WITH WAKE ▶', resetDay, 'btn primary big');
+  show('day', 'stage-done',
+    h('div', { class: 'center-card' },
+      h('p', { class: 'stage-k' }, 'ROUND 1'),
+      h('h1', { class: 'stage-h' }, 'COMPLETE'),
+      h('p', { class: 'lede' }, 'You prepared for your ' + w.role.meetingName + ' on your own. Your briefing is locked in.'),
+      h('div', { class: 'cstats' }, stat(fmtClock(s.submittedAt), 'briefing ready'), stat(String(s.flags.length), 'findings'), stat(opened + ' of ' + total, 'sources opened')),
+      h('p', { class: 'lede dim' }, 'Next: the same morning, prepared with Wake.'),
+      go));
+  sfx.credit();
+  setTimeout(() => go.focus({ preventScroll: true }), 100);
+}
+
+// The day resets: same Monday, same data, with Wake underneath it this time.
+function resetDay() {
+  const s = game.state, D = game.world.day, w = game.world;
+  sfx.select();
   const clock = h('b', { class: 'big-clock' }, fmtClock(s.submittedAt));
-  const go = btn('START ROUND 2 ▶', round2, 'btn primary');
-  const msg = h('div', { class: 'rewind-copy' },
-    h('h1', {}, 'ROUND 1 COMPLETE'),
-    h('p', { class: 'lede' }, 'Your briefing is locked: ' + s.flags.length + ' findings, ready at ' + fmtClock(s.submittedAt) + '.'));
-  const after = h('div', { class: 'rewind-copy', hidden: true },
-    h('h1', { class: 'cyan' }, 'ROUND 2 · WITH WAKE'),
-    h('p', { class: 'lede' }, 'Same desk. Same data. Same 7:48 AM.'),
-    h('p', { class: 'lede' }, 'This time Wake is running underneath, reading every system at once.'), go);
-  const rw = btn('◀◀ REWIND TO 7:48 AM', async () => {
-    rw.disabled = true; el.classList.add('vhs'); sfx.zoom();
-    for (let m = s.submittedAt; m >= D.start; m -= Math.max(1, Math.round((s.submittedAt - D.start) / 24))) { clock.textContent = fmtClock(m); await wait(45); }
+  const lines = h('div', { class: 'typed center' });
+  const go = btn('START ROUND 2 ▶', scan, 'btn primary big'); go.hidden = true;
+  const el = show('wake', 'stage-done reset', h('div', { class: 'center-card' }, h('p', { class: 'stage-k cy' }, 'ROUND 2 · WITH WAKE'), clock, lines, go));
+  let fast = reduced; el.addEventListener('click', (e) => { if (e.target !== go) fast = true; });
+  (async () => {
+    el.classList.add('vhs'); sfx.zoom();
+    const step = Math.max(1, Math.round((s.submittedAt - D.start) / 24));
+    for (let m = s.submittedAt; m > D.start; m -= step) { clock.textContent = fmtClock(m); await wait(fast ? 0 : 40); }
     clock.textContent = fmtClock(D.start); el.classList.remove('vhs'); sfx.credit();
-    msg.hidden = true; rw.hidden = true; after.hidden = false; root.className = 'wx arcade wake';
-    go.focus({ preventScroll: true });
-  }, 'btn');
-  const el = show('day', 'rewind', clock, msg, after, rw);
+    const text = [
+      'Same Monday. Same 7:48 AM.',
+      'Same company, same people, same numbers. Every report, email and text is exactly what you just worked through.',
+      'One thing is different. This time Wake is running underneath your systems, and it has already read all of it.',
+      'Your job is the part only you can do: decide.',
+    ];
+    for (const [i, line] of text.entries()) {
+      const p = h('p', { class: i === 0 ? 'stamp-px' : '' }); lines.appendChild(p);
+      for (const ch of line) { if (fast) { p.textContent = line; break; } p.textContent += ch; if (ch !== ' ') sfx.type(); await wait(18); }
+      await wait(fast ? 0 : 260);
+    }
+    go.hidden = false; go.focus({ preventScroll: true });
+  })();
 }
 
 // ------------------------------------------------------------------ ROUND 2: with Wake
-function round2() {
-  let B = game.startRound2();
-  const w = game.world, n = (x) => x.toLocaleString('en-US');
-  // a few seconds of Wake reading everything, then the briefing
+// Wake reads everything first, in front of the player. Then it loads into the desk.
+function scan() {
+  const B = game.startRound2();
+  const n = (x) => x.toLocaleString('en-US');
   const canvas = h('canvas', { class: 'field', 'aria-hidden': 'true' });
   const sys = h('ul', { class: 'syslist' }, B.systems.map((x) => h('li', {}, h('span', {}, x.name), h('b', {}, n(x.n)))));
-  const cap = h('p', { class: 'cap' }, h('b', {}, n(B.funnel.records)), ' records across every system. Yellow is what you looked at in Round 1.');
-  const skip = btn('SKIP ▶', () => console_(), 'btn');
-  show('wake', 'scan', h('div', { class: 'scan-grid' }, h('div', { class: 'field-wrap' }, canvas), sys), cap, h('div', { class: 'row' }, skip));
-  const field = createField(canvas, { ...B, findings: B.findings }, reduced);
+  const cap = h('p', { class: 'cap' }, h('b', {}, n(B.funnel.records)), ' records across every system this morning. Yellow is what you looked at in Round 1.');
   let alive = true;
+  const done = () => { if (!alive) return; alive = false; leave(); round2(); };
+  const skip = btn('SKIP ▶', done, 'btn');
+  show('wake', 'scan', h('h1', {}, 'WAKE IS READING YOUR MORNING'), h('div', { class: 'scan-grid' }, h('div', { class: 'field-wrap' }, canvas), sys), cap, h('div', { class: 'row' }, skip));
+  const field = createField(canvas, { ...B, findings: B.findings }, reduced);
   cleanup = () => { alive = false; field.destroy(); };
   (async () => {
-    const lis = [...sys.children];
-    for (const li of lis) { if (!alive) return; li.classList.add('on'); sfx.type(); await wait(160); }
-    const steps = [[3, n(B.funnel.moved), ' moved outside their normal range.'], [4, n(B.funnel.material), ' connect to something real. ' + B.funnel.dismissed + ' false alarms filtered.'], [6, String(B.funnel.findings), ' priorities, ranked.']];
+    for (const li of [...sys.children]) { if (!alive) return; li.classList.add('on'); sfx.type(); await wait(160); }
+    const steps = [[3, n(B.funnel.moved), ' moved outside their normal range.'], [4, n(B.funnel.material), ' connect to something real. ' + B.funnel.dismissed + ' false alarms cleared.'], [6, String(B.cards.length), ' insights, ranked. Loading to your desk.']];
     for (const [st, big, text] of steps) { if (!alive) return; field.setStage(st); cap.replaceChildren(h('b', {}, big), text); sfx.blip(); await wait(1500); }
-    if (alive) console_();
+    done();
   })();
+}
 
-  function console_() {
-    if (!alive && root.querySelector('.wake-console')) return;
-    alive = false;
-    const cardsEl = h('div', { class: 'wcards' });
-    const phoneEl = h('ul', { class: 'phone-list' });
-    const lockNote = h('span', { class: 'quiet', 'aria-live': 'polite' });
-    const lock = btn('LOCK BRIEFING ▶', () => { game.lockRound2(); sfx.start(); coach.stop(); walkToMeeting(); }, 'btn primary');
-    const clockEl = h('b', { class: 'clock' }, fmtClock(B.clock));
-    show('wake', 'wake-console',
-      h('header', { class: 'bar' }, h('div', { class: 'when' }, h('span', { class: 'round-tag cyan' }, 'ROUND 2 · WITH WAKE'), clockEl, h('span', { class: 'co' }, w.shell.company))),
-      h('div', { class: 'console-head' }, h('h1', {}, 'YOUR BRIEFING IS READY.'),
-        h('p', { class: 'lede' }, 'Wake read ' + n(B.funnel.records) + ' records across ' + B.systems.length + ' systems and connected ' + B.funnel.material + ' signals. You decide what happens.')),
-      h('div', { class: 'console-grid' },
-        cardsEl,
-        h('aside', { class: 'side' },
-          h('section', { class: 'phone' }, h('h2', {}, 'YOUR PHONE'), h('p', { class: 'quiet' }, 'Texts aren\'t connected to Wake. Put one through and watch what it changes.'), phoneEl),
-          h('section', { class: 'filtered' }, h('h2', {}, 'FILTERED OUT · ' + B.filtered.length), h('ul', {}, B.filtered.map((f) => h('li', {}, h('strong', {}, f.label + ' ' + f.value), h('span', {}, f.because))))))),
-      h('div', { class: 'lockbar' }, lockNote, lock));
-    function draw() {
-      cardsEl.replaceChildren(...B.cards.map((c, i) => h('article', { class: 'wcard' + (c.assigned ? ' assigned' : '') + (c.urgent ? ' urgent' : ''), id: 'wc-' + c.id },
-        h('div', { class: 'wc-top' }, h('span', { class: 'rank' }, String(i + 1)), h('span', { class: 'place' }, c.place.toUpperCase() + (c.urgent ? ' · TODAY' : '')),
-          h('span', { class: 'row-tools' }, btn('▲', () => { B = game.moveWake(c.id, -1); draw(); sfx.blip(); }, 'chip'), btn('▼', () => { B = game.moveWake(c.id, 1); draw(); sfx.blip(); }, 'chip'))),
-        h('h3', {}, c.headline),
-        c.assigned ? null : h('p', { class: 'why' }, c.why),
-        c.assigned ? null : h('ul', { class: 'ev' }, c.evidence.map((e) => h('li', { class: e.flagged ? 'flagged' : e.seen ? 'seen' : '' }, h('span', { class: 'sysname' }, e.system), h('span', {}, e.label + (e.value ? ': ' + e.value : ''))))),
-        c.sharpened.length ? h('ul', { class: 'sharp' }, c.sharpened.map((s) => h('li', {}, h('b', {}, '+ ' + s.from.toUpperCase()), ' ' + s.line))) : null,
-        h('div', { class: 'do' }, h('span', { class: 'lbl' }, 'DO'), h('p', {}, c.action)),
-        h('div', { class: 'wc-foot' },
-          h('span', { class: 'owners' }, c.owners.map((o) => h('span', { class: 'owner' }, av(o.key, 26), h('span', {}, o.name)))),
-          c.assigned ? h('span', { class: 'stampd' }, '✓ ASSIGNED') : btn('ASSIGN ▶', () => { B = game.assign(c.id); clockEl.textContent = fmtClock(B.clock); sfx.coin(); draw(); coach.emit('assign'); }, 'btn primary small')),
-        c.assigned ? null : h('p', { class: 'check' }, 'Check: ' + c.check))));
-      phoneEl.replaceChildren(...B.phone.map((p) => h('li', { class: p.done ? 'done' : '', id: 'ph-' + p.id }, av(p.key, 30), h('div', {}, h('strong', {}, first(p.from)), h('p', {}, p.text)),
-        p.done ? h('span', { class: 'stampd' }, '✓ IN WAKE') : btn('PUT THROUGH WAKE ▶', () => through(p.id), 'chip'))));
-      const left = B.cards.filter((c) => !c.assigned).length;
-      lock.disabled = !B.ready;
-      lockNote.textContent = left ? left + ' left to assign' : 'Ready at ' + fmtClock(B.clock);
-    }
-    async function through(id) {
-      const from = document.getElementById('ph-' + id);
-      const r = game.putThrough(id); if (!r) return;
-      sfx.zoom();
-      const target = r.finding ? document.getElementById('wc-' + r.finding) : root.querySelector('.filtered');
-      if (from && target && !reduced) {
-        const a = from.getBoundingClientRect(), b = target.getBoundingClientRect();
-        const ghost = h('div', { class: 'flyer' }, 'WAKE');
-        Object.assign(ghost.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px' });
-        document.body.appendChild(ghost);
-        requestAnimationFrame(() => Object.assign(ghost.style, { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(.6)`, opacity: '0.2' }));
-        await wait(650); ghost.remove();
-      }
-      B = r.briefing; draw(); sfx.credit();
-      const t = r.finding ? document.getElementById('wc-' + r.finding) : root.querySelector('.filtered');
-      if (t) { t.classList.add('glow'); t.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }); setTimeout(() => t.classList.remove('glow'), 1600); }
-      if (!r.finding) { const li = document.createElement('li'); li.className = 'note-in'; li.textContent = r.line; root.querySelector('.filtered ul').appendChild(li); }
-      coach.emit('through');
-    }
-    draw();
-    cleanup = () => coach.stop();
-    setTimeout(() => coach.run([
-      { text: 'Same morning, but Wake already did the reading. Each card is one situation, with evidence pulled from different systems.', target: '.wcard', next: 'NEXT ▶', side: 'over' },
-      { text: 'Yellow marks evidence you saw in Round 1. Your job now is to decide. Reorder if you disagree, then assign.', target: '.wcard .wc-foot .btn', wait: 'assign', hint: 'Assign one' },
-      { text: 'Your phone isn\'t connected to Wake. Put a text through and watch where it lands.', target: '.phone', wait: 'through', hint: 'Put a text through' },
-      { text: 'Assign the rest, then lock your briefing. That\'s it.', target: '.lockbar', next: 'GOT IT ▶' },
-    ]), reduced ? 0 : 400);
-  }
+function round2() {
+  runRound2({ game, show, coach, reduced, onLock: () => walkToMeeting(), setCleanup: (fn) => { cleanup = fn; } });
 }
 
 // ------------------------------------------------------------------ the meeting
