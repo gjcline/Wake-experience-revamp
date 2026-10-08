@@ -5,10 +5,13 @@
 import { h } from '../art.js';
 import { SHELLS, SHELL_ORDER } from '../../content/shells.js';
 import { ROLES, ROLE_ORDER } from '../../content/roles.js';
-import { makeResolver } from '../../engine/config.js';
+import { makeResolver, randomSeed } from '../../engine/config.js';
+import { previewScenario } from '../../content/scenario.js';
 import { sfx } from './sound.js';
 import { createMap, personPal } from './map.js';
 
+// ?seed=123 replays a specific company (useful for demos and support)
+const urlSeed = () => { try { const v = new URLSearchParams(window.location.search).get('seed'); return v && /^\d+$/.test(v) ? Number(v) : 0; } catch (e) { return 0; } };
 export const ROLE_COLOR = { gm: '#FF4F8B', coo: '#39E5E0', owner: '#FFD23F', partner: '#A98BFF', regional: '#5BD66B' };
 const LENS_NAME = { finance: 'FINANCE', labor: 'LABOR', operations: 'OPERATIONS', customer: 'CUSTOMERS', maintenance: 'MAINTENANCE', people: 'PEOPLE', purchasing: 'PURCHASING' };
 
@@ -211,11 +214,11 @@ export function createArcade({ root, reduced, onPicked }) {
       h('div', { class: 'panel-px' },
         h('h1', {}, 'HOW TO PLAY'),
         h('ul', { class: 'rule-list' },
-          item('job', 'THE JOB', 'Run a six-location company for one Monday morning. Your leadership meeting is at 10:00. You\'ll prepare for it twice.'),
-          item('pin', 'ROUND 1 · ON YOUR OWN', 'Your desk holds everything your teams sent. Flag at least 3 data points that matter and write what your team should do.'),
-          item('clock', 'THE CLOCK', 'It runs from 7:48 to 10:00 by itself. Nothing you open costs time, so look at everything.'),
+          item('job', 'THE JOB', 'Run a company for one Monday morning. Every game is a different company, with its own locations, people and numbers. You\'ll prepare for one meeting, twice.'),
+          item('pin', 'ROUND 1 · ON YOUR OWN', 'Your desk holds everything your team sent. Flag at least 3 figures that matter and decide what should happen with each.'),
+          item('clock', 'THE MEETING TIME', 'Your meeting starts at 10:00 AM. Have your briefing ready by then.'),
           item('wake', 'ROUND 2 · WITH WAKE', 'Same desk, same data, same 7:48 AM. This time Wake is running underneath it.'),
-          item('table', 'THE MEETING', 'Present both briefings to your team and watch how each one lands. Then see both plans play out over the week.'),
+          item('table', 'THE MEETING', 'Present both briefings to your team and see how each one lands. Then watch both plans play out over the week.'),
           item('eye', 'NO SCORE', 'No points and no right answers. A guide walks you through every step.')),
         h('div', { class: 'a-row' }, h('span', { class: 'a-small' }, 'ABOUT 15 MINUTES'), abtn('PRESS START', go, 'a-btn primary blink-soft'))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
@@ -248,17 +251,19 @@ export function createArcade({ root, reduced, onPicked }) {
     cards[0].focus({ preventScroll: true });
   }
 
-  const pick = { shell: null, role: null };
+  const pick = { shell: null, role: null, seed: 0 };
+  const THU = { gm: 'LENDER REVIEW', coo: 'BOARD CALL', owner: 'BANK COVENANT CHECK', partner: 'QUARTERLY REVIEW', regional: 'LABOR REVIEW' };
+  const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 
   function setupBusiness() {
     selector({
       step: '1 / 2', title: 'CHOOSE THE BUSINESS',
       items: SHELL_ORDER.map((id) => {
         const s = SHELLS[id];
-        return { id, name: s.label.toUpperCase(), tag: s.company, art: icon(id, 6),
-          detail: [h('b', {}, s.company), h('p', {}, s.blurb), h('dl', {}, h('dt', {}, 'LOCATIONS'), h('dd', {}, '6 ' + s.vocab.units.toUpperCase()), h('dt', {}, 'PEOPLE'), h('dd', {}, String(s.headcount)), h('dt', {}, 'ON THE FLOOR'), h('dd', {}, s.vocab.frontlines.toUpperCase()))] };
+        return { id, name: s.label.toUpperCase(), tag: TAGS[id], art: icon(id, 6),
+          detail: [h('b', {}, s.label), h('p', {}, s.blurb), h('dl', {}, h('dt', {}, 'ON THE FLOOR'), h('dd', {}, s.vocab.frontlines.toUpperCase()), h('dt', {}, 'YOU SERVE'), h('dd', {}, s.vocab.customers.toUpperCase()), h('dt', {}, 'THE COMPANY'), h('dd', {}, 'NEW EVERY GAME'))] };
       }),
-      onPick: (id) => { pick.shell = id; setupRole(); },
+      onPick: (id) => { pick.shell = id; pick.seed = urlSeed() || randomSeed(); setupRole(); },
       onBack: () => rules(),
     });
   }
@@ -269,8 +274,8 @@ export function createArcade({ root, reduced, onPicked }) {
       step: '2 / 2', title: 'CHOOSE YOUR ROLE',
       items: ROLE_ORDER.map((id) => {
         const r = ROLES[id];
-        return { id, name: r.label.toUpperCase(), tag: 'BRIEFED BY ' + r.note.from.split(',')[0].toUpperCase(), art: playerSprite(id, 7),
-          detail: [h('b', {}, r.label), h('p', {}, t(r.seat)), h('dl', {}, h('dt', {}, 'FIRST LOOK'), h('dd', {}, LENS_NAME[r.lens[0]] + ' + ' + LENS_NAME[r.lens[1]]), h('dt', {}, 'NOTE FROM'), h('dd', {}, r.note.from.toUpperCase()), h('dt', {}, '10:00 AM'), h('dd', {}, r.meetingName.toUpperCase()))] };
+        return { id, name: r.label.toUpperCase(), tag: r.blurb, art: playerSprite(id, 7),
+          detail: [h('b', {}, r.label), h('p', {}, t(r.seat)), h('dl', {}, h('dt', {}, 'FIRST LOOK'), h('dd', {}, LENS_NAME[r.lens[0]] + ' + ' + LENS_NAME[r.lens[1]]), h('dt', {}, '10:00 AM'), h('dd', {}, r.meetingName.toUpperCase()), h('dt', {}, 'THURSDAY'), h('dd', {}, THU[id]))] };
       }),
       onPick: (id) => { pick.role = id; ready(); },
       onBack: () => setupBusiness(),
@@ -279,15 +284,17 @@ export function createArcade({ root, reduced, onPicked }) {
 
   function ready() {
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
+    const pv = previewScenario(s, r, pick.seed);
     const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
     const begin = () => countdown();
+    const reroll = () => { pick.seed = randomSeed(); ready(); };
     screen('ready',
       h('div', { class: 'panel-px card-ready' },
         h('div', { class: 'ready-art' }, playerSprite(pick.role, 9), icon(pick.shell, 9)),
         h('div', {},
           h('h1', {}, 'READY?'),
-          h('dl', {}, row('BUSINESS', s.label.toUpperCase()), row('COMPANY', s.company.toUpperCase()), row('YOUR ROLE', r.label.toUpperCase()), row('LOCATIONS', '6 ' + s.vocab.units.toUpperCase()), row('START', 'MONDAY 7:48 AM'), row('MEETING', '10:00 AM')),
-          h('div', { class: 'a-row' }, abtn('◀ CHANGE', setupBusiness, 'a-btn ghost'), abtn('START ▶', begin, 'a-btn primary')))));
+          h('dl', {}, row('COMPANY', pv.company.toUpperCase()), row('BUSINESS', s.label.toUpperCase()), row('YOUR ROLE', r.label.toUpperCase()), row('SIZE', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit).toUpperCase() + ' · ' + pv.headcount + ' PEOPLE'), row('START', pv.monday.toUpperCase() + ', 7:48 AM'), row('MEETING', '10:00 AM')),
+          h('div', { class: 'a-row' }, abtn('◀ CHANGE', setupBusiness, 'a-btn ghost'), abtn('NEW COMPANY', reroll, 'a-btn ghost'), abtn('START ▶', begin, 'a-btn primary')))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); sfx.select(); begin(); } else if (e.key === 'Escape') { sfx.back(); setupRole(); } });
   }
 
@@ -298,7 +305,7 @@ export function createArcade({ root, reduced, onPicked }) {
     for (const v of ['3', '2', '1']) { n.textContent = v; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); sfx.count(); await wait(650); }
     n.textContent = 'GO!'; n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop', 'go'); sfx.go();
     await wait(600);
-    onPicked(pick.shell, pick.role);
+    onPicked(pick.shell, pick.role, pick.seed);
   }
 
   // 5. the arrival: bird's-eye view, walk to the desk, then the morning brief
@@ -311,13 +318,7 @@ export function createArcade({ root, reduced, onPicked }) {
     screen('arrival',
       h('div', { class: 'hud' }, h('span', {}, 'MONDAY  ', clockEl), h('span', { class: 'co' }, w.shell.company.toUpperCase()), skipBtn),
       h('div', { class: 'map-frame' }, holder, box));
-    const npcs = [
-      { av: w.characters.colin.av, x: 132, y: 116, seated: false },
-      { av: w.characters.dev.av, x: 187, y: 89, seated: true },
-      { av: w.characters.marisol.av, x: 255, y: 89, seated: true },
-      { av: w.characters.renee.av, x: 221, y: 115, seated: true },
-      { av: w.characters.tom.av, x: 212, y: 162, seated: false },
-    ];
+    const npcs = cast(w, 'office');
     const map = createMap(holder, { company: w.shell.company, playerShirt: ROLE_COLOR[pick.role], npcs, reduced, onClock: (m) => { clockEl.textContent = '7:' + String(m).padStart(2, '0') + ' AM'; } });
     teardown.push(() => map.destroy());
     let skipped = false;
@@ -329,9 +330,9 @@ export function createArcade({ root, reduced, onPicked }) {
     // the morning brief, typed out RPG style
     typeBox(box, [
       'MONDAY  7:48 AM',
-      'Your ' + w.role.meetingName + ' starts at 10:00 AM.',
-      'Round 1: prepare on your own. Everything your teams sent is on your desk.',
-      'Find what matters and decide what your team should do about it.',
+      'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have your briefing ready by then.',
+      'Round 1: prepare on your own. Everything your team sent is on your desk.',
+      'Find what matters and decide what should happen.',
     ], 'SIT DOWN ▶', done, skipped);
   }
 
@@ -359,13 +360,13 @@ export function createArcade({ root, reduced, onPicked }) {
   function cast(w, preset) {
     const c = (k) => w.characters[k].av;
     if (preset === 'meeting') return [
-      { av: c('dev'), x: 132, y: 158, seated: true }, { av: c('tom'), x: 144, y: 158, seated: true }, { av: c('ines'), x: 156, y: 158, seated: true },
-      { av: c('renee'), x: 132, y: 180, seated: true, facing: 'up' }, { av: c('marisol'), x: 144, y: 180, seated: true, facing: 'up' }, { av: c('colin'), x: 156, y: 180, seated: true, facing: 'up' },
+      { av: c('controller'), x: 132, y: 158, seated: true }, { av: c('opsdir'), x: 144, y: 158, seated: true }, { av: c('trainer'), x: 156, y: 158, seated: true },
+      { av: c('hr'), x: 132, y: 180, seated: true, facing: 'up' }, { av: c('analyst'), x: 144, y: 180, seated: true, facing: 'up' }, { av: c('marketing'), x: 156, y: 180, seated: true, facing: 'up' },
     ];
     if (preset === 'night') return [];
     return [
-      { av: c('colin'), x: 132, y: 116, seated: false }, { av: c('dev'), x: 187, y: 89, seated: true },
-      { av: c('marisol'), x: 255, y: 89, seated: true }, { av: c('renee'), x: 221, y: 115, seated: true }, { av: c('tom'), x: 212, y: 162, seated: false },
+      { av: c('marketing'), x: 132, y: 116, seated: false }, { av: c('controller'), x: 187, y: 89, seated: true },
+      { av: c('analyst'), x: 255, y: 89, seated: true }, { av: c('hr'), x: 221, y: 115, seated: true }, { av: c('opsdir'), x: 212, y: 162, seated: false },
     ];
   }
 

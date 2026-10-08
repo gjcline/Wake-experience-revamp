@@ -11,6 +11,7 @@ export const OBJECTS = {
   email: { rect: [16, 70, 48, 24] },
   message: { rect: [158, 72, 20, 28] },
   note: { rect: [182, 78, 22, 22] },
+  team: { rect: [209, 62, 28, 32] },
 };
 
 const sky = (p) => {
@@ -21,7 +22,7 @@ const sky = (p) => {
   return Array.from({ length: 6 }, (_, i) => { const k = i / 5; return 'rgb(' + t.map((v, j) => Math.round(v + (b[j] - v) * k)).join(',') + ')'; });
 };
 
-export function drawDesk(canvas, progress) {
+export function drawDesk(canvas, progress, pins = 3) {
   canvas.width = DW; canvas.height = DH;
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
@@ -46,7 +47,7 @@ export function drawDesk(canvas, progress) {
   // location board
   r(148, 8, 80, 54, '#3B3560'); r(151, 11, 74, 48, '#24473F');
   r(151, 30, 74, 4, '#3E6B60'); r(180, 11, 4, 48, '#3E6B60'); r(151, 46, 30, 3, '#3E6B60');
-  [[160, 20], [196, 18], [172, 38], [212, 28], [205, 48], [160, 52]].forEach(([x, y]) => { r(x - 2, y - 3, 5, 5, '#FF4F8B'); r(x, y + 2, 1, 3, '#F4F1DE'); });
+  [[196, 22], [160, 20], [172, 40], [212, 30], [205, 50], [160, 53], [190, 50]].slice(0, Math.max(1, Math.min(7, pins))).forEach(([x, y]) => { r(x - 2, y - 3, 5, 5, '#FF4F8B'); r(x, y + 2, 1, 3, '#F4F1DE'); });
   // desk
   r(0, 92, DW, 32, '#6B4220'); r(0, 90, DW, 4, '#A86E37'); r(0, 94, DW, 2, '#4E2F17');
   // monitor
@@ -64,7 +65,10 @@ export function drawDesk(canvas, progress) {
   r(160, 74, 16, 24, '#0B0A16'); r(162, 77, 12, 17, '#16313A'); r(164, 79, 8, 3, '#F4F1DE'); r(166, 84, 8, 3, '#39E5E0'); r(164, 89, 6, 3, '#F4F1DE');
   // note
   r(184, 80, 18, 18, '#FFD23F'); r(187, 85, 12, 1, '#7A5A10'); r(187, 89, 10, 1, '#7A5A10'); r(187, 93, 11, 1, '#7A5A10');
-  // plant
-  r(214, 76, 16, 14, '#C2643A'); r(214, 76, 16, 2, '#9A4E2C');
-  [[216, 62, 3, 14], [221, 56, 3, 20], [226, 64, 3, 12], [211, 66, 5, 3], [228, 60, 5, 3], [218, 58, 4, 3]].forEach(([x, y, w, h]) => r(x, y, w, h, '#3FA34D'));
+  // team: the org chart on a clipboard
+  r(211, 66, 24, 28, '#A86E37'); r(213, 69, 20, 23, '#F4F1DE'); r(219, 63, 8, 5, '#6E6A8E');
+  r(220, 71, 6, 3, '#FF4F8B'); r(222, 74, 1, 3, '#2C2650'); r(216, 77, 14, 1, '#2C2650');
+  r(216, 78, 1, 2, '#2C2650'); r(222, 78, 1, 2, '#2C2650'); r(229, 78, 1, 2, '#2C2650');
+  r(214, 80, 5, 3, '#39E5E0'); r(220, 80, 5, 3, '#39E5E0'); r(227, 80, 5, 3, '#39E5E0');
+  r(215, 86, 15, 1, '#A6A2C4'); r(215, 89, 11, 1, '#A6A2C4');
 }

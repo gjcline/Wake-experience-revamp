@@ -12,7 +12,7 @@ export function runWake(world, signalEngine, state) {
   for (const src of sources) for (const id of src.lines) ids.add(id);
   const gathered = Array.from(ids).map((id) => world.signals[id]);
   const records = sources.reduce((n, s) => n + (s.volume || 0), 0);
-  const systems = new Set(sources.filter((s) => s.kind !== 'location' && s.cat !== 'general').map((s) => s.cat));
+  const systems = new Set(sources.filter((s) => s.kind !== 'location' && s.kind !== 'team' && s.cat !== 'general').map((s) => s.cat));
 
   // 2. Normalize + 4. Detect: deviation from each signal's own baseline (Signal Engine).
   const moved = gathered.filter((s) => s.outOfRange);
@@ -36,7 +36,7 @@ export function runWake(world, signalEngine, state) {
     // 7. Prioritize: urgency first, then business impact, then confidence and breadth.
     const score = 0.5 * f.urgency + 0.3 * f.impact + 0.15 * conf + 0.05 * Math.min(1, cats.size / 5);
     findings.push({
-      id: f.id, place: f.loc ? world.locById[f.loc].name : 'All ' + world.shell.vocab.units,
+      id: f.id, place: world.shell.multi ? (f.loc ? world.locById[f.loc].name : 'All ' + world.shell.vocab.units) : f.topic,
       title: f.title, finding: f.finding, connection: f.connection, interpretation: f.interpretation, action: f.action,
       score, systems: cats.size, sources: srcs.size,
       evidence: present.map((id) => {
@@ -44,7 +44,7 @@ export function runWake(world, signalEngine, state) {
         const home = world.sources[s.sources.find((sid) => world.sources[sid].kind !== 'location')];
         const quiet = ['call', 'request', 'assumption'].includes(s.value) ? '' : s.value;
         return { key: id, label: s.label, value: quiet, delta: s.delta, where: home.title, whereKind: home.kind, seen: st.seen, seenAt: st.seenAt, pinned: st.pinned,
-          seenIn: st.seen ? (st.seenIn === 'call' ? 'your call' : world.sources[st.seenIn].kind === 'location' ? 'the ' + world.sources[st.seenIn].title + ' file' : world.sources[st.seenIn].title) : '' };
+          seenIn: st.seen ? (world.sources[st.seenIn].kind === 'location' ? 'the ' + world.sources[st.seenIn].title + ' scorecard' : world.sources[st.seenIn].title) : '' };
       }),
     });
   }

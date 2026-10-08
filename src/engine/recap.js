@@ -28,16 +28,18 @@ export function buildRecap(world, state, { delivery, week, QUIET }) {
   const target = findings.find((f) => rowOf(f.id).you.handled !== 'aligned');
   let moment;
   if (!target) {
-    moment = { title: 'You found all five.', lines: ['That is rare. Your instincts were right on every one.', 'It took you until ' + stats.you.ready + '. Wake had the same five at 7:48 AM, ranked, with owners attached.'] };
+    const n = ['zero', 'one', 'two', 'three', 'four', 'five'][findings.length] || String(findings.length);
+    moment = { title: 'You found all ' + n + '.', lines: ['That is rare. Your instincts were right on every one.', 'It took you until ' + stats.you.ready + '. Wake had the same ' + n + ' at 7:48 AM, ranked, with owners attached.'] };
   } else {
     const q = QUIET[target.id], s = world.signals[q], st = state.signals[q];
-    const home = world.sources[s.sources.find((x) => world.sources[x].kind !== 'location')];
+    const home = world.sources[s.sources.find((x) => world.sources[x].kind !== 'location') || s.sources[0]];
     const value = [s.value, s.delta].filter((x) => x && !['call', 'request', 'assumption'].includes(x)).join(', ');
     const quote = '"' + s.label + (value ? ': ' + value : '') + '."';
     const sender = home.from ? world.characters[home.from].name : '';
     let opener;
     if (home.kind === 'email') opener = st.seen ? 'At ' + fmtClock(st.seenAt) + ' you read an email from ' + sender + '. It said ' + quote : 'An email from ' + sender + ' sat unopened in your inbox. It said ' + quote;
     else if (home.kind === 'message') opener = st.seen ? 'At ' + fmtClock(st.seenAt) + ' you read a text from ' + sender + '. It said ' + quote : 'A text from ' + sender + ' sat unread on your phone. It said ' + quote;
+    else if (home.kind === 'calendar') opener = 'Your calendar had it: ' + quote;
     else opener = st.seen ? 'At ' + fmtClock(st.seenAt) + ' you had the ' + home.title + ' report open. One line read ' + quote : 'The ' + home.title + ' report had one line you never got to. ' + quote;
     moment = {
       title: target.title,
@@ -49,11 +51,11 @@ export function buildRecap(world, state, { delivery, week, QUIET }) {
   const closer = 'Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems at once. You only had to decide.';
 
   // ---------------------------------------------------------------- report
-  const yourLines = yours.map((y) => y.n + '. ' + (y.what.label || '') + (y.what.value ? ' (' + y.what.value + ')' : '') + '. You said: "' + y.text + '"' + (y.owner ? ' Owner: ' + y.owner.name + '.' : ' No owner named.') + ' In the room: ' + y.statusLabel + '.');
+  const yourLines = yours.map((y) => y.n + '. ' + (y.what.label || '') + (y.what.value ? ' (' + y.what.value + ')' : '') + '. You said: "' + y.text + '"' + (y.owner ? ' Owner: ' + y.owner.name + '.' : ' No owner named.') + (y.attached && y.attached.length ? ' Backed by: ' + y.attached.map((a) => a.label).join(', ') + '.' : '') + ' In the room: ' + y.statusLabel + '.');
   const wakeLines = delivery.wake.map((w) => w.n + '. ' + w.headline + ' ' + w.text + ' Owner: ' + w.owners.map((o) => o.name).join(' and ') + '. ' + w.check);
   const weekLines = week.map((r) => r.label + '. You: ' + ARROW[r.you.dir] + ' ' + r.you.text + ' Wake: ' + ARROW[r.wake.dir] + ' ' + r.wake.text);
   const sections = [
-    { title: 'The setup', lines: [world.role.label + ' · ' + world.shell.label + ' · ' + world.shell.company + '. Six ' + world.shell.vocab.units + ', one Monday morning, a 10:00 AM ' + world.role.meetingName + '.'] },
+    { title: 'The setup', lines: [world.role.label + ' · ' + world.shell.label + ' · ' + world.shell.company + '. ' + (world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit) + ', one Monday morning, a 10:00 AM ' + world.role.meetingName + '.'] },
     { title: 'Round 1: on your own', lines: ['Ready at ' + stats.you.ready + '. ' + stats.you.flags + ' data points flagged, ' + stats.you.real + ' tied to a real issue.'].concat(yourLines) },
     { title: 'Round 2: with Wake', lines: ['Briefing waiting at 7:48 AM. Decisions done by ' + stats.wake.ready + '. ' + stats.wake.signals + ' signals connected across ' + stats.wake.systems + ' systems, ' + stats.wake.filtered + ' false alarms filtered.'].concat(wakeLines) },
     { title: 'The meeting', lines: ['Your briefing: ' + stats.you.handed + ' of ' + stats.you.flags + ' handed off cleanly.', 'Wake\'s briefing: ' + stats.wake.handed + ' of ' + stats.wake.handed + ' handed off cleanly.'] },

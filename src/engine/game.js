@@ -1,10 +1,11 @@
 // SIMULATION ENGINE
 // Two rounds of the same Monday morning, then the meeting, then the week.
-//   Round 1: on your own. The clock runs by itself. Flag data points, write the action.
+//   Round 1: on your own. The clock runs by itself. Flag data points in the reports and the
+//            location scorecards, pick or write what should happen, attach supporting context.
 //   Round 2: with Wake. Same data. Wake hands you a ranked briefing; you decide and assign.
 //   Meeting: present both. The room reacts to exactly what you hand it.
 //   Week: both plans play out side by side.
-// No business logic lives in the interface. Everything here is deterministic.
+// No business logic lives in the interface. Everything here is deterministic for a seed.
 
 import { buildWorld, fmtClock } from './config.js';
 import { createSignalEngine } from './signals.js';
@@ -13,19 +14,20 @@ import { createTracker } from './behavior.js';
 import { runWake } from './intelligence.js';
 import { judgeFlag, bestHandling, STATUS } from './judge.js';
 import { buildRecap } from './recap.js';
-import { OWNERS, PHONE, SYSTEM, QUIET } from '../content/rounds.js';
 
 export const MIN_FLAGS = 3, MAX_FLAGS = 5;
+const SECONDARY = ['email', 'message', 'calendar', 'note'];
+const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
 
-export function createGame({ shellId, roleId, now = () => Date.now(), sessionId } = {}) {
-  const world = buildWorld(shellId, roleId);
+export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), sessionId } = {}) {
+  const world = buildWorld(shellId, roleId, seed);
   const signals = createSignalEngine(world);
   const events = createEventEngine(world);
   const tracker = createTracker(now);
   const D = world.day;
 
   const state = {
-    sessionId: sessionId || 'wx-' + now().toString(36), shell: shellId, role: roleId,
+    sessionId: sessionId || 'wx-' + now().toString(36), shell: shellId, role: roleId, seed,
     phase: 'entry', clock: D.start,
     sources: {}, signals: {}, events: {},
     flags: [], flagSeq: 0, submittedAt: null, submittedMs: null, round1StartMs: null,
@@ -35,9 +37,10 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
   for (const id of Object.keys(world.signals)) state.signals[id] = { seen: false, seenAt: null, seenIn: null, views: 0, pinned: false };
 
   const rec = (type, data) => tracker.record(type, state.clock, data);
-  rec('session_start', { session: state.sessionId }); rec('business_selected', { shell: shellId }); rec('role_selected', { role: roleId });
+  rec('session_start', { session: state.sessionId, seed }); rec('business_selected', { shell: shellId, company: world.shell.company, size: world.shell.size }); rec('role_selected', { role: roleId });
 
   const person = (key) => key === 'me' ? { key: 'me', name: 'You', title: world.role.label } : { key, ...world.characters[key] };
+  const sysOf = (src) => world.system[src.id] || world.system[src.kind] || '';
 
   // ------------------------------------------------------------ round 1
   function startRound1() { state.phase = 'morning'; state.round1StartMs = now(); rec('round1_started'); return events.tick(state); }
@@ -57,60 +60,83 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
     return ids.filter((id) => state.sources[id].available).map((id) => ({ ...world.sources[id], opened: state.sources[id].opened, arrivedAt: state.sources[id].arrivedAt }))
       .sort((a, b) => (b.arrivedAt || 0) - (a.arrivedAt || 0));
   }
-  const unread = (kind) => listSources(kind).filter((s) => !s.opened).length;
+  const unread = (kind) => listSources(kind).filter((s) => !s.opened && s.kind !== 'team' && s.id !== 'loc_all').length;
 
-  // Opening something costs nothing. Look at everything.
-  function open(sourceId) {
+  // Opening something costs nothing.
+  function open(sourceId, from) {
     const src = world.sources[sourceId], st = state.sources[sourceId];
     if (!src || !st.available) return null;
     const first = st.opened === 0;
     if (!tracker.of('source_opened').length) rec('first_interaction', { source: sourceId, kind: src.kind, cat: src.cat });
     st.opened += 1; st.firstAt = st.firstAt ?? state.clock;
     for (const id of src.lines) { const s = state.signals[id]; if (!s.seen) { s.seen = true; s.seenAt = state.clock; s.seenIn = sourceId; } s.views += 1; }
-    rec('source_opened', { source: sourceId, kind: src.kind, cat: src.cat, first, signals: src.lines.length });
+    rec('source_opened', { source: sourceId, kind: src.kind, cat: src.cat, first, signals: src.lines.length, via: from || null });
     return view(sourceId);
   }
 
-  function flagOf(signalIds) { return state.flags.find((f) => f.signals.some((id) => signalIds.includes(id))); }
+  const flagNo = (id) => { const i = state.flags.findIndex((f) => f.signals.includes(id)); return i + 1; };
+  const sig = (id) => { const s = world.signals[id]; return { key: id, label: s.label, value: s.value, delta: s.delta, flag: flagNo(id) }; };
+  const attachedTo = (key) => state.flags.map((f, i) => (f.attached.some((a) => a.key === key) ? i + 1 : 0)).filter(Boolean);
 
+  // Everything a screen needs to draw one source. Figures carry their flag number.
   function view(sourceId) {
     const src = world.sources[sourceId];
-    const line = (id) => { const s = world.signals[id]; const f = flagOf([id]); return { key: id, label: s.label, value: s.value, delta: s.delta, flag: f ? state.flags.indexOf(f) + 1 : 0 }; };
     const who = src.from ? world.characters[src.from] : null;
-    const whole = src.sections ? null : flagOf(src.lines);
-    return {
+    const v = {
       id: src.id, kind: src.kind, title: src.title, sub: src.sub || '', intro: src.intro || '', when: src.when, flag: src.flag || '',
-      from: who ? { key: src.from, name: who.name, title: who.title } : null, system: SYSTEM[src.id] || SYSTEM[src.kind] || '',
-      body: src.body || [], note: src.note || '',
-      sections: (src.sections || []).map((sec) => ({ title: sec.title, lines: sec.lines.map(line) })),
-      pinKeys: src.sections ? [] : src.lines, flagged: whole ? state.flags.indexOf(whole) + 1 : 0,
-      quote: src.sections ? '' : (src.kind === 'email' ? src.title : (src.body || [])[0] || ''),
-      related: signals.related(sourceId, state).map((id) => ({ id, title: world.sources[id].title, kind: world.sources[id].kind })),
+      from: who ? { key: src.from, name: who.name, title: who.title } : null, system: sysOf(src), run: src.run || '',
+      body: src.body || [], note: src.note || '', to: src.to || '', cc: src.cc || '', address: src.address || '',
+      secondary: SECONDARY.includes(src.kind), attachedTo: attachedTo(src.id),
+      related: signals.related(sourceId, state).map(({ id, via }) => ({ id, title: world.sources[id].title, kind: world.sources[id].kind, opened: state.sources[id].opened > 0, via: via.map((x) => world.signals[x].label), hl: via })),
     };
+    if (src.blocks) v.blocks = src.blocks.map((b) => ({ title: b.title, note: b.note || '', cols: b.cols, rows: b.rows.map((r) => ({ total: !!r.total, cells: r.cells.map((c) => ({ t: c.t, s: c.s || null, tone: c.tone || '', flag: c.s ? flagNo(c.s) : 0 })) })) }));
+    if (src.tiles) v.tiles = src.tiles.map((t) => ({ ...sig(t.id), label: t.label }));
+    if (src.rows) v.rows = src.rows.map((r) => ({ label: r.label, cells: r.ids.map(sig) }));
+    if (src.kind === 'location' && src.loc) v.loc = src.loc;
+    if (src.kind === 'calendar') {
+      const ev = (e) => ({ ...e, attachedTo: attachedTo('cal:' + e.id), detail: e.detail ? { ...e.detail, people: (e.detail.people || []).map(person) } : null });
+      Object.assign(v, { today: src.today.map(ev), weeks: Object.fromEntries(Object.entries(src.weeks).map(([k, list]) => [k, list.map(ev)])), dates: src.dates, lastDates: src.lastDates, nextDates: src.nextDates });
+    }
+    if (src.kind === 'note') v.list = src.list || null;
+    if (src.kind === 'team') Object.assign(v, { central: src.central.map(person), managers: src.managers.map((k) => ({ ...person(k), loc: world.locById[world.characters[k].loc] })) });
+    return v;
   }
   const dwell = (sourceId, ms) => { if (state.sources[sourceId]) state.sources[sourceId].dwellMs += ms; };
 
   // What the player is pointing at, in words they would recognize.
   function describe(signalIds, sourceId) {
-    const src = world.sources[sourceId];
-    if (src && !src.sections) return { label: src.kind === 'email' ? src.title : (src.body || [])[0], value: '', from: src.from ? world.characters[src.from].name : '' };
     const s = world.signals[signalIds[0]];
-    return { label: s.label, value: ['call', 'request', 'assumption', 'invite', 'plan'].includes(s.value) ? '' : [s.value, s.delta].filter(Boolean).join(', '), from: '' };
+    const src = world.sources[sourceId];
+    return { label: s.label, value: ['request', 'assumption', 'invite', 'plan'].includes(s.value) ? '' : [s.value, s.delta].filter(Boolean).join(', '), where: src ? src.title : '', system: src ? sysOf(src) : '' };
   }
 
-  function flag({ signals: ids, source, text, owner }) {
+  // The common answers for a data point: four styles, in an order fixed by the seed.
+  function answers(signalId) {
+    const list = world.answers[world.ansKey[signalId]] || [];
+    return list.map((a, i) => ({ ...a, o: hash(seed + ':' + signalId + ':' + i) })).sort((a, b) => a.o - b.o).map(({ o: _o, ...a }) => a);
+  }
+  const answerById = (id) => { if (!id) return null; const [k] = id.split(':'); return (world.answers[k] || []).find((a) => a.id === id) || null; };
+  const compose = (choice, note) => [choice ? choice.text : '', String(note || '').trim()].filter(Boolean).join(' ').slice(0, 400);
+
+  function flag({ signals: ids, source, choice, note, owner, text }) {
     if (state.phase !== 'morning' || state.flags.length >= MAX_FLAGS) return null;
-    const f = { id: 'f' + (++state.flagSeq), signals: [].concat(ids), source, text: String(text || '').trim().slice(0, 280), owner: owner || null, at: state.clock, what: describe([].concat(ids), source) };
+    const a = answerById(choice);
+    const n = String(note !== undefined ? note : text || '').trim().slice(0, 280);
+    if (!a && n.length < 3) return null;
+    const f = { id: 'f' + (++state.flagSeq), signals: [].concat(ids), source, choice: a ? a.id : null, intent: a ? a.intent : null, style: a ? a.style : 'own', note: n,
+      text: compose(a, n), owner: owner || null, attached: [], at: state.clock, what: describe([].concat(ids), source) };
     state.flags.push(f);
     for (const id of f.signals) state.signals[id].pinned = true;
-    rec('flag_added', { flag: f.id, signals: f.signals, source, owner: f.owner, words: f.text.split(/\s+/).filter(Boolean).length, text: f.text });
+    rec('flag_added', { flag: f.id, signals: f.signals, source, choice: f.choice, intent: f.intent, style: f.style, owner: f.owner, wrote: n.length > 0, words: n.split(/\s+/).filter(Boolean).length, text: f.text });
     return f;
   }
-  function editFlag(id, { text, owner }) {
+  function editFlag(id, { choice, note, owner, text }) {
     const f = state.flags.find((x) => x.id === id); if (!f || state.phase !== 'morning') return null;
-    if (text !== undefined) f.text = String(text).trim().slice(0, 280);
+    if (choice !== undefined) { const a = answerById(choice); f.choice = a ? a.id : null; f.intent = a ? a.intent : null; f.style = a ? a.style : 'own'; }
+    if (note !== undefined || text !== undefined) f.note = String(note !== undefined ? note : text).trim().slice(0, 280);
     if (owner !== undefined) f.owner = owner || null;
-    rec('flag_edited', { flag: id, owner: f.owner, text: f.text });
+    f.text = compose(answerById(f.choice), f.note);
+    rec('flag_edited', { flag: id, choice: f.choice, owner: f.owner, text: f.text });
     return f;
   }
   function removeFlag(id) {
@@ -125,8 +151,29 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
     [state.flags[i], state.flags[j]] = [state.flags[j], state.flags[i]];
     rec('flag_reordered', { flag: id, to: j + 1 });
   }
-  const flags = () => state.flags.map((f, i) => ({ ...f, n: i + 1, ownerName: f.owner ? person(f.owner).name : '' }));
-  const owners = () => OWNERS.map(person).concat([person('me')]).map((p) => ({ key: p.key, name: p.name, title: p.title, av: p.av }));
+
+  // Supporting context: an email, a text, a calendar entry or a note, attached to a finding.
+  function attach(flagId, item) {
+    const f = state.flags.find((x) => x.id === flagId); if (!f || state.phase !== 'morning') return null;
+    if (f.attached.some((a) => a.key === item.key)) return f;
+    const src = world.sources[item.source];
+    const sigs = item.signals || (src ? src.lines : []);
+    f.attached.push({ key: item.key, source: item.source, label: item.label || (src ? src.title : ''), kind: src ? src.kind : '', signals: sigs });
+    for (const id of sigs) if (state.signals[id]) { const s = state.signals[id]; if (!s.seen) { s.seen = true; s.seenAt = state.clock; s.seenIn = item.source; } }
+    rec('context_attached', { flag: flagId, item: item.key, source: item.source });
+    return f;
+  }
+  function detach(flagId, key) {
+    const f = state.flags.find((x) => x.id === flagId); if (!f || state.phase !== 'morning') return;
+    f.attached = f.attached.filter((a) => a.key !== key);
+    rec('context_detached', { flag: flagId, item: key });
+  }
+
+  const flags = () => state.flags.map((f, i) => ({ ...f, n: i + 1, ownerName: f.owner ? person(f.owner).name : '', ownerTitle: f.owner ? person(f.owner).title : '' }));
+  const owners = () => {
+    const mk = (k, group) => { const p = person(k); return { key: k, name: p.name, title: p.title, av: p.av, group, loc: p.loc ? world.locById[p.loc].name : '' }; };
+    return world.central.map((k) => mk(k, 'central')).concat(world.locations.map((L) => mk(L.manager, 'manager')), [{ key: 'me', name: 'You', title: 'Keep it yourself', group: 'me' }]);
+  };
 
   function submitRound1() {
     if (state.flags.length < MIN_FLAGS) return false;
@@ -147,26 +194,26 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
   function card(fid) {
     const w = state.wake.findings.find((f) => f.id === fid), b = world.briefing[fid];
     const extra = Object.entries(state.sharpened).filter(([, s]) => s.finding === fid);
-    const ownerKeys = b.owner.concat(extra.map(([, s]) => s.addOwner).filter(Boolean));
+    const ownerKeys = b.owner.concat(extra.map(([, s]) => s.addOwner).filter((k) => k && !b.owner.includes(k)));
     return {
       id: fid, rank: state.wakeOrder.indexOf(fid) + 1, place: w.place, headline: b.headline, why: b.why, action: b.action, check: b.check,
       owners: ownerKeys.map(person), assigned: !!state.assigned[fid], urgent: extra.some(([, s]) => s.urgent),
       sharpened: extra.map(([msg, s]) => ({ from: world.characters[world.sources[msg].from].name.split(' ')[0], line: s.line })),
-      evidence: b.keys.map((id) => { const s = world.signals[id], st = state.signals[id]; const home = s.sources.find((x) => world.sources[x].kind !== 'location');
-        return { key: id, label: s.label, value: ['call', 'request', 'assumption'].includes(s.value) ? '' : s.value, system: SYSTEM[home] || SYSTEM[world.sources[home].kind], seen: st.seen, flagged: st.pinned }; }),
+      evidence: b.keys.map((id) => { const s = world.signals[id], st = state.signals[id]; const home = world.sources[s.sources.find((x) => world.sources[x].kind !== 'location') || s.sources[0]];
+        return { key: id, label: s.label, value: ['request', 'assumption'].includes(s.value) ? '' : s.value, system: sysOf(home), seen: st.seen, flagged: st.pinned }; }),
       signals: w.evidence.length, systems: w.systems,
     };
   }
   function briefing() {
     const W = state.wake;
     const systems = {};
-    for (const src of Object.values(world.sources)) if (state.sources[src.id].available && src.volume > 1 && src.cat !== 'general') { const k = SYSTEM[src.id]; systems[k] = (systems[k] || 0) + src.volume; }
+    for (const src of Object.values(world.sources)) if (state.sources[src.id].available && src.volume > 1 && src.cat !== 'general') { const k = sysOf(src); systems[k] = (systems[k] || 0) + src.volume; }
     return {
       clock: state.wakeClock, funnel: W.funnel, you: W.you, field: W.field, findings: W.findings,
       systems: Object.entries(systems).map(([name, n]) => ({ name, n })),
       cards: state.wakeOrder.map(card),
       filtered: W.dismissed.map((d) => ({ label: d.label, value: d.value, because: d.because[0] || '' })),
-      phone: PHONE.map((id) => ({ id, from: world.characters[world.sources[id].from].name, key: world.sources[id].from, text: world.sources[id].body[0], done: !!state.sharpened[id] })),
+      phone: world.phone.map((id) => ({ id, from: world.characters[world.sources[id].from].name, key: world.sources[id].from, text: world.sources[id].body[0], done: !!state.sharpened[id] })),
       ready: state.wakeOrder.every((id) => state.assigned[id]),
     };
   }
@@ -200,7 +247,7 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
     const yours = state.flags.map((f, i) => {
       const j = judgeFlag(world, f);
       return { n: i + 1, what: f.what, text: f.text, owner: f.owner ? person(f.owner) : null, status: j.status, statusLabel: STATUS[j.status],
-        reactions: j.reactions.map((r) => ({ ...r, ...person(r.who) })), finding: j.finding, kind: j.kind, handling: j.handling };
+        reactions: j.reactions.map((r) => ({ ...r, ...person(r.who) })), finding: j.finding, kind: j.kind, handling: j.handling, attached: j.attached, backed: j.backed };
     });
     const wake = state.wakeOrder.map((fid, i) => {
       const c = card(fid), b = world.briefing[fid];
@@ -241,19 +288,24 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
     return rows;
   }
 
-  function recap() { const r = buildRecap(world, state, { delivery: delivery(), week: week(), QUIET }); rec('recap_viewed'); return r; }
+  function recap() { const r = buildRecap(world, state, { delivery: delivery(), week: week(), QUIET: world.quiet }); rec('recap_viewed'); return r; }
   function complete() { state.phase = 'complete'; rec('session_complete'); }
   function exported(how) { rec('report_exported', { how }); }
 
   // A sales-ready summary of what this player did. Never shown to the player.
   function session() {
-    const judged = state.flags.map((f) => ({ ...judgeFlag(world, f), text: f.text, owner: f.owner, at: fmtClock(f.at) }));
+    const judged = state.flags.map((f) => ({ ...judgeFlag(world, f), text: f.text, note: f.note, owner: f.owner, at: fmtClock(f.at) }));
+    const styles = {};
+    for (const j of judged) if (j.style) styles[j.style] = (styles[j.style] || 0) + 1;
     return {
-      sessionId: state.sessionId, shell: shellId, role: roleId, events: tracker.log,
+      sessionId: state.sessionId, shell: shellId, role: roleId, seed, company: world.shell.company, size: world.shell.size, events: tracker.log,
       summary: {
         sourcesOpened: Object.values(state.sources).filter((s) => s.opened).length,
         categoriesOpened: [...new Set(Object.entries(state.sources).filter(([, s]) => s.opened).map(([id]) => world.sources[id].cat))],
-        flags: judged.map((j) => ({ signal: j.signal, kind: j.kind, finding: j.finding, handling: j.handling, obvious: j.obvious, quiet: j.quiet, owner: j.owner, text: j.text, at: j.at })),
+        flags: judged.map((j) => ({ signal: j.signal, kind: j.kind, finding: j.finding, handling: j.handling, style: j.style, obvious: j.obvious, quiet: j.quiet, owner: j.owner, text: j.text, wrote: j.note, at: j.at,
+          attached: j.attached.map((a) => ({ item: a.key, fits: a.fits })) })),
+        styles, wroteOwn: judged.filter((j) => j.note).length, ownersNamed: judged.filter((j) => j.owner).length,
+        contextAttached: judged.reduce((n, j) => n + j.attached.length, 0), contextThatFits: judged.reduce((n, j) => n + j.backed, 0),
         findingsFound: [...new Set(judged.filter((j) => j.finding).map((j) => j.finding))],
         falseAlarmsFlagged: judged.filter((j) => j.kind === 'falseAlarm').length,
         round1Clock: state.submittedAt ? fmtClock(state.submittedAt) : null, round1Seconds: state.submittedMs ? Math.round(state.submittedMs / 1000) : null,
@@ -264,7 +316,7 @@ export function createGame({ shellId, roleId, now = () => Date.now(), sessionId 
 
   return {
     world, state, tracker, signals, fmtClock, MIN_FLAGS, MAX_FLAGS,
-    startRound1, tickClock, listSources, unread, open, view, dwell, flag, editFlag, removeFlag, moveFlag, flags, owners, submitRound1,
+    startRound1, tickClock, listSources, unread, open, view, dwell, answers, flag, editFlag, removeFlag, moveFlag, attach, detach, attachedTo, flags, owners, submitRound1,
     startRound2, briefing, assign, moveWake, putThrough, lockRound2,
     delivery, presented, week, recap, complete, exported, session, person,
     clockLabel: () => fmtClock(state.clock),

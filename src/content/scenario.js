@@ -324,7 +324,8 @@ export function generateScenario(shell, role, seed) {
   sig('mat', { cat: 'finance', kind: 'buried', label: '{Materials} cost' + (M ? ', all {units}' : ''), value: V.matNow.toFixed(1) + '% of revenue', cell: V.matNow.toFixed(1) + '%', delta: pts(V.matUp) + ' in six weeks', v: V.matNow, base: V.matBase, sev: 0.55, urg: 0.5, impact: 0.6 });
   sig('utilities', { cat: 'finance', label: 'Utilities' + (M ? ', all {units}' : ''), value: '2.1% of revenue', cell: '2.1%', delta: '+0.1 pts', v: 2.1, base: 2.0 });
   sig('uniform', { cat: 'finance', label: 'Uniforms and laundry', value: money(R.i(14, 26) * 100), delta: 'one-time reorder', v: 1, base: 1 });
-  sig('cash', { cat: 'finance', kind: wantCash ? 'falseAlarm' : 'noise', label: 'Operating cash', value: '$' + (cash / 1e6).toFixed(2) + 'M', delta: wantCash ? '-$' + Math.round(premium / 1000) + 'k in a week' : '+$' + R.i(8, 40) + 'k in a week', v: cash, base: wantCash ? cash + premium : cash });
+  const cashFmt = cash >= 1e6 ? '$' + (cash / 1e6).toFixed(2) + 'M' : '$' + Math.round(cash / 1000) + 'k';
+  sig('cash', { cat: 'finance', kind: wantCash ? 'falseAlarm' : 'noise', label: 'Operating cash', value: cashFmt, delta: wantCash ? '-$' + Math.round(premium / 1000) + 'k in a week' : '+$' + R.i(8, 40) + 'k in a week', v: cash, base: wantCash ? cash + premium : cash });
   sig('swap', { cat: 'labor', label: 'Shift swaps' + (M ? ', all {units}' : ''), value: String(R.i(18, 46)), delta: 'norm ' + R.i(18, 44), v: 1, base: 1 });
   sig('noshow', { cat: 'operations', label: 'No-show rate' + (M ? ', all {units}' : ''), value: '6.1%', delta: 'norm 5.9%', v: 6.1, base: 5.9 });
   sig('social', { cat: 'customer', label: 'Social followers', value: '+3.1%', delta: 'this month', v: 103.1, base: 100 });
@@ -486,12 +487,12 @@ export function generateScenario(shell, role, seed) {
       ['investigate', 'analyze', (M ? B.name + ' sales are' : 'Sales are') + ' sliding. Have ' + F(b) + ' bring a recovery plan this week.'],
       ['cut', 'cost', 'Volume is down' + atL(B) + '. Trim hours to match until it recovers.'],
       ['route', 'process', partner ? 'Route ' + B.name + '\'s overflow to ' + C.name + ' so nothing walks out.' : 'Turn away less. Book the overflow into Saturday overtime.'],
-      ['replace', 'invest', 'The lost work traces to the {equipment}. Approve the replacement quote now.']];
+      ['replace', 'invest', 'The lost work traces to the {equipment}. Approve the replacement now.']];
     if (partner) content.answers['F2.p'] = [
       ['recognize', 'people', 'Record week at ' + C.name + '. Recognize ' + F(c) + '\'s team and share what worked.'],
-      ['hire', 'invest', C.name + ' is at capacity. Add a {frontline} to keep up with demand.'],
+      ['hire', 'invest', C.name + ' is at capacity. Add a {frontline} to keep up.'],
       ['investigate', 'analyze', 'Find out why ' + C.name + ' is suddenly so busy before reacting.'],
-      ['replace', 'invest', C.name + '\'s surge is ' + B.name + '\'s overflow. Replace the failing {equipment} there.']];
+      ['replace', 'invest', C.name + '\'s surge is ' + B.name + '\'s overflow. Replace the {equipment}.']];
   }
 
   {
@@ -572,12 +573,12 @@ export function generateScenario(shell, role, seed) {
     content.quiet.F3 = L_('fu', D);
     content.answers['F3.grow'] = [
       ['promoMore', 'growth', M ? 'The offer is working. Roll it out to every {unit} next month.' : 'The offer is working. Extend it and push it harder next month.'],
-      ['recognize', 'people', 'Record month' + atL(D) + '. Recognize ' + F(d) + ' and the team in front of everyone.'],
+      ['recognize', 'people', 'Record month' + atL(D) + '. Recognize ' + F(d) + ' and the team publicly.'],
       ['investigate', 'analyze', 'Check whether new {customers} come back before extending the offer.'],
       ['followup', 'process', 'Regulars are slipping behind the new faces. Restart {followup} now.']];
     content.answers['F3.keep'] = [
       ['promoMore', 'growth', 'Fewer regulars returning. Run a win-back discount for lapsed {customers}.'],
-      ['hire', 'invest', 'Fill the open {desk} role' + atL(D) + ' as fast as possible.'],
+      ['hire', 'invest', 'Fill the open {desk} role' + atL(D) + ' right away.'],
       ['investigate', 'analyze', 'Have ' + F('marketing') + ' pull second-visit data and explain the drop.'],
       ['followup', 'process', '{Followup} stopped. Cover the calls from the central office this week.']];
   }
@@ -658,7 +659,7 @@ export function generateScenario(shell, role, seed) {
   // which answers go with which data point
   const ansKey = {};
   const F1cost = ['labor', 'ot', 'util', 'rev', 'thru', 'sched'];
-  for (const s of Object.values(S)) {
+  const keyAnswers = () => { for (const s of Object.values(S)) {
     const L = s.loc ? locations.find((l) => l.id === s.loc) : null;
     const parts = s.id.split('.'), m = parts[0];
     const ownerOf = L && parts.length === 2 && parts[1] === L.id ? owner(L, m) : null;
@@ -673,16 +674,16 @@ export function generateScenario(shell, role, seed) {
     else if (['mat', 'ap.var', 'ap.total', 'ap.lock', 'ap.mix'].includes(s.id)) k = 'F4';
     if (!k || !content.answers[k]) { k = 'noise.' + s.cat + (L ? '.' + L.id : ''); if (!content.answers[k]) content.answers[k] = noiseSet(s.cat, L); }
     ansKey[s.id] = k;
-  }
+  } };
 
   // ------------------------------------------------ sources: reports
   const runAt = dShort(monday) + ', 6:10 AM';
   const weekEnd = dShort(dayOf(-1));
-  const cellOf = (id, part = 'cell', tone) => { const s = S[id]; const t = part === 'cell' ? (s.cell || s.value) : s[part]; return { t: t || '', s: id, tone: tone && /^-/.test(t) ? 'neg' : '' }; };
+  const cellOf = (id, part = 'cell', tone, short) => { const s = S[id]; let t = part === 'cell' ? (s.cell || s.value) : s[part]; if (short && t) t = t.replace(/^(norm|was|target|standard is)\s+/i, '').replace(/ (a year ago|eight weeks ago)$/, ''); return { t: t || '', s: id, tone: tone && /^-/.test(t) ? 'neg' : '' }; };
   // A table with one row per location, or, for a single location, one row per measure.
   function byLoc(cols, opts = {}) {
     if (M) {
-      const rows = locations.map((L) => ({ cells: [{ t: L.name }].concat(cols.map((c) => c.fn ? c.fn(L) : cellOf(c.m + '.' + L.id, c.part || 'cell', c.tone))) }));
+      const rows = locations.map((L) => ({ cells: [{ t: L.name }].concat(cols.map((c) => c.fn ? c.fn(L) : cellOf(c.m + '.' + L.id, c.part || 'cell', c.tone, c.part === 'delta'))) }));
       if (opts.total) rows.push({ total: true, cells: [{ t: 'Total' }].concat(opts.total) });
       return { cols: ['Location'].concat(cols.map((c) => c.h)), rows };
     }
@@ -806,7 +807,7 @@ export function generateScenario(shell, role, seed) {
     const notes = R.shuffle([['"Never knew my hours until the day before."', true], ['"Couldn\'t plan childcare around the schedule."', true], ['"Found something closer to home."', false]]);
     notes.forEach(([nt, sched], i) => { const hired = R.i(45, 85), left = R.i(3, 33); exitRows.push({ cells: [{ t: R.pick(FIRST) + ' ' + R.pick(LAST).charAt(0) + '.' }, { t: M ? E.name : '' }, { t: '{Frontline}' }, { t: dNum(dayOf(-left)) }, { t: tenure(hired - left) }, { t: nt, s: sched ? 'exitnote.' + E.id : 'exits.' + E.id }] }); void i; });
   }
-  for (const L of locations) if (L !== E && L.n.exits > 0) { const k = 'ex.' + L.id; sig(k, { loc: L.id, cat: 'people', label: lab(L, 'resignation'), value: 'one' }); exitRows.push({ cells: [{ t: R.pick(FIRST) + ' ' + R.pick(LAST).charAt(0) + '.' }, { t: M ? L.name : '' }, { t: R.pick(['{Frontline}', 'Front desk', 'Assistant manager']) }, { t: dNum(dayOf(-R.i(3, 33))) }, { t: R.i(1, 6) + ' yrs' }, { t: R.pick(['"Relocating out of state."', '"Going back to school."', '"Took a role closer to family."']), s: k }] }); }
+  for (const L of locations) if (L !== E && L.n.exits > 0) { const k = 'ex.' + L.id; sig(k, { loc: L.id, cat: 'people', label: lab(L, 'resignation'), value: 'one' }); exitRows.push({ cells: [{ t: R.pick(FIRST) + ' ' + R.pick(LAST).charAt(0) + '.' }, { t: M ? L.name : '' }, { t: R.pick(['{Frontline}', 'Front desk', 'Assistant manager']) }, { t: dNum(dayOf(-R.i(3, 33))) }, { t: R.i(2, 6) + ' yrs' }, { t: R.pick(['"Relocating out of state."', '"Going back to school."', '"Took a role closer to family."']), s: k }] }); }
   const roleRows = [];
   if (D) roleRows.push({ cells: [{ t: '{Desk}' }, { t: M ? D.name : '' }, cellOf('deskreq.' + D.id), { t: R.pick(['Two candidates in process', 'Interviewing today']) }] });
   for (const L of locations) for (let i = 0; i < L.n.req; i++) { const k = 'role.' + L.id + '.' + i; sig(k, { loc: L.id, cat: 'people', label: lab(L, 'open {frontline} role'), value: 'open ' + (L.n.reqDays + i * 4) + ' days' }); roleRows.push({ cells: [{ t: '{Frontline}' }, { t: M ? L.name : '' }, { t: 'open ' + (L.n.reqDays + i * 4) + ' days', s: k }, { t: R.pick(['Posted', 'Screening', 'Offer out']) }] }); }
@@ -830,15 +831,15 @@ export function generateScenario(shell, role, seed) {
   if (X) notes[X.id] = 'Lost ' + V.closureDay + ' to ' + closure[0] + '. Otherwise a normal week.';
   if (A) notes[A.id] = 'We\'re stretched. ' + cap(peaks) + ' are brutal and I\'m burning overtime to get through them. I need two more people.';
   const pins = [];
-  for (const [i, L] of locations.entries()) {
+  for (const L of locations) {
     const ids = SCORE.map(([m]) => m + '.' + L.id);
     sources['loc_' + L.id] = { id: 'loc_' + L.id, kind: 'location', loc: L.id, from: L.manager, when: 'Mon 6:10 AM', title: M ? L.name : company, cat: 'location', volume: 0,
       sub: [L.tag, 'Opened ' + L.opened, L.staff + ' people'].filter(Boolean).join(' · '), address: L.street, note: notes[L.id],
       tiles: SCORE.map(([m, label]) => ({ label, id: m + '.' + L.id })), lines: ids };
-    // map position, spread over a loose grid so pins never overlap
-    const gx = i % 4, gy = Math.floor(i / 4);
-    pins.push({ id: L.id, x: 14 + gx * 23 + R.u(-4, 4), y: 26 + gy * 38 + (gx % 2) * 14 + R.u(-4, 4) });
   }
+  // map positions: spread across the town, clear of the river and of each other
+  const slots = R.shuffle([[14, 30], [38, 22], [63, 32], [86, 24], [24, 52], [50, 48], [77, 56], [12, 62], [90, 44]]);
+  locations.forEach((L, i) => pins.push({ id: L.id, x: slots[i][0] + R.u(-2, 2), y: slots[i][1] + R.u(-2, 2) }));
   if (!M) pins[0] = { id: locations[0].id, x: 50, y: 48 };
   if (M) sources.loc_all = { id: 'loc_all', kind: 'location', loc: null, from: null, when: 'Mon 6:10 AM', title: 'All locations side by side', cat: 'location', volume: 0,
     sub: 'This week, every {unit}', rows: SCORE.map(([m, label]) => ({ label, ids: locations.map((L) => m + '.' + L.id) })), lines: SCORE.flatMap(([m]) => locations.map((L) => m + '.' + L.id)) };
@@ -892,7 +893,8 @@ export function generateScenario(shell, role, seed) {
   const smallTalk = locations.map((L) => L.manager).filter((k) => !startTexts.some((t) => sources[t].from === k));
   const smalls = [['Can we move our 1:1 to Thursday? Inventory count is Wednesday.'], ['Thanks for approving Friday off. Coverage is set.'], ['FYI the new uniforms came in. They look great.']];
   for (let i = 0; startTexts.length < 3 && i < smallTalk.length && i < smalls.length; i++) addText('msg_s' + i, smallTalk[i], R.pick(['Fri 11:40 AM', 'Sat 10:02 AM', 'Sun 4:15 PM']), smalls[i], ['msg.small'], { finding: null, line: 'Personal message. Not connected to any priority.' });
-  if (startTexts.length < 3) addText('msg_ops0', 'opsdir', 'Sun 6:20 PM', ['Back in town Monday. Let me know if you want me anywhere specific this week.'], ['msg.small'], { finding: null, line: 'Scheduling note. Not connected to any priority.' });
+  const fillers = [['opsdir', 'Sun 6:20 PM', 'Back in town Monday. Let me know if you want me anywhere specific this week.'], ['trainer', 'Fri 1:15 PM', 'Next month\'s training calendar is posted. Shout if any dates clash.'], ['hr', 'Sat 8:40 AM', 'Handbook draft is in your inbox whenever you get a minute. No rush.']];
+  for (const [k, when, line] of fillers) if (startTexts.length < 3) addText('msg_' + k + '0', k, when, [line], ['msg.small'], { finding: null, line: 'Not connected to any priority this week.' });
 
   // ------------------------------------------------ sources: calendar and notes
   const visitL = R.pick(locations);
@@ -980,6 +982,7 @@ export function generateScenario(shell, role, seed) {
     calendar: ['cal'], note: ['note_role', 'note_mine'], team: ['team'],
   };
 
+  keyAnswers();
   const headcount = locations.reduce((n, L) => n + L.staff, 0) + CENTRAL.length + R.i(2, 6);
   return {
     seed, company, supplier, equipCo, hq, headcount, N, M, monday: dShort(monday), mondayLong: DAYS[1] + ', ' + MONTH[monday.getUTCMonth()] + ' ' + monday.getUTCDate(), weekEnd, lockDate, bossName,

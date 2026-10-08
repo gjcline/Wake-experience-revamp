@@ -6,17 +6,16 @@
 import { createGame } from '../engine/game.js';
 import { fmtClock } from '../engine/config.js';
 import { h, avatar } from './art.js';
-import { drawDesk, OBJECTS, DW, DH } from './arcade/desk.js';
 import { sfx } from './arcade/sound.js';
 import { createField } from './field.js';
 import { createArcade } from './arcade/screens.js';
+import { round1 as runRound1 } from './round1.js';
 
 const HOST = (typeof window !== 'undefined' && window.WAKE_HOST) || 'web';
 const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const root = document.getElementById('wx');
 let game = null;
 let cleanup = null;
-const CLOCK_MS = 2000;            // one minute of the morning every two seconds: 7:48 to 10:00 in about 4.5 minutes
 
 const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
 const btn = (label, onclick, cls = 'btn') => h('button', { class: cls, type: 'button', onclick }, label);
@@ -39,11 +38,22 @@ function createCoach() {
   const ring = h('div', { class: 'coach-ring', hidden: true });
   const box = h('div', { class: 'coach', hidden: true, role: 'status', 'aria-live': 'polite' });
   document.body.append(ring, box);
-  let steps = [], i = -1, timer = null;
+  let steps = [], i = -1, timer = null, inline = null;
   function place() {
     const st = steps[i]; if (!st) return;
     const t = st.target ? document.querySelector(st.target) : null;
     const vw = window.innerWidth, vh = window.innerHeight;
+    if (st.inline) {
+      // the guide lives inside the thing it points at, so nothing it explains is ever dimmed
+      if (t && t.offsetParent !== null) {
+        if (!inline || !t.contains(inline)) { if (inline) inline.remove(); inline = h('div', { class: 'coach-inline' }, h('b', {}, 'GUIDE'), h('p', {}, st.text), st.wait && !st.next ? h('span', { class: 'coach-wait' }, '▶ ' + (st.hint || 'Go ahead')) : st.next ? btn(st.next, () => advance(), 'btn primary small') : null); t.prepend(inline); }
+        const r = t.getBoundingClientRect();
+        ring.hidden = false; box.hidden = true;
+        Object.assign(ring.style, { left: Math.max(2, r.left - 6) + 'px', top: Math.max(2, r.top - 6) + 'px', width: Math.min(vw - 4, r.width + 12) + 'px', height: Math.min(vh * 3, r.height + 12) + 'px' });
+      } else { ring.hidden = true; box.hidden = true; }
+      return;
+    }
+    box.hidden = false;
     if (t && t.offsetParent !== null) {
       const r = t.getBoundingClientRect();
       ring.hidden = false;
@@ -61,18 +71,29 @@ function createCoach() {
       Object.assign(box.style, { left: (vw - bw) / 2 + 'px', top: vh * 0.3 + 'px', width: bw + 'px' });
     }
   }
+  function advance() { const st = steps[i]; sfx.select(); if (st && st.onNext) st.onNext(); go(i + 1); }
   function go(n) {
+    if (inline) { inline.remove(); inline = null; }
+    const prev = steps[i];
     i = n;
+    while (steps[i] && steps[i].skipIf && steps[i].skipIf()) i += 1;
     const st = steps[i];
-    if (!st) { stop(); return; }
-    box.hidden = false;
-    box.replaceChildren(h('b', {}, 'GUIDE'), h('p', {}, st.text), st.next ? btn(st.next, () => { sfx.select(); go(i + 1); }, 'btn primary small') : h('span', { class: 'coach-wait' }, '▶ ' + (st.hint || 'Go ahead')));
+    if (!st) { const done = prev && prev.onDone; stop(); if (done) done(); return; }
+    box.replaceChildren(h('b', {}, 'GUIDE'), h('p', {}, st.text), st.next ? btn(st.next, advance, 'btn primary small') : h('span', { class: 'coach-wait' }, '▶ ' + (st.hint || 'Go ahead')));
+    box.hidden = !!st.inline;
+    // bring what the guide points at into view before pointing at it
+    const t = st.target ? document.querySelector(st.target) : null;
+    if (t && t.offsetParent !== null) { const r = t.getBoundingClientRect(); if (r.top < 0 || r.bottom > window.innerHeight - 90) t.scrollIntoView({ block: r.height > window.innerHeight * 0.6 ? 'start' : 'center', behavior: 'auto' }); }
     sfx.blip(); place();
   }
-  function stop() { steps = []; i = -1; box.hidden = true; ring.hidden = true; clearInterval(timer); }
+  function stop() { steps = []; i = -1; box.hidden = true; ring.hidden = true; clearInterval(timer); if (inline) { inline.remove(); inline = null; } }
   return {
-    run(list) { steps = list; clearInterval(timer); timer = setInterval(place, 250); go(0); },
-    emit(ev) { const st = steps[i]; if (st && st.wait && (st.wait === ev || (Array.isArray(st.wait) && st.wait.includes(ev)))) setTimeout(() => go(i + 1), 120); },
+    run(list) { steps = list; clearInterval(timer); timer = setInterval(place, 250); i = -1; go(0); },
+    emit(ev) {
+      const st = steps[i]; if (!st) return;
+      if (st.back && st.back === ev) { setTimeout(() => go(Math.max(0, i - 1)), 120); return; }
+      if (st.wait && (st.wait === ev || (Array.isArray(st.wait) && st.wait.includes(ev)))) setTimeout(() => go(i + 1), 120);
+    },
     stop, active: () => i >= 0,
   };
 }
@@ -81,8 +102,8 @@ const coach = createCoach();
 // ------------------------------------------------------------------ opening
 const arcade = createArcade({
   root, reduced,
-  onPicked(shellId, roleId) {
-    game = createGame({ shellId, roleId });
+  onPicked(shellId, roleId, seed) {
+    game = createGame({ shellId, roleId, seed });
     window.WakeExperience = { session: () => game.session(), state: () => game.state };
     arcade.arrival(game, () => round1());
   },
@@ -90,201 +111,8 @@ const arcade = createArcade({
 const restart = () => { coach.stop(); game = null; arcade.start(); };
 
 // ------------------------------------------------------------------ ROUND 1: on your own
-const KINDS = { email: 'Inbox', report: 'Reports', message: 'Phone', note: 'Note', calendar: 'Calendar', location: 'Locations' };
-
 function round1() {
-  const w = game.world, D = w.day;
-  game.startRound1();
-  let panelKind = null, docId = null, docStart = 0, shownClock = game.state.clock;
-  const clockEl = h('b', { class: 'clock' }, fmtClock(shownClock));
-  const deskCanvas = h('canvas', { class: 'desk-art', role: 'img', 'aria-label': 'Your desk on Monday morning' });
-  const spots = h('div', { class: 'spots' });
-  const panel = h('section', { class: 'panel', hidden: true });
-  const overlay = h('div', { class: 'overlay', hidden: true });
-  const toasts = h('div', { class: 'toasts', 'aria-live': 'polite' });
-  const tray = h('div', { class: 'tray' });
-  const banner = h('div', { class: 'banner', hidden: true });
-
-  show('day', 'office round1',
-    h('header', { class: 'bar' },
-      h('div', { class: 'when' }, h('span', { class: 'round-tag' }, 'ROUND 1 · ON YOUR OWN'), clockEl, h('span', { class: 'co' }, w.shell.company)),
-      h('div', { class: 'bar-right' }, btn('HOW THIS WORKS', rulesCard, 'chip'))),
-    banner,
-    h('div', { class: 'stage' },
-      h('div', { class: 'prompt' }, h('h1', {}, 'FIND WHAT MATTERS.'), h('p', {}, 'Flag at least 3 data points and write what your team should do about each one.')),
-      h('div', { class: 'scene' }, h('div', { class: 'scene-wrap' }, deskCanvas), spots), panel),
-    tray, overlay, toasts);
-
-  const drawScene = () => drawDesk(deskCanvas, Math.min(1, (shownClock - D.start) / (D.meetingAt - D.start)));
-  const steam = setInterval(drawScene, 600);
-  const ticker = setInterval(() => {
-    const r = game.tickClock();
-    shownClock = r.clock; clockEl.textContent = fmtClock(r.clock);
-    if (r.fired.length) { toast(r.fired); drawSpots(); if (panelKind) drawList(); }
-    if (r.atTen && banner.hidden) {
-      banner.hidden = false;
-      banner.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, game.state.flags.length >= game.MIN_FLAGS ? 'Your meeting is waiting. Submit your briefing when you\'re ready.' : 'Your meeting is waiting. Flag at least ' + game.MIN_FLAGS + ' data points, then submit.'));
-      sfx.credit();
-    }
-  }, reduced ? 600 : CLOCK_MS);
-  cleanup = () => { clearInterval(steam); clearInterval(ticker); coach.stop(); };
-
-  function drawSpots() {
-    spots.replaceChildren(...Object.entries(OBJECTS).map(([kind, o]) => {
-      const [x, y, ww, hh] = o.rect, n = game.unread(kind);
-      const label = kind === 'location' ? 'Your six ' + w.shell.vocab.units : KINDS[kind];
-      return h('button', { class: 'spot', type: 'button', 'data-kind': kind, style: { left: x / DW * 100 + '%', top: y / DH * 100 + '%', width: ww / DW * 100 + '%', height: hh / DH * 100 + '%' }, onclick: () => openPanel(kind) },
-        h('span', { class: 'tag' }, label.toUpperCase(), n ? h('i', {}, String(n)) : null));
-    }));
-  }
-
-  function toast(fired) {
-    for (const f of fired) {
-      const src = w.sources[f.source];
-      const el = h('button', { class: 'toast', type: 'button', onclick: () => { el.remove(); openPanel(src.kind); openDoc(f.source); } }, src.from ? av(src.from, 30) : null, h('span', {}, f.toast));
-      toasts.appendChild(el); sfx.credit();
-      setTimeout(() => el.remove(), 8000);
-    }
-  }
-
-  function closeDoc() { if (docId) { game.dwell(docId, Date.now() - docStart); docId = null; } }
-
-  function openPanel(kind) {
-    closeDoc();
-    panelKind = kind; sfx.blip();
-    const items = game.listSources(kind);
-    panel.hidden = false;
-    const single = items.length === 1 && (kind === 'calendar' || kind === 'note');
-    const listEl = h('div', { class: 'list' });
-    const reader = h('article', { class: 'reader' }, h('p', { class: 'empty' }, kind === 'location' ? 'Pick a ' + w.shell.vocab.unit + ' to open its file.' : 'Pick something to open it.'));
-    panel.replaceChildren(
-      h('div', { class: 'panel-head' }, btn('◀ BACK TO DESK', closePanel, 'link back'), h('h2', {}, kind === 'location' ? 'YOUR SIX ' + w.shell.vocab.units.toUpperCase() : KINDS[kind].toUpperCase()), h('span', { class: 'sys' }, kind === 'message' ? 'Texts to your phone' : '')),
-      h('div', { class: 'panel-body' + (single ? ' single' : '') }, listEl, reader));
-    panel._list = listEl; panel._reader = reader; panel._body = panel.querySelector('.panel-body');
-    drawList();
-    coach.emit('panel');
-    if (single) openDoc(items[0].id);
-  }
-
-  function drawList() {
-    if (!panelKind) return;
-    panel._list.replaceChildren(...game.listSources(panelKind).map((s) => h('button', { class: 'item' + (s.opened ? ' read' : '') + (s.id === docId ? ' on' : ''), type: 'button', onclick: () => openDoc(s.id) },
-      s.from && panelKind !== 'report' ? av(s.from, 34) : null,
-      h('span', { class: 'item-text' }, h('strong', {}, s.title), h('span', {}, panelKind === 'report' || panelKind === 'location' ? s.sub : (panelKind === 'email' ? w.characters[s.from].name + ' · ' : '') + s.when), s.flag ? h('em', {}, s.flag) : null))));
-  }
-
-  function closePanel() { closeDoc(); panelKind = null; panel.hidden = true; drawSpots(); sfx.back(); }
-
-  function openDoc(id) {
-    closeDoc();
-    const v = game.open(id); if (!v) return;
-    docId = id; docStart = Date.now();
-    renderDoc(v); panel._body.classList.add('reading');
-    drawList(); drawSpots(); sfx.blip();
-    coach.emit('doc');
-  }
-
-  function renderDoc(s) {
-    const R = panel._reader;
-    const kids = [h('button', { class: 'link back mobile-only', type: 'button', onclick: () => { panel._body.classList.remove('reading'); drawList(); } }, '◀ BACK TO THE LIST')];
-    if (s.kind === 'email' || s.kind === 'message' || s.kind === 'note') {
-      const flagBtn = s.kind === 'note' ? null : btn(s.flagged ? 'FLAGGED #' + s.flagged + ' · EDIT' : '⚑ FLAG THIS', () => s.flagged ? editFlag(s.pinKeys, s.id) : compose({ signals: s.pinKeys, source: s.id, what: { label: s.quote, from: s.from ? s.from.name : '' } }), 'pinbtn' + (s.flagged ? ' pinned' : ''));
-      kids.push(h('div', { class: 'doc ' + s.kind },
-        h('div', { class: 'from' }, s.from ? av(s.from.key, 46) : null, h('div', {}, h('strong', {}, s.from ? s.from.name : ''), h('span', {}, [s.from && s.from.title, s.when].filter(Boolean).join(' · ')))),
-        s.kind === 'email' ? h('h3', {}, s.title) : null, s.flag ? h('p', { class: 'flag' }, s.flag) : null,
-        h('div', { class: 'body' }, s.body.map((p) => h('p', {}, p))), flagBtn));
-    } else {
-      const who = s.kind === 'location' ? s.from : null;
-      kids.push(h('div', { class: 'doc sheet' },
-        h('h3', {}, s.title), s.sub ? h('p', { class: 'quiet' }, s.sub) : null,
-        who ? h('blockquote', { class: 'mgr' }, av(who.key, 46), h('div', {}, h('p', {}, '"' + s.note + '"'), h('span', {}, who.name))) : null,
-        h('p', { class: 'intro' }, (s.intro ? s.intro + ' ' : '') + 'Click any line to flag it.'),
-        s.sections.map((sec) => h('div', { class: 'sec' }, h('h4', {}, sec.title), sec.lines.map((l) => h('button', { class: 'line' + (l.flag ? ' pinned' : ''), type: 'button', onclick: () => l.flag ? editFlag([l.key], s.id) : compose({ signals: [l.key], source: s.id, what: { label: l.label, value: [l.value, l.delta].filter(Boolean).join(', ') } }) },
-          l.flag ? h('i', { class: 'fnum' }, String(l.flag)) : null, h('span', { class: 'l' }, l.label), h('span', { class: 'v' }, l.value), h('span', { class: 'd' }, l.delta)))))));
-    }
-    if (s.related.length) kids.push(h('div', { class: 'related' }, h('span', {}, 'Related'), s.related.map((r) => btn(r.title, () => { openPanel(r.kind); openDoc(r.id); }, 'chip'))));
-    R.replaceChildren(...kids); R.scrollTop = 0;
-  }
-
-  // The composer: the flagged data point, the action in the player's words, an optional owner.
-  function compose({ signals, source, what, existing }) {
-    if (!existing && game.state.flags.length >= game.MAX_FLAGS) { note('You can flag up to ' + game.MAX_FLAGS + '. Remove one in your findings to add another.'); return; }
-    sfx.select();
-    let owner = existing ? existing.owner : null;
-    const ta = h('textarea', { id: 'wx-action', rows: '3', maxlength: '280', placeholder: 'For example: Riverside, look into why overtime doubled and report back Wednesday.', 'aria-label': 'Your action for the team' });
-    if (existing) ta.value = existing.text;
-    const chips = h('div', { class: 'chips owner-pick' });
-    const drawOwners = () => chips.replaceChildren(...game.owners().map((o) => h('button', { class: 'chip person-chip' + (owner === o.key ? ' on' : ''), type: 'button', 'aria-pressed': String(owner === o.key), onclick: () => { owner = owner === o.key ? null : o.key; drawOwners(); sfx.blip(); } }, av(o.key, 20), first(o.name))));
-    drawOwners();
-    const save = btn(existing ? 'SAVE ▶' : 'ADD TO FINDINGS ▶', () => {
-      if (ta.value.trim().length < 3) { ta.focus(); ta.classList.add('shake'); setTimeout(() => ta.classList.remove('shake'), 400); return; }
-      if (existing) game.editFlag(existing.id, { text: ta.value, owner }); else game.flag({ signals, source, text: ta.value, owner });
-      closeCard(); sfx.coin(); drawTray(); if (docId) renderDoc(game.view(docId));
-      coach.emit('flagged');
-    }, 'btn primary');
-    card('composer',
-      h('p', { class: 'stamp' }, existing ? 'EDIT FINDING #' + (game.state.flags.indexOf(existing) + 1) : 'YOU FLAGGED'),
-      h('blockquote', { class: 'flagged' }, h('strong', {}, what.label), what.value ? h('span', {}, what.value) : null, what.from ? h('span', {}, 'From ' + what.from) : null),
-      h('label', { for: 'wx-action' }, 'What should your team do about it?'), ta,
-      h('p', { class: 'label' }, 'Who owns it? ', h('span', { class: 'quiet' }, 'Optional')), chips,
-      h('div', { class: 'row' }, save, existing ? btn('Remove this finding', () => { game.removeFlag(existing.id); closeCard(); sfx.back(); drawTray(); if (docId) renderDoc(game.view(docId)); }, 'link') : null, btn('Cancel', () => { closeCard(); sfx.back(); }, 'link')));
-    ta.focus({ preventScroll: true });
-    coach.emit('compose');
-  }
-  function editFlag(sigs, source) { const f = game.state.flags.find((x) => x.signals.some((id) => sigs.includes(id))); if (f) compose({ existing: f, what: f.what, source }); }
-
-  function drawTray() {
-    const fl = game.flags(), n = fl.length, ok = n >= game.MIN_FLAGS;
-    tray.replaceChildren(
-      h('button', { class: 'tray-open', type: 'button', onclick: findingsCard },
-        h('b', {}, 'YOUR FINDINGS'), h('span', { class: 'tcount' + (ok ? ' ok' : '') }, n + ' / ' + game.MIN_FLAGS + (n > game.MIN_FLAGS ? '+' : '')),
-        h('span', { class: 'slots' }, Array.from({ length: game.MAX_FLAGS }, (_, i) => h('i', { class: i < n ? 'on' : i < game.MIN_FLAGS ? 'need' : '' })))),
-      btn(ok ? 'REVIEW & SUBMIT ▶' : 'FLAG ' + (game.MIN_FLAGS - n) + ' MORE', ok ? findingsCard : () => note('Open your reports, inbox and phone. Click any line or message that sticks out to flag it.'), 'btn' + (ok ? ' primary' : '')));
-  }
-
-  function findingsCard() {
-    const fl = game.flags();
-    const ok = fl.length >= game.MIN_FLAGS;
-    const rows = fl.map((f, i) => h('li', { class: 'finding-row' },
-      h('span', { class: 'fnum' }, String(i + 1)),
-      h('div', {}, h('strong', {}, f.what.label + (f.what.value ? ' (' + f.what.value + ')' : '')), h('p', {}, '"' + f.text + '"'), h('span', { class: 'quiet' }, f.owner ? 'Owner: ' + f.ownerName : 'No owner named')),
-      h('div', { class: 'row-tools' }, btn('▲', () => { game.moveFlag(f.id, -1); findingsCard(); drawTray(); }, 'chip'), btn('▼', () => { game.moveFlag(f.id, 1); findingsCard(); drawTray(); }, 'chip'), btn('EDIT', () => compose({ existing: game.state.flags.find((x) => x.id === f.id), what: f.what }), 'chip'))));
-    card('findings-card',
-      h('h2', {}, 'YOUR BRIEFING'),
-      h('p', {}, fl.length ? 'This is exactly what you\'ll hand your team at 10:00. Put it in the order you\'d tackle it.' : 'Nothing flagged yet.'),
-      h('ol', { class: 'finding-list' }, rows),
-      h('div', { class: 'row' }, ok ? btn('LOCK IT IN ▶', () => { closeCard(); submit(); }, 'btn primary') : h('span', { class: 'quiet' }, 'Flag at least ' + game.MIN_FLAGS + ' to submit.'), btn('Keep working', () => { closeCard(); sfx.back(); }, 'link')));
-  }
-
-  function submit() {
-    if (!game.submitRound1()) return;
-    sfx.start(); leave(); rewind();
-  }
-
-  function card(cls, ...kids) { overlay.hidden = false; overlay.replaceChildren(h('div', { class: 'dialog ' + cls }, ...kids)); }
-  function closeCard() { overlay.hidden = true; overlay.replaceChildren(); }
-  function note(text) { const el = h('div', { class: 'toast note' }, h('span', {}, text)); toasts.appendChild(el); setTimeout(() => el.remove(), 5000); sfx.back(); }
-  function rulesCard() {
-    card('rules-card', h('h2', {}, 'HOW THIS WORKS'),
-      h('ul', { class: 'mini-rules' },
-        h('li', {}, 'Click anything on your desk to open it. Nothing you open costs time.'),
-        h('li', {}, 'Click a line, or ⚑ FLAG THIS on a message, when something sticks out.'),
-        h('li', {}, 'Write what your team should do about it. Naming an owner is optional.'),
-        h('li', {}, 'Flag ' + game.MIN_FLAGS + ' to ' + game.MAX_FLAGS + ' data points. Then lock in your briefing.'),
-        h('li', {}, 'The clock runs to 10:00 on its own. Look across everything before you decide.')),
-      h('div', { class: 'row' }, btn('BACK TO MY DESK ▶', closeCard, 'btn primary')));
-  }
-
-  drawScene(); drawSpots(); drawTray();
-  setTimeout(() => coach.run([
-    { text: 'This is your desk. Reports, inbox, phone, calendar and your six location files are all here.', target: '.scene-wrap', next: 'NEXT ▶' },
-    { text: 'Click anything to open it. Try the computer: it has your reports.', target: '.spot[data-kind="report"]', wait: 'panel', hint: 'Click the computer' },
-    { text: 'Pick something from the list to open it.', target: '.panel .list', wait: 'doc', hint: 'Pick one' },
-    { text: 'Every line is a data point. When one sticks out, click it to flag it. Messages have a ⚑ FLAG THIS button.', target: '.reader .doc', wait: 'compose', hint: 'Flag something', side: 'over' },
-    { text: 'Now write what you\'d tell your team to do. Picking an owner is optional.', target: '.composer .btn.primary', wait: 'flagged', hint: 'Add it to your findings' },
-    { text: 'Your findings collect down here. You need at least 3, up to 5.', target: '.tray', next: 'NEXT ▶' },
-    { text: 'The clock runs to 10:00 on its own and nothing costs time. Open everything, compare across your desk, then lock in your briefing.', target: '.bar .clock', next: 'GOT IT ▶' },
-  ]), reduced ? 0 : 500);
+  runRound1({ game, show, coach, reduced, onSubmit: () => { leave(); rewind(); }, setCleanup: (fn) => { cleanup = fn; } });
 }
 
 // ------------------------------------------------------------------ rewind
@@ -405,11 +233,10 @@ function walkToMeeting() {
     cta: 'START PRESENTING ▶' }, meeting);
 }
 
-const ROOM = ['dev', 'tom', 'ines', 'renee', 'colin', 'marisol', 'grace', 'marcus', 'aiko', 'derek', 'noor', 'eli'];
-
 function meeting() {
   const w = game.world, Dl = game.delivery();
   const tiles = {};
+  const ROOM = w.central.concat(w.locations.map((l) => l.manager));
   const board = h('div', { class: 'board' }, ROOM.concat(['me', 'none']).map((k) => {
     const p = k === 'none' ? { name: 'Nobody', title: 'No owner' } : game.person(k);
     const cnt = h('span', { class: 'cnt' });
@@ -538,8 +365,8 @@ function ending() {
   const parts = [
     h('h1', {}, 'SAME COMPANY. SAME DATA. SAME MORNING.'),
     h('div', { class: 'vs' },
-      h('section', { class: 'col you' }, h('h2', {}, 'ON YOUR OWN'), stat(S.you.ready, 'briefing ready, after ' + S.you.took + ' of reading'), stat(S.you.real + ' of 5', 'real issues found'), stat(S.you.handed + ' of ' + S.you.flags, 'handed off cleanly')),
-      h('section', { class: 'col wk' }, h('h2', {}, 'WITH WAKE'), stat('7:48 AM', 'briefing waiting before you sat down, decisions done by ' + S.wake.ready), stat(S.wake.findings + ' of 5', 'found, ' + S.wake.filtered + ' false alarms filtered'), stat(S.wake.handed + ' of ' + S.wake.handed, 'handed off cleanly'))),
+      h('section', { class: 'col you' }, h('h2', {}, 'ON YOUR OWN'), stat(S.you.ready, 'briefing ready, after ' + S.you.took + ' of reading'), stat(S.you.real + ' of ' + S.wake.findings, 'real issues found'), stat(S.you.handed + ' of ' + S.you.flags, 'handed off cleanly')),
+      h('section', { class: 'col wk' }, h('h2', {}, 'WITH WAKE'), stat('7:48 AM', 'briefing waiting before you sat down, decisions done by ' + S.wake.ready), stat(S.wake.findings + ' of ' + S.wake.findings, 'found, ' + S.wake.filtered + ' false alarms filtered'), stat(S.wake.handed + ' of ' + S.wake.handed, 'handed off cleanly'))),
     h('section', { class: 'moment' }, h('p', { class: 'stamp' }, 'THE MOMENT THAT MATTERED'), h('h2', {}, R.moment.title), R.moment.lines.map((l) => h('p', {}, l)), R.moment.wake ? h('p', { class: 'wake-line' }, R.moment.wake) : null),
     h('p', { class: 'closer' }, R.closer),
     h('div', { class: 'row' }, toggle, h('span', { class: 'row' }, actions, status)),

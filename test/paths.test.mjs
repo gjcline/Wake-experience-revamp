@@ -1,50 +1,47 @@
 // PATH TESTS
-// Plays the two-round game headlessly through paths A to J, across every shell and role,
-// and checks the invariants that make the experience credible and the comparison fair.
+// Plays the two-round game headlessly across many generated companies (every shell, every
+// role, single and multi-location), and checks the invariants that make the experience
+// credible and the comparison fair.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/engine/game.js';
-import { intentsOf, judgeFlag } from '../src/engine/judge.js';
+import { intentsOf } from '../src/engine/judge.js';
 import { SHELL_ORDER } from '../src/content/shells.js';
 import { ROLE_ORDER } from '../src/content/roles.js';
-import * as B from '../src/content/business.js';
-import * as R from '../src/content/rounds.js';
+import { HANDLING } from '../src/content/rounds.js';
 
 let tick = 0;
-const mk = (shellId = 'service', roleId = 'coo') => createGame({ shellId, roleId, now: () => (tick += 3000), sessionId: 'test' });
-const SRC = (sig) => B.SOURCES.find((s) => (s.sections ? s.sections.flatMap((x) => x.lines) : s.signals || []).includes(sig) && !s.arrives).id;
+const mk = (seed = 7, shellId = 'service', roleId = 'coo') => createGame({ shellId, roleId, seed, now: () => (tick += 3000), sessionId: 'test' });
+const flaggable = (g, id) => g.world.signals[id].sources.find((s) => ['report', 'location'].includes(g.world.sources[s].kind));
+const pick = (g, sig, pred) => g.answers(sig).find(pred);
+const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.find((id) => flaggable(g, id));
 
-function play(g, s) {
-  g.startRound1();
-  for (let i = 0; i < (s.minutes ?? 60); i++) g.tickClock();
-  for (const src of s.open || []) if (g.state.sources[src] && g.state.sources[src].available) g.open(src);
-  for (const [sig, text, owner] of s.flags) { g.open(SRC(sig)); assert.ok(g.flag({ signals: [sig], source: SRC(sig), text, owner }), 'flag ' + sig); }
-  if (s.edit) s.edit(g);
+function finish(g, { through = [], reorder = false } = {}) {
   assert.ok(g.submitRound1(), 'submits');
   const b = g.startRound2();
-  for (const id of s.through || []) g.putThrough(id);
-  if (s.reorder) g.moveWake(b.cards[4].id, -1);
+  for (const id of through) g.putThrough(id);
+  if (reorder && b.cards.length > 1) g.moveWake(b.cards[b.cards.length - 1].id, -1);
   for (const c of b.cards) g.assign(c.id);
   assert.ok(g.briefing().ready);
   g.lockRound2();
   const d = g.delivery(); g.presented('yours'); g.presented('wake');
-  const wk = g.week();
-  const rc = g.recap();
-  g.complete();
+  const wk = g.week(); const rc = g.recap(); g.complete();
   return { b, d, wk, rc };
 }
 
 function invariants(g, out, name) {
   const { b, d, wk, rc } = out;
+  const n = g.world.findings.length;
   assert.equal(g.state.phase, 'complete');
   assert.ok(g.state.clock <= g.world.day.meetingAt, name + ': clock never passes 10:00');
-  assert.equal(b.cards.length, 5, name + ': five Wake priorities');
-  assert.equal(b.filtered.length, 4, name + ': four false alarms filtered');
+  assert.equal(b.cards.length, n, name + ': every problem in the company surfaces');
+  assert.ok(n >= 4 && n <= 5, name + ': four or five priorities');
+  assert.ok(b.filtered.length >= 1, name + ': at least one false alarm filtered');
   for (const c of b.cards) assert.ok(c.evidence.length >= 4 && c.owners.length >= 1 && new Set(c.evidence.map((e) => e.system)).size >= 2, name + ': card ' + c.id + ' is cross-system and owned');
   assert.equal(d.yours.length, g.state.flags.length);
-  for (const y of d.yours) assert.ok(y.reactions.length >= 1 && y.statusLabel, name + ': every finding gets a reaction in the room');
-  assert.equal(d.tally.wake.handed, 5, name + ': Wake briefing lands cleanly');
-  assert.equal(wk.filter((r) => !r.extra).length, 5, name + ': the week covers every priority');
+  for (const y of d.yours) assert.ok(y.reactions.length >= 1 && y.statusLabel, name + ': every finding gets a reaction');
+  assert.equal(d.tally.wake.handed, n, name + ': Wake briefing lands cleanly');
+  assert.equal(wk.filter((r) => !r.extra).length, n, name + ': the week covers every priority');
   for (const r of wk) assert.ok(r.you.text && r.wake.text && r.label, name + ': week row complete');
   assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer);
   const text = JSON.stringify([b, d, wk, rc.stats, rc.moment, rc.closer]) + rc.report.toText() + rc.report.toHTML();
@@ -53,99 +50,200 @@ function invariants(g, out, name) {
   assert.ok(!/\b(F[1-5]|falseAlarm|offTarget|counter)\b/.test(rc.report.toText()), name + ': no internal labels in the report');
   const types = new Set(g.tracker.log.map((e) => e.type));
   for (const t of ['session_start', 'round1_started', 'flag_added', 'round1_submitted', 'round2_started', 'wake_assigned', 'round2_locked', 'presented_yours', 'presented_wake', 'week_played', 'recap_viewed', 'session_complete']) assert.ok(types.has(t), name + ': log has ' + t);
-  const sum = g.session().summary;
-  assert.equal(sum.flags.length, g.state.flags.length);
+  assert.equal(g.session().summary.flags.length, g.state.flags.length);
 }
 
-const ALL = B.SOURCES.filter((s) => !s.arrives).map((s) => s.id).concat(['loc_L1', 'loc_L2', 'loc_L3', 'loc_L4', 'loc_L5', 'loc_L6']);
-
+// ------------------------------------------------------------------ the paths
 const PATHS = {
-  A_found_early: { flags: [['sch.template.L4', 'Derek, move master tech coverage back to the afternoon peak this week', 'derek'], ['eml.quote.L2', 'Approve the replacement quote today', 'marcus'], ['ap.var', 'Dispute the invoices against the contract rate', 'dev']] },
-  B_major_ignored: { open: ['eml_it', 'eml_party', 'cal'], flags: [['eml.angry.L3', 'Call the customer and apologize', 'aiko'], ['fin.uniform', 'Why did uniforms cost so much', null], ['fin.cash', 'Freeze discretionary spending', 'dev']] },
-  C_labor: { flags: [['fin.labor.L4', 'Cut Riverside hours by 10 percent starting tomorrow', 'derek'], ['pay.ot.L5', 'Cap overtime at Ashford', 'noor'], ['sch.post.L6', 'Post schedules a week ahead at Tanner Creek', 'eli']] },
-  D_financial: { flags: [['fin.mat.all', 'Raise prices 2% to cover parts', 'dev'], ['fin.cash', 'Check what moved cash this week', 'dev'], ['fin.rev.L3', 'Get a recovery plan from Kingsley', 'aiko']] },
-  E_customer: { flags: [['cx.followup.L1', 'Restart follow-up calls this week with central office cover', 'grace'], ['cx.sat.L4', 'Find out why Riverside satisfaction dropped', 'derek'], ['mkt.promo.L1', 'Roll the offer out to all shops', 'colin']] },
-  F_aggressive: { flags: [['fin.labor.L4', 'Cut hours', null], ['hr.exits.L6', 'Raise starting pay at Tanner Creek', 'renee'], ['msg.record.L5', 'Congratulate the Ashford team', 'noor'], ['fin.rev.L3', 'Send Tom to Kingsley tomorrow', 'tom']] },
-  G_conservative: { flags: [['mnt.down.L2', 'Look into the downtime and report back Friday', 'marcus'], ['lab.util.L4', 'Review where the hours are going', 'marisol'], ['hr.req.L6', 'Monitor Tanner Creek hiring', 'renee']] },
-  H_minimal: { minutes: 2, flags: [['fin.labor.L4', 'fix it', null], ['fin.rev.L3', 'why', null], ['eml.angry.L3', 'handle', null]] },
-  I_extensive: { minutes: 132, open: ALL, through: R.PHONE, reorder: true, flags: [['sch.template.L4', 'Move master tech coverage back to afternoons and hold the hires', 'derek'], ['eml.quote.L2', 'Approve the $38,400 replacement today, plan overflow with Noor', 'marcus'], ['cx.followup.L1', 'Restart follow-up calls with central office cover', 'grace'], ['ap.var', 'Dispute six weeks of invoices', 'dev'], ['hr.exitnote.L6', 'Post schedules a week ahead, send Ines to help', 'eli']] },
-  J_changes_mind: { flags: [['fin.labor.L4', 'Cut Riverside hours 10%', 'derek'], ['eml.angry.L3', 'Call the customer', 'aiko'], ['fin.uniform', 'Check uniform spend', 'dev'], ['eml.quote.L2', 'Approve the replacement', 'marcus']],
-    edit: (g) => { const f = g.state.flags[0]; g.editFlag(f.id, { text: 'Move master tech coverage back to the afternoons' }); g.removeFlag(g.state.flags[2].id); g.moveFlag(g.state.flags[2].id, -1); } },
+  // the player connects every story and picks the answer that fits it
+  aligned(g) {
+    for (const f of g.world.findings) {
+      const s = coreSig(g, f); g.open(flaggable(g, s));
+      const a = pick(g, s, (x) => HANDLING[f.id].aligned.includes(x.intent));
+      assert.ok(a, 'aligned answer exists for ' + f.id);
+      assert.ok(g.flag({ signals: [s], source: flaggable(g, s), choice: a.id, owner: g.world.briefing[f.id].owner[0] }));
+    }
+  },
+  // the player reacts to the obvious line with the obvious move
+  counter(g) {
+    for (const f of g.world.findings.slice(0, 3)) {
+      const s = coreSig(g, f);
+      const a = pick(g, s, (x) => HANDLING[f.id].counter.includes(x.intent));
+      g.flag({ signals: [s], source: flaggable(g, s), choice: a.id, owner: null });
+    }
+  },
+  // the player chases the false alarms and the noise
+  distracted(g) {
+    const fa = Object.values(g.world.signals).filter((s) => s.kind === 'falseAlarm' && flaggable(g, s.id));
+    const noise = Object.values(g.world.signals).filter((s) => s.kind === 'noise' && flaggable(g, s.id) && !s.findings.length);
+    for (const s of fa.concat(noise).slice(0, 4)) { const a = g.answers(s.id)[0]; g.flag({ signals: [s.id], source: flaggable(g, s.id), choice: a.id }); }
+  },
+  // the player ignores the common answers and writes everything
+  writer(g) {
+    const fs = g.world.findings;
+    const texts = ['Cut hours there by ten percent starting tomorrow', 'Look into it and report back Friday', 'fix it'];
+    fs.slice(0, 3).forEach((f, i) => { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), note: texts[i] }); });
+  },
+  // the player flags, attaches context, edits, removes and reorders
+  tinkerer(g) {
+    const fs = g.world.findings;
+    for (const f of fs.slice(0, 4)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[1].id, owner: 'opsdir' }); }
+    const first = g.state.flags[0], ev = fs[0].evidence;
+    const ctxSrc = Object.values(g.world.sources).find((s) => ['email', 'message'].includes(s.kind) && !s.arrives && s.lines.some((id) => ev.includes(id)));
+    g.attach(first.id, { key: ctxSrc.id, source: ctxSrc.id, label: ctxSrc.title });
+    g.attach(first.id, { key: 'cal:ev_meet', source: 'cal', label: 'Calendar: meeting', signals: ['cal.meeting'] });
+    const s0 = first.signals[0];
+    const aligned = pick(g, s0, (x) => HANDLING[g.world.signals[s0].findings[0]].aligned.includes(x.intent));
+    g.editFlag(first.id, { choice: aligned.id, note: 'and tell me Wednesday how it went' });
+    g.removeFlag(g.state.flags[3].id);
+    g.moveFlag(g.state.flags[2].id, -1);
+    g.detach(first.id, 'cal:ev_meet');
+  },
 };
 
-for (const [name, script] of Object.entries(PATHS)) {
-  test('path ' + name, () => { const g = mk(); invariants(g, play(g, script), name); });
+const SEEDS = [3, 7, 12, 19, 25, 31, 44, 58, 71, 90];
+for (const [name, play] of Object.entries(PATHS)) {
+  test('path ' + name + ' across companies', () => {
+    for (const seed of SEEDS) {
+      const g = mk(seed, SHELL_ORDER[seed % 5], ROLE_ORDER[(seed >> 1) % 5]);
+      g.startRound1();
+      for (let i = 0; i < 40; i++) g.tickClock();
+      for (const id of g.world.order.report) g.open(id);
+      play(g);
+      invariants(g, finish(g, { through: g.world.phone, reorder: seed % 2 === 0 }), name + ' seed ' + seed);
+    }
+  });
 }
 
 test('expected outcomes', () => {
-  const run = (n) => { const g = mk(); const o = play(g, PATHS[n]); return { o, g, by: Object.fromEntries(o.wk.map((r) => [r.id, r.you.handled])) }; };
-  const A = run('A_found_early'); assert.equal(A.by.F1, 'aligned'); assert.equal(A.by.F2, 'aligned'); assert.equal(A.by.F4, 'aligned'); assert.equal(A.o.d.tally.yours.handed, 3);
-  const Bx = run('B_major_ignored'); assert.equal(Bx.by.F1, 'untouched'); assert.equal(Bx.o.d.tally.yours.handed, 0); assert.equal(Bx.o.rc.stats.you.real, 0);
-  const C = run('C_labor'); assert.equal(C.by.F1, 'counter'); assert.equal(C.by.F5, 'aligned'); assert.equal(C.o.d.yours[0].status, 'pushback');
-  const D = run('D_financial'); assert.equal(D.by.F4, 'counter'); assert.equal(D.o.d.yours[1].status, 'explained');
-  const E = run('E_customer'); assert.equal(E.by.F3, 'aligned'); assert.equal(E.by.F1, 'partial');
-  const F = run('F_aggressive'); assert.equal(F.by.F5, 'counter'); assert.equal(F.by.F2, 'counter'); assert.ok(F.o.d.yours[0].reactions.some((r) => /Who's taking/.test(r.line)), 'no owner is called out');
-  const G = run('G_conservative'); assert.equal(G.by.F2, 'partial'); assert.equal(G.by.F1, 'partial'); assert.equal(G.o.d.tally.yours.questions, 3);
-  const H = run('H_minimal'); assert.ok(H.o.d.yours[0].reactions.length >= 2, 'vague and unowned get called out');
-  const I = run('I_extensive'); for (const f of ['F1', 'F2', 'F3', 'F4', 'F5']) assert.equal(I.by[f], 'aligned'); assert.equal(I.o.rc.moment.title, 'You found all five.');
-  const J = run('J_changes_mind'); assert.equal(J.by.F1, 'aligned');
+  const run = (play, seed = 12) => { const g = mk(seed, 'multi', 'coo'); g.startRound1(); play(g); const out = finish(g); return { g, ...out }; };
+  const A = run(PATHS.aligned);
+  assert.ok(A.d.yours.every((y) => y.handling === 'aligned' && y.status === 'handed'), 'aligned answers with owners hand off cleanly');
+  assert.ok(A.wk.filter((r) => !r.extra).every((r) => r.you.dir === 'up'), 'aligned plans improve the week');
+  const C = run(PATHS.counter);
+  assert.ok(C.d.yours.every((y) => y.handling === 'counter' && y.status === 'pushback'), 'obvious moves get pushback');
+  const D = run(PATHS.distracted);
+  assert.ok(D.d.yours.every((y) => ['falseAlarm', 'noise'].includes(y.kind)), 'false alarms and noise are recognized');
+  assert.ok(D.d.yours.every((y) => ['explained', 'offTarget'].includes(y.status)));
+  const W = run(PATHS.writer);
+  assert.deepEqual(W.d.yours.map((y) => y.handling), ['counter', 'partial', 'unclear'], 'written text is read for intent');
+  assert.ok(W.d.yours[2].reactions.some((r) => /done look like/.test(r.line)), 'vague writing draws a question');
+  const T = run(PATHS.tinkerer);
+  assert.equal(T.g.state.flags.length, 3);
+  assert.equal(T.g.state.flags[0].attached.length, 1, 'attached and detached context');
+  assert.ok(T.d.yours[0].handling === 'aligned' && T.d.yours[0].text.includes('tell me Wednesday'), 'edits change the answer and keep the note');
+  const sum = T.g.session().summary;
+  assert.equal(sum.contextAttached, 1);
+  assert.equal(sum.contextThatFits, 1, 'context from the same story counts as support');
+  assert.ok(Object.keys(sum.styles).length >= 1 && sum.ownersNamed === 3);
 });
 
-test('intent mapping reads plain operator language', () => {
-  const has = (t, i) => assert.ok(intentsOf(t).includes(i), t + ' → ' + i);
-  has('Cut Riverside hours by 10%', 'cut'); has('Approve the two hires', 'hire'); has('Move coverage to the afternoon', 'schedule');
-  has('Look into why overtime doubled', 'investigate'); has('Approve the replacement quote', 'replace'); has('Dispute the invoices', 'dispute');
-  has('Restart follow-up calls', 'followup'); has('Roll the offer out to all shops', 'promoMore'); has('Post schedules a week ahead', 'posting');
-  assert.ok(!intentsOf('Basket of tasks').includes('investigate'), 'no false match inside words');
+test('false alarm: checking is not the same as reacting', () => {
+  const g = mk(12, 'multi', 'coo'); g.startRound1();
+  const fa = Object.values(g.world.signals).filter((s) => s.kind === 'falseAlarm' && flaggable(g, s.id));
+  assert.ok(fa.length >= 1);
+  const s = fa[0].id;
+  const check = pick(g, s, (x) => x.intent === 'investigate'), react = pick(g, s, (x) => x.intent !== 'investigate');
+  g.flag({ signals: [s], source: flaggable(g, s), choice: check.id });
+  const g2 = mk(12, 'multi', 'coo'); g2.startRound1();
+  g2.flag({ signals: [s], source: flaggable(g2, s), choice: react.id });
+  for (const x of [g, g2]) { const f = Object.values(x.world.findings)[0]; const t = coreSig(x, f); x.flag({ signals: [t], source: flaggable(x, t), choice: x.answers(t)[0].id }); x.flag({ signals: [coreSig(x, x.world.findings[1])], source: flaggable(x, coreSig(x, x.world.findings[1])), choice: x.answers(coreSig(x, x.world.findings[1]))[0].id }); }
+  const o1 = finish(g), o2 = finish(g2);
+  assert.equal(o1.d.yours[0].handling, 'checked');
+  assert.equal(o2.d.yours[0].handling, 'react');
 });
 
-test('round 1 has no time cost and the clock stops at 10:00', () => {
-  const g = mk(); g.startRound1();
-  const before = g.state.clock; g.open('rep_fin'); g.open('rep_labor'); assert.equal(g.state.clock, before, 'opening costs nothing');
-  for (let i = 0; i < 300; i++) g.tickClock();
-  assert.equal(g.clockLabel(), '10:00 AM');
-  assert.equal(g.state.sources.msg_tom.available, true, 'pings arrive over the morning');
-});
-
-test('flag limits: at least 3 to submit, at most 5', () => {
-  const g = mk(); g.startRound1();
-  g.flag({ signals: ['fin.cash'], source: 'rep_fin', text: 'check it' }); assert.equal(g.submitRound1(), false);
-  for (const s of ['fin.rev.L1', 'fin.rev.L2', 'fin.rev.L3', 'fin.rev.L4', 'fin.rev.L5']) g.flag({ signals: [s], source: 'rep_fin', text: 'look' });
-  assert.equal(g.state.flags.length, 5);
-});
-
-test('putting a text through Wake sharpens the right card', () => {
-  const g = mk(); play(g, { flags: PATHS.A_found_early.flags });
-  const g2 = mk(); g2.startRound1(); for (const [sig, t, o] of PATHS.A_found_early.flags) g2.flag({ signals: [sig], source: SRC(sig), text: t, owner: o }); g2.submitRound1(); g2.startRound2();
-  const r = g2.putThrough('msg_eli'); assert.equal(r.finding, 'F5');
-  const c = r.briefing.cards.find((x) => x.id === 'F5'); assert.ok(c.owners.some((o) => o.key === 'ines') && c.sharpened.length === 1);
-  const r2 = g2.putThrough('msg_marcus'); assert.ok(r2.briefing.cards.find((x) => x.id === 'F2').urgent);
-  const r3 = g2.putThrough('msg_aiko'); assert.equal(r3.finding, null);
-});
-
-test('determinism and no cheating', () => {
-  const a = play(mk(), PATHS.C_labor), b = play(mk(), PATHS.C_labor);
-  assert.deepEqual(a.wk, b.wk); assert.deepEqual(a.d.tally, b.d.tally);
-  const strip = (x) => x.b.cards.map((c) => [c.id, c.headline, c.evidence.map((e) => [e.key, e.value])]);
-  assert.deepEqual(strip(play(mk(), PATHS.H_minimal)), strip(play(mk(), PATHS.I_extensive)));
-  const base = new Set(B.SOURCES.filter((s) => !s.arrives).flatMap((s) => s.sections ? s.sections.flatMap((x) => x.lines) : s.signals));
-  for (const f of B.FINDINGS) for (const id of f.evidence) assert.ok(base.has(id), id + ' was on the desk at 7:48 AM');
-  for (const [, b] of Object.entries(R.BRIEFING)) for (const id of b.keys) assert.ok(base.has(id), id + ' briefing evidence was on the desk');
-  for (const [id, q] of Object.entries(R.QUIET)) assert.ok(B.FINDINGS.find((f) => f.id === id).evidence.includes(q));
-});
-
-test('every shell and role produces a clean, complete run', () => {
-  for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) {
-    const g = mk(shell, role);
-    invariants(g, play(g, PATHS.F_aggressive), shell + '/' + role);
-    const worldText = JSON.stringify([g.world.sources, g.world.signals, g.world.findings, g.world.briefing, g.world.reactions, g.world.weekText, g.world.sharpen, g.world.role, g.world.characters]);
-    assert.ok(!/\{[A-Za-z]+\}/.test(worldText), shell + '/' + role + ' token ' + (worldText.match(/\{[A-Za-z]+\}/) || [''])[0]);
-    assert.ok(!worldText.includes('—'));
+test('common answers: four styles, about 8 to 12 words, every flaggable figure', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const g = mk(seed, SHELL_ORDER[seed % 5], 'gm');
+    for (const s of Object.values(g.world.signals)) {
+      if (!flaggable(g, s.id)) continue;
+      const list = g.answers(s.id);
+      assert.equal(list.length, 4, 'four answers for ' + s.id);
+      for (const a of list) {
+        const words = a.text.split(/\s+/).length;
+        assert.ok(words >= 7 && words <= 14, 'answer length ' + words + ': ' + a.text);
+        assert.ok(!/\{|undefined|—/.test(a.text), 'clean answer: ' + a.text);
+      }
+    }
+    for (const f of g.world.findings) {
+      const s = coreSig(g, f), ints = g.answers(s).map((a) => a.intent);
+      assert.ok(ints.some((i) => HANDLING[f.id].aligned.includes(i)), f.id + ' offers the fitting answer');
+      assert.ok(ints.some((i) => HANDLING[f.id].counter.includes(i)), f.id + ' offers an obvious answer');
+    }
   }
 });
 
-test('judging a false alarm checked versus reacted', () => {
-  const g = mk();
-  assert.equal(judgeFlag(g.world, { signals: ['fin.cash'], text: 'Check what moved cash', owner: 'dev' }).handling, 'checked');
-  assert.equal(judgeFlag(g.world, { signals: ['fin.cash'], text: 'Freeze spending now', owner: 'dev' }).handling, 'react');
+test('intent mapping reads common phrasing', () => {
+  const cases = [['Cut Riverside hours by 10%', 'cut'], ['Approve the replacement quote', 'replace'], ['Dispute the invoices against the contract', 'dispute'], ['Restart the follow-up calls', 'followup'],
+    ['Post schedules a week ahead', 'posting'], ['Raise starting pay', 'pay'], ['Look into it and report back', 'investigate'], ['Move coverage to the afternoon peak', 'schedule']];
+  for (const [t, i] of cases) assert.ok(intentsOf(t).includes(i), t + ' -> ' + i);
+});
+
+test('every company is different, and the same seed is the same company', () => {
+  const a = mk(101, 'service', 'gm'), b = mk(101, 'service', 'gm'), c = mk(102, 'service', 'gm');
+  assert.equal(JSON.stringify(a.world.sources), JSON.stringify(b.world.sources), 'deterministic for a seed');
+  assert.notEqual(a.world.shell.company + a.world.locations.map((l) => l.name), c.world.shell.company + c.world.locations.map((l) => l.name));
+  const sizes = new Set(), companies = new Set();
+  for (let s = 1; s <= 80; s++) { const g = mk(s, 'service', 'gm'); sizes.add(g.world.shell.size); companies.add(g.world.shell.company); }
+  assert.ok(sizes.has(1) && sizes.size >= 5, 'single and multi-location companies both occur: ' + [...sizes]);
+  assert.ok(companies.size >= 15, 'company names vary');
+  for (let s = 1; s <= 40; s++) { assert.ok(mk(s, 'multi', 'gm').world.shell.size >= 3, 'multi-location operator has several sites'); assert.ok(mk(s, 'service', 'regional').world.shell.size >= 3, 'a regional manager has a region'); }
+});
+
+test('no time cost, and the clock stops at 10:00', () => {
+  const g = mk(7); g.startRound1();
+  const t0 = g.state.clock; for (const id of g.world.order.report) g.open(id); g.open('cal'); g.open('team');
+  assert.equal(g.state.clock, t0, 'opening costs nothing');
+  for (let i = 0; i < 400; i++) g.tickClock();
+  assert.equal(g.state.clock, g.world.day.meetingAt);
+});
+
+test('flag limits and validation', () => {
+  const g = mk(7); g.startRound1();
+  const sigs = Object.values(g.world.signals).filter((s) => flaggable(g, s.id)).map((s) => s.id);
+  assert.equal(g.flag({ signals: [sigs[0]], source: flaggable(g, sigs[0]) }), null, 'needs an answer or words');
+  for (let i = 0; i < 7; i++) g.flag({ signals: [sigs[i]], source: flaggable(g, sigs[i]), choice: g.answers(sigs[i])[0].id });
+  assert.equal(g.state.flags.length, g.MAX_FLAGS);
+});
+
+test('Wake is fair: same data, nothing invented, everything it uses was on the desk', () => {
+  for (const seed of SEEDS) {
+    const g = mk(seed, SHELL_ORDER[seed % 5], 'partner'); g.startRound1();
+    const w = g.world;
+    for (const f of w.findings) for (const id of f.evidence) {
+      const srcs = w.signals[id].sources;
+      assert.ok(srcs.length, id + ' lives somewhere');
+      assert.ok(srcs.some((s) => !w.sources[s].arrives), id + ' was available at 7:48');
+    }
+    g.flag({ signals: [coreSig(g, w.findings[0])], source: flaggable(g, coreSig(g, w.findings[0])), choice: g.answers(coreSig(g, w.findings[0]))[0].id });
+    g.flag({ signals: [coreSig(g, w.findings[1])], source: flaggable(g, coreSig(g, w.findings[1])), choice: g.answers(coreSig(g, w.findings[1]))[0].id });
+    g.flag({ signals: [coreSig(g, w.findings[2])], source: flaggable(g, coreSig(g, w.findings[2])), choice: g.answers(coreSig(g, w.findings[2]))[0].id });
+    g.submitRound1();
+    const b = g.startRound2();
+    assert.equal(b.cards.length, w.findings.length);
+  }
+});
+
+test('putting a text through sharpens the right card', () => {
+  for (const seed of SEEDS) {
+    const g = mk(seed, SHELL_ORDER[seed % 5], 'coo'); g.startRound1();
+    for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[0].id }); }
+    g.submitRound1(); g.startRound2();
+    for (const id of g.world.phone) {
+      const r = g.putThrough(id); assert.ok(r);
+      if (r.finding) assert.ok(r.briefing.cards.find((c) => c.id === r.finding).sharpened.length >= 1, 'sharpened ' + id);
+    }
+  }
+});
+
+test('all shells, roles and sizes play through cleanly', () => {
+  let seed = 200;
+  for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) for (let k = 0; k < 4; k++) {
+    const g = mk(seed++, shell, role); g.startRound1();
+    for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[2].id, owner: g.world.owners[k] }); }
+    invariants(g, finish(g, { through: g.world.phone }), shell + '/' + role + '/' + seed);
+    const all = JSON.stringify(Object.values(g.world.sources).map((s) => [s.title, s.body, s.blocks, s.tiles, s.today, s.weeks, s.note, s.list]));
+    assert.ok(!/\{[A-Za-z]+\}/.test(all) && !/undefined|NaN|—/.test(all), 'clean desk text for ' + shell + '/' + role);
+  }
 });

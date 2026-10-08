@@ -1,9 +1,10 @@
 // JUDGE: COMPARISON ENGINE
-// Reads a flag the player wrote (a data point plus an action in their own words) and decides,
-// deterministically, what it targets, how the action lands, what the room says when it is
-// presented, and how the week goes. Freeform text only ever maps onto predetermined intents.
+// Reads a finding the player stored (a data point, the answer they picked and anything they
+// wrote, an owner, and any context they attached) and decides, deterministically, what it
+// targets, how the action lands, what the room says, and how the week goes. Picked answers
+// carry a fixed intent. Written text is only ever mapped onto the same predetermined intents.
 
-import { INTENTS, HANDLING, OBVIOUS, QUIET } from '../content/rounds.js';
+import { INTENTS, HANDLING } from '../content/rounds.js';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const RX = Object.fromEntries(Object.entries(INTENTS).map(([k, stems]) => [k, stems.map((st) => new RegExp((/^\w/.test(st) ? '\\b' : '') + escape(st), 'i'))]));
@@ -26,9 +27,17 @@ export function targetOf(world, signalIds) {
 const RANK = { aligned: 4, partial: 3, unclear: 2, counter: 1 };
 export const bestHandling = (judged) => judged.slice().sort((a, b) => (RANK[b.handling] || 0) - (RANK[a.handling] || 0))[0];
 
+// The intents behind a stored finding: the picked answer first, then whatever was written.
+export function flagIntents(flag) {
+  const out = [];
+  if (flag.intent) out.push(flag.intent);
+  for (const i of intentsOf(flag.note !== undefined ? flag.note : flag.text)) if (!out.includes(i)) out.push(i);
+  return out;
+}
+
 export function judgeFlag(world, flag) {
   const t = targetOf(world, flag.signals);
-  const ints = intentsOf(flag.text);
+  const ints = flagIntents(flag);
   const words = String(flag.text || '').trim().split(/\s+/).filter(Boolean).length;
   let handling, key, lines;
   if (t.kind === 'finding') {
@@ -55,11 +64,14 @@ export function judgeFlag(world, flag) {
   if (t.kind === 'finding') {
     if (!flag.owner && status === 'handed') status = 'questions';
     if (!flag.owner) reactions.push({ who: world.reactions.noOwner[0], line: world.reactions.noOwner[1] });
-    if (words < 5 && handling !== 'counter') reactions.push({ who: world.reactions.vague[0], line: world.reactions.vague[1] });
+    if (!flag.intent && words < 5 && handling !== 'counter') reactions.push({ who: world.reactions.vague[0], line: world.reactions.vague[1] });
   }
+  // context the player attached: does it belong to the same story?
+  const ev = t.finding ? world.findingById[t.finding].evidence : [];
+  const attached = (flag.attached || []).map((a) => ({ ...a, fits: a.signals.some((id) => ev.includes(id)) }));
   return {
-    ...t, intents: ints, handling, key, status, reactions,
-    quiet: !!(t.finding && flag.signals.includes(QUIET[t.finding])), obvious: flag.signals.some((id) => OBVIOUS.includes(id)),
+    ...t, intents: ints, handling, key, status, reactions, style: flag.style || null, attached, backed: attached.filter((a) => a.fits).length,
+    quiet: !!(t.finding && flag.signals.includes(world.quiet[t.finding])), obvious: flag.signals.some((id) => world.obvious.includes(id)),
   };
 }
 

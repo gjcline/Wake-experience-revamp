@@ -25,19 +25,27 @@ and narrates the player through it with a live guide.
 
     src/content/   shells.js    five operating shells (vocabulary and context only)
                    roles.js     five roles (perspective, emphasis, the note on the desk)
-                   business.js  the company: locations, characters, 104 signals, sources, events, findings
-                   rounds.js    the head-to-head: obvious and quiet signals, Wake's briefing cards,
-                                phone texts and what they sharpen, action intents, how each kind of
-                                action lands, the room's reactions, the week in two lanes
+                   scenario.js  the company generator. One seed decides the size (1 to 7 locations), names,
+                                people and what they own, the date, every figure, and where each problem
+                                lands. It builds the reports (as tables), scorecards, inbox, phone, calendar,
+                                notes, team, arrivals, Wake's findings and briefing, the common answers,
+                                the room's reactions and the week. Problems claim metrics at a location;
+                                core claims never collide and optional ones give way, so every number has
+                                exactly one story. ?seed=123 in the URL replays a company.
+                   business.js  fixed constants: the shape of the morning, the concept map
+                   rounds.js    fixed rules: action intents and how each kind of action lands
     src/engine/    config.js        content + shell + role -> one resolved world
                    signals.js       deviation, direction, the signal graph, related sources
                    events.js        timed and attention-triggered arrivals (texts, emails)
                    behavior.js      the event log
                    intelligence.js  Wake's pass over the same signal set: gather, detect, connect, filter, rank
-                   judge.js         reads a flag + the player's words: target, intent, handling, reactions, status
+                   judge.js         reads a finding: the picked answer (fixed intent), any words written,
+                                    the owner and attached context -> handling, reactions, status
                    game.js          the Simulation Engine: rounds, clock, flags, briefing, delivery, week
                    recap.js         the ending and the report
-    src/ui/        app.js           every screen after the arrival, plus the live guide
+    src/ui/        round1.js        the desk: reports, location map and scorecards, inbox, phone, calendar,
+                                    notes, team, connected data, the composer, attaching context, the guide steps
+                   app.js           every screen after Round 1, plus the live guide
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
 

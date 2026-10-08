@@ -35,25 +35,27 @@ export function createSignalEngine(world) {
     return Array.from(seen);
   }
 
-  // Adaptive progression: given what is on this page and where the user has been spending
-  // attention, which unopened sources are one step away in the graph?
-  function related(sourceId, state) {
+  // Connected data: given what is on this page, which other sources carry signals one step
+  // away in the graph, and which lines in them make the connection? Unopened sources and
+  // anything the player has flagged count for more.
+  function related(sourceId, state, limit = 3) {
     const src = world.sources[sourceId];
-    const score = {};
+    const score = {}, via = {};
     const affinity = state.attention || {};
     for (const id of src.lines) {
       const pinned = state.signals[id] && state.signals[id].pinned;
       for (const n of neighbors(id)) {
         for (const sid of S[n].sources) {
           const st = state.sources[sid];
-          if (sid === sourceId || !st || !st.available || st.opened) continue;
-          if (world.sources[sid].kind === 'location' && src.kind !== 'location' && !S[id].loc) continue;
+          if (sid === sourceId || !st || !st.available || sid === 'loc_all') continue;
+          if (world.sources[sid].kind === 'location' && !S[n].loc) continue;
           const cat = world.sources[sid].cat;
-          score[sid] = (score[sid] || 0) + 1 + (pinned ? 2 : 0) + Math.min(2, (affinity[cat] || 0) / 15) + S[n].magnitude;
+          score[sid] = (score[sid] || 0) + 1 + (pinned ? 2 : 0) + Math.min(2, (affinity[cat] || 0) / 15) + S[n].magnitude + (st.opened ? 0 : 0.5);
+          (via[sid] = via[sid] || new Set()).add(n);
         }
       }
     }
-    return Object.entries(score).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 2).map(([id]) => id);
+    return Object.entries(score).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([id]) => ({ id, via: Array.from(via[id]) }));
   }
 
   const byKind = () => {
