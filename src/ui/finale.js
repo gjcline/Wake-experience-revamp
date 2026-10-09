@@ -11,7 +11,7 @@ const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleStri
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
 const clockAt = (min) => { const t = 600 + min, hh = Math.floor(t / 60), mm = t % 60; return ((hh + 11) % 12 + 1) + ':' + String(mm).padStart(2, '0') + ' ' + (hh < 12 ? 'AM' : 'PM'); };
 const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
-const DECISION = { decided: 'DECIDED', guess: 'DECIDED ON A GUESS', parked: 'PARKED', next: 'PARKED TO NEXT WEEK', dropped: 'DROPPED', busy: 'KEPT ON THE LIST' };
+const DECISION = { decided: 'DECIDED', guess: 'DECIDED ON A GUESS', agreed: 'AGREED · NUMBERS TO FOLLOW', parked: 'PARKED', next: 'PARKED TO NEXT WEEK', dropped: 'DROPPED', busy: 'KEPT ON THE LIST' };
 const STATUS = { open: 'OPEN', waiting: 'WAITING', working: 'IN PROGRESS', fixed: 'RESOLVED', worse: 'WORSE' };
 
 export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST }) {
@@ -75,7 +75,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const P = game.meetingPlan();
     const S = stage('you');
     let answered = 0, owed = 0, decided = 0;
-    const meta = { answer: 'answers it', iou: 'adds a follow-up', later: 'adds a follow-up', bounce: 'a ballpark', guess: 'on your word', self: 'you own it', anyway: 'your call', rethink: 'adds a follow-up', drop: 'moves on', keep: 'keeps a team on it', manual: 'your time, midweek', monday: 'no check until Monday', reroute: 'continue' };
+    const meta = { answer: 'answers it', iou: 'adds a follow-up', later: 'adds a follow-up', bounce: 'a ballpark', guess: 'on your word', self: 'you own it', anyway: 'your call', rethink: 'adds a follow-up', drop: 'moves on', keep: 'keeps a team on it', manual: 'your time, midweek', monday: 'no check until Monday', reroute: 'continue', now: 'starts Tuesday', wait: 'nothing moves yet' };
     const choose = (q) => new Promise((resolve) => {
       const opts = q.opts.map((o, i) => h('button', { class: 'fx-opt' + (o.effect === 'answer' ? ' ev' : ''), type: 'button', onclick: () => pick(o) }, h('i', {}, String.fromCharCode(65 + i)), h('span', {}, o.label), h('em', {}, meta[o.effect] || '')));
       const pick = (o) => { document.onkeydown = null; S.choices.replaceChildren(); sfx.select(); resolve(o); };
@@ -103,20 +103,23 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
         if (it.opening) { S.say(it.opening.key, it.opening.line); await S.tick(1); await wait(700); }
         for (const q of it.qs) {
           if (!alive) return;
+          if (q.cond === 'pending' && !game.meetingPending(it.id)) continue;
           S.say(q.asker.key, q.line, 'q'); await wait(350);
           const o = await choose(q);
           const res = game.answerQ(q.id, o.id);
           if (!q.auto) S.say('me', o.label, 'a');
           await wait(350);
           S.say(res.by.key, res.reply, o.effect === 'answer' ? 'ok' : '');
-          if (o.effect === 'answer') { answered += 1; S.count('ans', answered); }
+          if (o.effect === 'answer' || o.effect === 'guess') { answered += 1; S.count('ans', answered); }
           if (res.task && o.effect !== 'keep') owe(res.task);
           await S.tick(res.minutes); await wait(400);
         }
         const out = game.meetingYours().items[i];
-        if (['decided', 'guess'].includes(out.decision)) { decided += 1; S.count('dec', decided); }
-        S.note(stampEl(out.decision, out.tasks.filter((x) => x.kind !== 'keep').length ? out.tasks.filter((x) => x.kind !== 'keep').length + (out.tasks.length === 1 ? ' follow-up first' : ' follow-ups first') : out.owner && ['decided', 'guess'].includes(out.decision) ? out.owner.name : ''));
-        sfx[['decided', 'guess'].includes(out.decision) ? 'coin' : 'back']();
+        const moved = ['decided', 'guess', 'agreed'].includes(out.decision);
+        if (moved) { decided += 1; S.count('dec', decided); }
+        const fu = out.tasks.filter((x) => x.kind !== 'keep').length, fuText = fu + (fu === 1 ? ' follow-up' : ' follow-ups');
+        S.note(stampEl(out.decision, out.decision === 'agreed' ? 'Starts Tuesday · ' + fuText + ' to land' : ['parked', 'next'].includes(out.decision) ? fuText + ' first' : moved && out.owner ? out.owner.name : ''));
+        sfx[moved ? 'coin' : 'back']();
         await wait(700);
       }
       S.agenda(P.items.length, P.items.length);
@@ -201,7 +204,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
         h('div', { class: 'fx-tlrow' }, h('p', { class: 'fx-tlk y' }, 'ON YOUR OWN', h('b', {}, Y.minutes + ' min')), yBar),
         h('div', { class: 'fx-tlrow' }, h('p', { class: 'fx-tlk w' }, 'WITH WAKE', h('b', {}, K.minutes + ' min')), kBar),
         h('div', { class: 'fx-tlrow' }, h('span'), axis),
-        h('div', { class: 'fx-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on a guess'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
+        h('div', { class: 'fx-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on a guess'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
       h('section', { class: 'fx-duels' },
         h('div', { class: 'fx-duel head' }, h('b', { class: 'y' }, 'ON YOUR OWN'), h('span'), h('b', { class: 'w' }, 'WITH WAKE')),
         duel('Questions answered in the room', Y.answered + ' of ' + Y.asked, K.answered + ' of ' + K.asked, Y.answered / Y.asked > 0.99, true),
@@ -238,11 +241,12 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const MY = map('y'), MW = map('w');
     const dayEls = WK.days.map((d) => h('span', {}, d));
     const prof = { y: h('b', { class: 'fx-big' }, '$0'), w: h('b', { class: 'fx-big' }, '$0') };
+    const recov = { y: h('small', { class: 'fx-rec' }, ''), w: h('small', { class: 'fx-rec' }, '') };
     const tug = h('div', { class: 'fx-tug' }, h('i', { class: 'ty' }), h('i', { class: 'tw' }), h('span', { class: 'mk' }));
     const tugLabel = h('p', { class: 'fx-tug-l' }, 'EVEN');
     // the scoreboard: six measures, mirrored
     const MEAS = [
-      { k: 'profit', label: 'Profit impact this week', fmt: money, hi: true },
+      { k: 'profit', label: 'Operating profit impact', fmt: money, hi: true },
       { k: 'runRate', label: 'Run-rate added, annualized', fmt: kmoney, hi: true },
       { k: 'resolved', label: 'Problems resolved', fmt: (v) => v + ' of ' + n, hi: true, max: n },
       { k: 'tta', label: 'Time to action', fmt: (v) => (v === null ? 'None' : v === 0 ? 'Same day' : v + (v === 1 ? ' day' : ' days')), hi: false, max: 5 },
@@ -266,16 +270,16 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const ff = btn('FAST FORWARD ▶▶', () => { fast = true; ff.disabled = true; }, 'btn small');
     show('wake', 'fx-week',
       h('div', { class: 'fx-whud' },
-        h('div', { class: 'p y' }, h('span', {}, 'PLAYER 1 · ON YOUR OWN'), prof.y, h('small', {}, 'profit impact')),
+        h('div', { class: 'p y' }, h('span', {}, 'PLAYER 1 · ON YOUR OWN'), prof.y, h('small', {}, 'operating profit impact'), recov.y),
         h('div', { class: 'mid' }, h('p', {}, 'THE WEEK'), h('div', { class: 'fx-days' }, dayEls)),
-        h('div', { class: 'p w' }, h('span', {}, 'PLAYER 2 · WITH WAKE'), prof.w, h('small', {}, 'profit impact'))),
+        h('div', { class: 'p w' }, h('span', {}, 'PLAYER 2 · WITH WAKE'), prof.w, h('small', {}, 'operating profit impact'), recov.w)),
       tug, tugLabel,
       h('div', { class: 'fx-maps' }, h('div', { class: 'fx-side y' }, MY.art, MY.log), h('div', { class: 'fx-side w' }, MW.art, MW.log)),
       h('div', { class: 'fx-legend2' }, ['open', 'waiting', 'working', 'fixed', 'worse'].map((s) => h('span', {}, h('i', { class: 'fx-bdg ' + s }, GLYPH[s]), STATUS[s].toLowerCase()))),
       h('section', { class: 'fx-score' }, h('div', { class: 'fx-bf head' }, h('b', { class: 'y' }, 'ON YOUR OWN'), h('p', {}, 'SCOREBOARD'), h('b', { class: 'w' }, 'WITH WAKE')), brow.map((b) => b.el)),
       h('section', { class: 'fx-probs' }, h('h2', { class: 'fx-h2' }, 'Problem by problem'), prow.map((p) => p.el), routine),
       banner,
-      h('p', { class: 'fx-note' }, 'Dollar figures are estimates from this company\'s own numbers: payroll, revenue, invoices and tickets. Run-rate is the yearly value of the fixes in place by Friday, if they hold.'),
+      h('p', { class: 'fx-note' }, 'Dollar figures are estimates from this company\'s own numbers: payroll, revenue, invoices and tickets. Profit impact is operating profit against doing nothing; one-time recoveries are shown on their own. Run-rate is the yearly value of the fixes in place by Friday.'),
       h('div', { class: 'row fx-wctl' }, ff, next));
     own();
 
@@ -283,8 +287,8 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
       const day = L.days[d];
       const st = c.querySelector('.st'); st.className = 'st ' + day.status; st.textContent = STATUS[day.status];
       c.querySelector('.mv').textContent = day.shown;
-      const cum = L.days.slice(0, d + 1).reduce((s, x) => s + x.profit, 0);
-      const pm = c.querySelector('.pm'); pm.textContent = cum ? (cum > 0 ? '+' : '') + money(cum) : ''; pm.className = 'pm' + (cum > 0 ? ' pos' : cum < 0 ? ' neg' : '');
+      const cum = L.days.slice(0, d + 1).reduce((s, x) => s + x.profit, 0), back = L.days.slice(0, d + 1).reduce((s, x) => s + x.credit, 0);
+      const pm = c.querySelector('.pm'); pm.replaceChildren(cum ? (cum > 0 ? '+' : '') + money(cum) : '', back ? h('small', {}, '+' + kmoney(back) + ' back') : ''); pm.className = 'pm' + (cum > 0 ? ' pos' : cum < 0 ? ' neg' : '');
       c.querySelector('.sp').replaceChildren(spark(L.series.slice(0, d + 2), r.metric.good));
       c.classList.remove('flip'); void c.offsetWidth; c.classList.add('flip');
     };
@@ -329,6 +333,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
         }
         paintBoard(d);
         const ny = WK.board.you[d].profit, nw = WK.board.wake[d].profit;
+        for (const [k, b] of [['y', WK.board.you[d]], ['w', WK.board.wake[d]]]) recov[k].textContent = b.oneTime ? '+ ' + money(b.oneTime) + ' recovered, one time' : '';
         await Promise.all([count(prof.y, py, ny), count(prof.w, pw, nw)]);
         sfx[nw > pw ? 'coin' : 'type']();
         py = ny; pw = nw;
@@ -376,7 +381,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
       verdict.hidden = false;
       verdict.replaceChildren(
         h('p', { class: 'fs-wins' }, h('span', { class: 'y' }, String(S.youAhead)), h('b', {}, S.wakeAhead > S.youAhead ? 'PLAYER 2 WINS' : S.youAhead > S.wakeAhead ? 'PLAYER 1 WINS' : 'DRAW'), h('span', { class: 'w' }, String(S.wakeAhead))),
-        h('p', { class: 'fs-v' }, R.verdict));
+        h('p', { class: 'fs-v' }, R.verdict), R.credit ? h('p', { class: 'fs-credit' }, R.credit) : null);
       sfx.start(); await wait(800);
       rest.hidden = false; renderRest();
     })();
@@ -395,11 +400,12 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
         h('div', { class: 'src-row' }, m.connected.map((c) => h('span', { class: 'src-chip' }, h('span', { class: 'sc-sys' }, c.where), h('span', { class: 'sc-l' }, c.label + (c.value ? ': ' + c.value : ''))))),
         h('p', { class: 'mo-cap w' }, m.wake), m.stake ? h('p', { class: 'mo-stake' }, money(m.stake) + ' a week at stake') : null) : null;
       const Q = S.quarter;
+      const tile = (big, label, yours) => h('div', {}, h('b', {}, big), h('span', {}, label), h('em', {}, yours));
       const quarter = h('section', { class: 'fs-q' }, h('h2', {}, 'Thirteen weeks like this one'),
         h('div', { class: 'fs-qrow' },
-          h('div', {}, h('b', {}, kmoney(Q.profit)), h('span', {}, 'more profit, before one-time recoveries')),
-          h('div', {}, h('b', {}, Q.hours.toLocaleString('en-US') + ' hrs'), h('span', {}, 'of team time back')),
-          h('div', {}, h('b', {}, kmoney(Q.run)), h('span', {}, 'more run-rate added this week alone'))));
+          tile(kmoney(Q.wake.total), 'operating profit with Wake', 'On your own: ' + kmoney(Q.you.total)),
+          tile(kmoney(Q.wake.runRate), 'yearly run-rate by week 13', 'On your own: ' + kmoney(Q.you.runRate)),
+          tile(Q.hours.toLocaleString('en-US') + ' hrs', 'of team time back', 'On your own: ' + Math.round(Q.you.hours).toLocaleString('en-US') + ' hrs on follow-up')));
       const copy = async () => {
         try { await navigator.clipboard.writeText(R.report.toText()); status.textContent = 'Report copied.'; game.exported('copy'); }
         catch (e) { const ta = h('textarea', { class: 'copybox', rows: '8', readonly: true }); ta.value = R.report.toText(); reportEl.hidden = false; reportEl.prepend(ta); ta.select(); status.textContent = 'Select all and copy.'; }

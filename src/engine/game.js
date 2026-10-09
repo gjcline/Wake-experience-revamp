@@ -346,6 +346,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
   function presented(which) { rec(which === 'wake' ? 'presented_wake' : 'presented_yours'); }
   const meetingPlan = () => FX.plan();
   const answerQ = (qid, optId) => FX.answer(qid, optId);
+  const meetingPending = (itemId) => FX.pending(itemId);
   const meetingYours = () => FX.yours();
   const meetingWake = () => FX.wake();
   const afterMeeting = () => FX.after();
@@ -386,7 +387,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     startRound2, briefing, assign, moveWake, putThrough, lockRound2,
     tickWake, listR2, unreadR2, openR2, insights, insight, trace, pick, assignments, r2Ready, MIN_PICKS, MAX_PICKS,
     traced: (id) => rec('trace_opened', { signal: id }),
-    meetingPlan, answerQ, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,
+    meetingPlan, answerQ, meetingPending, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,
     clockLabel: () => fmtClock(state.clock),
   };
 }

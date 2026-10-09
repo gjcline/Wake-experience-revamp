@@ -1100,7 +1100,7 @@ export function generateScenario(shell, role, seed) {
     const wN = A.n.wait, wn = A.b.wait, wk = Math.round((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000);
     model.F1 = { kind: 'cost', weekly: wk, run: Math.round(wk * 52 * 0.6),
       metric: { label: 'Wait past the promised time', short: 'Wait', unit: 'min', good: 'down', start: wN, target: wn + 4, ok: { op: 'le', v: wn + 5 }, drift: 0.5, ramp: [0.3, 0.6, 0.85, 1, 1] },
-      sq: { e: 0.3, s: 3, text: F(a) + ' pulls a {lead} onto the ' + peak + ' shift on their own.' },
+      sq: { e: 0.35, s: 2, text: F(a) + ' pulls a {lead} onto the ' + peak + ' shift on their own.' },
       act: { aligned: '{Lead} coverage moves back to the ' + peaks + '.', partial: F('analyst') + ' starts digging into the schedule.', unclear: F(a) + ' asks what to change first.', counter: { cut: 'Hours cut ten percent' + atL(A) + '.', hire: 'Two hires approved. They start in three weeks.' } },
       q: { why: ['opsdir', 'Labor has been creeping up for weeks. What is actually driving it?'], cost: [ctrl, 'What is it costing us a week?'] },
       costLine: 'About ' + money(wk) + ' a week. Labor is ' + (A.n.labor - A.b.labor).toFixed(1) + ' points above its normal share of ' + money(A.n.rev * 1000) + ' in weekly revenue' + atL(A) + '.',
@@ -1110,7 +1110,7 @@ export function generateScenario(shell, role, seed) {
     const q = money(V.quote), pay = Math.max(1, Math.ceil(V.quote / Math.max(1, f2Week * CM)));
     model.F2 = { kind: 'revenue', weekly: f2Week, run: Math.round(f2Week * CM * 52 * 0.75),
       metric: { label: 'Unplanned downtime', short: 'Downtime', unit: 'hrs', good: 'down', start: 0, path: [0, 1, 1, 9, 13], ok: { op: 'le', v: 1 }, ramp: [1, 1, 1, 1, 1] },
-      sq: { e: 0, s: 9, text: '' },
+      sq: { e: 0.25, s: 3, text: F(b) + ' works around the failure: some of the work is moved to later in the week.' },
       act: { aligned: 'Replacement ordered. Overflow plan set for the next failure.', partial: F('opsdir') + ' weighs repair against replace.', unclear: F(b) + ' calls for another repair.', counter: { route: partner ? 'Overflow sent to ' + C.name + ' again.' : 'Backlog pushed to Saturday.', repair: 'Technician out again.', recognize: (partner ? C.name : 'The team') + ' celebrates the record week.' } },
       fail: { held: 'The {equipment} fails again. The overflow plan holds. Nothing is turned away.', lost: partner ? 'The {equipment} fails again. ' + C.name + ' covers it on overtime.' : 'The {equipment} fails again. Work is turned away.' },
       q: { why: ['opsdir', 'Is it the {equipment} itself, or how we are running it?'], cost: [ctrl, 'Before I sign ' + q + ', what is the downtime costing us?'] },
@@ -1132,7 +1132,7 @@ export function generateScenario(shell, role, seed) {
     const r0 = D.n.repeat, rebook = Math.round(V.calls * 0.27), tk = Math.round(D.n.ticket);
     model.F3 = { kind: 'revenue', weekly: rebook * tk, run: Math.round(rebook * tk * CM * 52 * 0.35), calls: V.calls, rebook, ticket: tk,
       metric: { label: 'Returning {customers}', short: 'Returning', unit: '%', good: 'up', start: r0, target: r0 + 3, ok: { op: 'ge', v: r0 + 2 }, drift: -0.25, ramp: [0.2, 0.45, 0.7, 0.9, 1] },
-      sq: { e: 0, s: 9, text: '' },
+      sq: { e: 0.15, s: 1, text: 'The team at ' + (M ? D.name : 'the front desk') + ' makes a few {followup} between other work.' },
       act: { aligned: 'Central office starts {followup}.', partial: 'Second-visit analysis started.', unclear: 'Another full book of first visits.', counter: { promoMore: 'Offer extended.', promoStop: 'Offer ended.', recognize: 'Team recognized for a record month.' } },
       q: { why: ['marketing', (M ? D.name + ' is' : 'We are') + ' having a record month. Why would we touch it?'], cost: [ctrl, 'What is it worth if we fix it?'] },
       costLine: 'About ' + money(rebook * tk) + ' this week in rebooked {visits}, and ' + money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * 4.33) + ' a month at risk when the offer ends.',
@@ -1141,7 +1141,7 @@ export function generateScenario(shell, role, seed) {
   if (E) {
     model.F5 = { kind: 'cost', weekly: 4200, perExit: 4200, run: Math.round(0.6 * 52 * 4200 * 2 / 3),
       metric: { label: 'New-hire exits', short: 'Exits', unit: 'count', good: 'down', start: 0, path: [0, 0, 0, 0, 1], ok: { op: 'le', v: 0 }, ramp: [1, 1, 1, 1, 1] },
-      sq: { e: 0, s: 9, text: '' },
+      sq: { e: 0.2, s: 2, text: F(e) + ' gets next week\'s schedule out a day earlier than usual.' },
       act: { aligned: 'Two weeks of schedules being built, with help.', partial: 'Exit notes under review.', unclear: F(e) + ' covers another shift personally.', counter: { pay: 'Starting pay raised a dollar.', hire: 'More roles posted.' } },
       exit: { held: 'Schedules posted a week ahead. No new exits.', lost: 'A fourth new hire gives notice.' },
       q: { why: ['hr', 'People leave. What makes these three different?'], cost: [ctrl, 'What does each of these exits cost us?'] },

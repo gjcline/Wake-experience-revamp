@@ -20,7 +20,7 @@ const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.fi
 function meet(g, how = 'first') {
   const P = g.meetingPlan();
   for (const q of P.items.flatMap((x) => x.qs).concat(P.wrap)) {
-    const o = how === 'iou' ? (q.opts.find((x) => ['iou', 'later', 'rethink'].includes(x.effect)) || q.opts[0]) : how === 'guess' ? (q.opts.find((x) => ['guess', 'bounce', 'anyway', 'self', 'drop'].includes(x.effect)) || q.opts[0]) : q.opts[0];
+    const o = how === 'iou' ? (q.opts.find((x) => ['iou', 'later', 'rethink', 'wait'].includes(x.effect)) || q.opts[0]) : how === 'now' ? (q.opts.find((x) => ['iou', 'later', 'now'].includes(x.effect)) || q.opts[0]) : how === 'guess' ? (q.opts.find((x) => ['guess', 'bounce', 'anyway', 'self', 'drop'].includes(x.effect)) || q.opts[0]) : q.opts[0];
     g.answerQ(q.id, o.id);
   }
   return P;
@@ -66,8 +66,12 @@ function invariants(g, out, name) {
   for (const r of wk.rows) { assert.ok(r.label && r.metric.label); for (const L of [r.you, r.wake]) { assert.equal(L.days.length, 5); assert.ok(L.days.every((x) => x.shown && x.status), name + ': every day has a measure'); } }
   assert.equal(wk.board.you.length, 5); assert.equal(wk.board.wake.length, 5);
   const picked = g.state.wakeOrder.filter((id) => g.world.findingById[id]).length;
-  assert.equal(wk.board.wake[4].resolved, picked, name + ': everything Wake handed off is resolved by Friday');
-  assert.ok(wk.board.wake[4].profit > 0 && wk.board.wake[4].runRate > 0, name + ': Wake\'s plan creates value');
+  assert.ok(wk.board.wake[4].resolved >= picked, name + ': everything Wake handed off is resolved by Friday');
+  const fy = wk.board.you[4], fw = wk.board.wake[4];
+  assert.ok(fw.profit > fy.profit && fw.runRate > fy.runRate && fw.resolved >= fy.resolved, name + ': Wake wins the week on the money that matters');
+  assert.ok(rc.score.quarter.wake.total > rc.score.quarter.you.total && rc.score.quarter.you.total > 0, name + ': the quarter widens the gap, and your baseline is real');
+  assert.ok(rc.score.wakeAhead > rc.score.youAhead, name + ': the verdict and the numbers agree');
+  for (const it of d.yours.items.filter((x) => ['decided', 'guess', 'agreed'].includes(x.decision))) assert.ok(wk.rows.find((r) => r.id === it.fid).you.first <= 1 || d.yours.items.filter((x) => x.fid === it.fid).length > 1, name + ': what the room decided starts Tuesday');
   assert.ok(wk.board.wake[4].hours < wk.board.you[4].hours, name + ': fewer hours with Wake');
   assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer && rc.verdict);
   assert.equal(rc.score.rows.length, 9, name + ': nine head-to-head measures');
@@ -150,9 +154,12 @@ test('expected outcomes', () => {
   assert.ok(A.d.yours.ious >= A.d.yours.items.length, 'every unanswered question is a follow-up');
   assert.ok(A.wk.board.you[4].resolved < A.wk.board.wake[4].resolved, 'parked work resolves less by Friday');
   assert.ok(A.wk.board.you[4].profit > 0, 'your plan still creates value');
+  const N2 = run(PATHS.aligned, 'now');
+  assert.ok(N2.d.yours.items.every((y) => y.decision === 'agreed'), 'the room can always agree to move, even without the numbers');
+  assert.ok(N2.wk.board.you[4].profit > A.wk.board.you[4].profit, 'moving ahead of the numbers is worth more than waiting');
   const G = run(PATHS.aligned, 'guess');
   assert.ok(G.d.yours.items.filter((y) => !['F2', 'F4'].includes(y.fid)).every((y) => ['decided', 'guess'].includes(y.decision)), 'a guess keeps it moving');
-  assert.ok(G.d.yours.items.filter((y) => ['F2', 'F4'].includes(y.fid)).every((y) => y.decision === 'parked'), 'no one signs off on a ballpark');
+  assert.ok(G.d.yours.items.filter((y) => ['F2', 'F4'].includes(y.fid)).every((y) => y.decision === 'agreed' && y.tasks.some((x) => /Size the cost/.test(x.what))), 'no one signs off on a ballpark: it moves, but the number is still owed');
   assert.ok(G.wk.board.you[4].profit > A.wk.board.you[4].profit, 'deciding sooner is worth more');
   const C = run(PATHS.counter, 'guess');
   assert.ok(C.d.plan.items.every((y) => y.handling === 'counter' && y.qs[0].type === 'counter'), 'obvious moves get pushback');

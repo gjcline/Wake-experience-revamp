@@ -12,7 +12,7 @@ const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1
 const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
 const WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const STATUS = { open: 'Open', waiting: 'Waiting', working: 'In progress', fixed: 'Resolved', worse: 'Worse' };
-const DECISION = { decided: 'Decided', guess: 'Decided on a guess', parked: 'Parked', next: 'Parked to next week', dropped: 'Dropped', busy: 'Kept on the list' };
+const DECISION = { decided: 'Decided', guess: 'Decided on a guess', agreed: 'Agreed, numbers to follow', parked: 'Parked', next: 'Parked to next week', dropped: 'Dropped', busy: 'Kept on the list' };
 
 export function buildRecap(world, state, { score, trace }) {
   const W = state.wake, S = score, WK = S.week, n = WK.n;
@@ -51,6 +51,18 @@ export function buildRecap(world, state, { score, trace }) {
   const total = S.rows.length;
   const verdict = S.youAhead === 0 && S.wakeAhead === total ? 'With Wake, ahead on all ' + (WORD[total] || total) + ' measures.'
     : S.wakeAhead >= S.youAhead ? 'With Wake, ahead on ' + S.wakeAhead + ' of ' + total + ' measures.' : 'On your own, ahead on ' + S.youAhead + ' of ' + total + ' measures.';
+  const C = S.credit;
+  const join = (xs) => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]);
+  const mine = [];
+  if (C.found) mine.push('found ' + C.found + ' of ' + n + ' problems');
+  if (C.decided) mine.push('got ' + C.decided + ' decided in the room');
+  if (C.resolved) mine.push('resolved ' + C.resolved + ' by Friday');
+  if (C.runRate > 0) mine.push('added ' + kmoney(C.runRate) + ' of yearly run-rate');
+  const won = C.wins.length ? ' You also came out ahead on ' + join(C.wins.map((x) => x.toLowerCase())) + '.' : '';
+  const solid = C.found * 2 >= n || C.resolved >= 1;
+  const credit = (mine.length ? 'On your own you ' + join(mine) + '.' + won + (solid ? ' That is a real week, and it is where the business runs today.' : ' That is where the business runs today.')
+    : 'On your own, the people on site still handled some of it themselves' + (C.runRate > 0 ? ', ' + kmoney(C.runRate) + ' of yearly run-rate' : '') + '. That is where the business runs today.')
+    + ' With Wake, the same Monday resolved ' + S.final.wake.resolved + ' of ' + n + ' and added ' + kmoney(S.final.wake.runRate) + '.';
   const closer = 'Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems before you sat down. The rest of the week followed from that.';
   const meta = { company: world.shell.company, role: world.role.label, shell: world.shell.label, date: world.shell.mondayLong, size: world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit, headcount: world.shell.headcount };
 
@@ -64,31 +76,32 @@ export function buildRecap(world, state, { score, trace }) {
       '<div class="kv w' + (wWin ? ' win' : '') + '"><span>With Wake</span><b>' + esc(wv) + '</b><i style="width:' + wb.toFixed(1) + '%"></i></div></div>';
   };
 
-  // cumulative profit impact, Monday to Friday: one axis, two lines, labelled at the end
-  function chart() {
-    const ys = WK.board.you.map((x) => x.profit), ws = WK.board.wake.map((x) => x.profit);
+  // two cumulative lines on one axis, labelled at the end
+  function lineChart(ys, ws, xs, what, dots = true) {
+    const last = xs.length - 1;
     const lo = Math.min(0, ...ys, ...ws), hi = Math.max(1, ...ys, ...ws);
-    const step = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000].find((s) => (hi - lo) / s <= 5) || 250000;
+    const step = [500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000].find((v) => (hi - lo) / v <= 5) || 2500000;
     const top = Math.ceil(hi / step) * step, bot = Math.floor(lo / step) * step;
     const X0 = 64, X1 = 560, Y0 = 18, Y1 = 196;
-    const x = (i) => X0 + (X1 - X0) * i / 4, y = (v) => Y1 - (v - bot) / (top - bot || 1) * (Y1 - Y0);
+    const x = (i) => X0 + (X1 - X0) * i / last, y = (v) => Y1 - (v - bot) / (top - bot || 1) * (Y1 - Y0);
     let g = '';
     for (let v = bot; v <= top; v += step) g += '<line x1="' + X0 + '" x2="' + X1 + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" class="' + (v === 0 ? 'zero' : 'grid') + '"/><text x="' + (X0 - 10) + '" y="' + (y(v) + 4).toFixed(1) + '" class="ax" text-anchor="end">' + kmoney(v) + '</text>';
-    WK.days.forEach((d, i) => { g += '<text x="' + x(i) + '" y="' + (Y1 + 20) + '" class="ax" text-anchor="middle">' + d + '</text>'; });
+    xs.forEach((d, i) => { if (d) g += '<text x="' + x(i) + '" y="' + (Y1 + 20) + '" class="ax" text-anchor="middle">' + d + '</text>'; });
     const line = (vals, cls, label) => {
-      const pts = vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
-      let s = '<polyline points="' + pts + '" class="ln ' + cls + '"/>';
-      vals.forEach((v, i) => { s += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="4.5" class="pt ' + cls + '"><title>' + label + ', ' + WK.days[i] + ': ' + money(v) + '</title></circle>'; });
-      return s;
+      let s2 = '<polyline points="' + vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ') + '" class="ln ' + cls + '"/>';
+      vals.forEach((v, i) => { s2 += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="' + (dots || i === last ? 4.5 : 3) + '" class="pt ' + cls + '"><title>' + label + ', ' + (xs[i] || 'week ' + (i + 1)) + ': ' + money(v) + '</title></circle>'; });
+      return s2;
     };
-    const ly = y(ys[4]), lw = y(ws[4]);
+    const ly = y(ys[last]), lw = y(ws[last]);
     const gap = Math.abs(ly - lw) < 30 ? (30 - Math.abs(ly - lw)) / 2 : 0;
     const lyA = ly + (ly >= lw ? gap : -gap), lwA = lw + (lw > ly ? gap : -gap);
     g += line(ys, 'y', 'On your own') + line(ws, 'w', 'With Wake');
-    g += '<text x="' + (X1 + 12) + '" y="' + (lwA - 2).toFixed(1) + '" class="lb w">With Wake</text><text x="' + (X1 + 12) + '" y="' + (lwA + 14).toFixed(1) + '" class="lv">' + money(ws[4]) + '</text>';
-    g += '<text x="' + (X1 + 12) + '" y="' + (lyA - 2).toFixed(1) + '" class="lb y">On your own</text><text x="' + (X1 + 12) + '" y="' + (lyA + 14).toFixed(1) + '" class="lv">' + money(ys[4]) + '</text>';
-    return '<svg viewBox="0 0 680 228" role="img" aria-label="Cumulative profit impact, Monday to Friday. On your own ' + money(ys[4]) + '. With Wake ' + money(ws[4]) + '.">' + g + '</svg>';
+    g += '<text x="' + (X1 + 12) + '" y="' + (lwA - 2).toFixed(1) + '" class="lb w">With Wake</text><text x="' + (X1 + 12) + '" y="' + (lwA + 14).toFixed(1) + '" class="lv">' + money(ws[last]) + '</text>';
+    g += '<text x="' + (X1 + 12) + '" y="' + (lyA - 2).toFixed(1) + '" class="lb y">On your own</text><text x="' + (X1 + 12) + '" y="' + (lyA + 14).toFixed(1) + '" class="lv">' + money(ys[last]) + '</text>';
+    return '<svg viewBox="0 0 680 228" role="img" aria-label="' + esc(what) + '. On your own ' + money(ys[last]) + '. With Wake ' + money(ws[last]) + '.">' + g + '</svg>';
   }
+  const chart = () => lineChart(WK.board.you.map((x) => x.profit), WK.board.wake.map((x) => x.profit), WK.days, 'Cumulative operating profit impact, Monday to Friday');
+  const qchart = () => lineChart(S.quarter.you.cum, S.quarter.wake.cum, S.quarter.you.cum.map((_, i) => (i === 0 || (i + 1) % 4 === 1 || i === 12 ? 'WK ' + (i + 1) : '')), 'Cumulative operating profit impact over thirteen weeks', false);
 
   // the two meetings as timelines, segment per agenda item
   function timelines() {
@@ -99,12 +112,12 @@ export function buildRecap(world, state, { score, trace }) {
     const kb = seg(3, 'op', 'Opening') + K.items.map((it) => seg(it.minutes, 'decided', it.n + '. Decided, ' + it.minutes + ' min')).join('') + seg(1, 'op', 'Wrap-up');
     return '<div class="tl"><p class="tk y">On your own<b>' + Y.minutes + ' min</b></p><div class="tb">' + yb + '</div></div>' +
       '<div class="tl"><p class="tk w">With Wake<b>' + K.minutes + ' min</b></p><div class="tb">' + kb + '</div></div>' +
-      '<div class="lg"><span class="decided"><i></i>Decided</span><span class="guess"><i></i>Decided on a guess</span><span class="parked"><i></i>Parked for follow-ups</span><span class="dropped"><i></i>Dropped</span></div>';
+      '<div class="lg"><span class="decided"><i></i>Decided</span><span class="guess"><i></i>Decided on a guess</span><span class="agreed"><i></i>Agreed, numbers to follow</span><span class="parked"><i></i>Parked for follow-ups</span><span class="dropped"><i></i>Dropped</span></div>';
   }
 
   const ms2 = (label, yv, wv) => '<div><p><i>On your own</i><b>' + esc(yv) + '</b></p><p><i>With Wake</i><b class="w">' + esc(wv) + '</b></p><span>' + esc(label) + '</span></div>';
   function fragment() {
-    const kpis = pair('Profit impact this week', money(fy.profit), money(fw.profit), fy.profit, fw.profit) +
+    const kpis = pair('Operating profit impact this week', money(fy.profit), money(fw.profit), fy.profit, fw.profit) +
       pair('Run-rate added, annualized', kmoney(fy.runRate), kmoney(fw.runRate), fy.runRate, fw.runRate) +
       pair('Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved) +
       pair('Team hours on follow-up', hrs(fy.hours), hrs(fw.hours), fy.hours, fw.hours, true);
@@ -112,7 +125,7 @@ export function buildRecap(world, state, { score, trace }) {
     const probs = WK.rows.map((r) => {
       const cell = (L) => '<td><b>' + esc(L.to) + '</b><span class="st ' + L.status + '">' + STATUS[L.status] + '</span></td>';
       return '<tr><th>' + esc(r.label) + '<span>' + esc(r.metric.label) + '</span></th><td class="num">' + esc(r.you.from) + '</td>' + cell(r.you) + cell(r.wake) +
-        '<td class="num"><span class="y">' + money(r.you.profit) + '</span><span class="w">' + money(r.wake.profit) + '</span></td></tr>';
+        '<td class="num"><span class="y">' + money(r.you.profit) + (r.you.credit ? ' + ' + kmoney(r.you.credit) + ' back' : '') + '</span><span class="w">' + money(r.wake.profit) + (r.wake.credit ? ' + ' + kmoney(r.wake.credit) + ' back' : '') + '</span></td></tr>';
     }).join('');
     const meet = '<div class="ms">' +
       ms2('questions answered in the room', Y.answered + ' of ' + Y.asked, K.answered + ' of ' + K.asked) +
@@ -127,15 +140,18 @@ export function buildRecap(world, state, { score, trace }) {
     const Q = S.quarter;
     return '<article class="wxr">' +
       '<header class="mast"><div class="brand"><span class="mark" aria-hidden="true"></span>WAKE</div><div class="meta"><span>After-action report</span><span>' + esc(meta.company) + '</span><span>Week of ' + esc(meta.date) + '</span><span>' + esc(meta.role) + '</span></div></header>' +
-      '<section class="hero"><h1>' + esc(verdict) + '</h1><p class="lead">One week at ' + esc(meta.company) + ' (' + esc(meta.size.toLowerCase()) + ', ' + meta.headcount + ' people), run twice from the same Monday morning. Once prepared on your own. Once prepared with Wake. Same data, same people, same five days.</p>' +
+      '<section class="hero"><h1>' + esc(verdict) + '</h1><p class="lead">One week at ' + esc(meta.company) + ' (' + esc(meta.size.toLowerCase()) + ', ' + meta.headcount + ' people), run twice from the same Monday morning. Once prepared on your own. Once prepared with Wake. Same data, same people, same five days.</p><p class="lead credit">' + esc(credit) + '</p>' +
       '<div class="kpis">' + kpis + '</div></section>' +
-      '<section><h2>The week, day by day</h2><p class="sub">Cumulative profit impact against doing nothing, Monday afternoon to Friday.' + (fw.oneTime || fy.oneTime ? ' Includes one-time recoveries: ' + money(fw.oneTime) + ' with Wake' + (fy.oneTime ? ', ' + money(fy.oneTime) + ' on your own' : '') + '.' : '') + '</p><figure class="chart">' + chart() + '</figure></section>' +
+      '<section><h2>The week, day by day</h2><p class="sub">Cumulative operating profit impact against doing nothing, Monday afternoon to Friday.' + (fw.oneTime || fy.oneTime ? ' One-time recoveries come on top: ' + money(fw.oneTime) + ' with Wake' + (fy.oneTime ? ', ' + money(fy.oneTime) + ' on your own' : ', none on your own this week') + '.' : '') + '</p><figure class="chart">' + chart() + '</figure></section>' +
       '<section><h2>Scorecard</h2><table class="sc"><thead><tr><th></th><th class="y">On your own</th><th class="w">With Wake</th></tr></thead><tbody>' + score + '</tbody></table></section>' +
       '<section><h2>The meeting</h2><p class="sub">Same room, same agenda, same questions. What you could answer on the spot decided what got decided.</p>' + timelines() + meet + '</section>' +
-      '<section><h2>Problem by problem</h2><table class="pb"><thead><tr><th>Problem</th><th class="num">Monday</th><th>Friday, on your own</th><th>Friday, with Wake</th><th class="num">Profit impact</th></tr></thead><tbody>' + probs + '</tbody></table></section>' +
+      '<section><h2>Problem by problem</h2><table class="pb"><thead><tr><th>Problem</th><th class="num">Monday</th><th>Friday, on your own</th><th>Friday, with Wake</th><th class="num">Operating profit</th></tr></thead><tbody>' + probs + '</tbody></table></section>' +
       '<section><h2>The moment that mattered</h2>' + mom + '</section>' +
-      '<section class="qtr"><h2>Thirteen weeks like this one</h2><div class="qg"><div><b>' + kmoney(Q.profit) + '</b><span>more profit, before one-time recoveries</span></div><div><b>' + Q.hours.toLocaleString('en-US') + ' hrs</b><span>of team time back</span></div><div><b>' + kmoney(Q.run) + '</b><span>more annual run-rate from this week\'s fixes</span></div></div></section>' +
-      '<footer><p>' + esc(closer) + '</p><p class="fine">Estimates use this company\'s own figures: payroll, revenue, invoices and average ticket. Profit impact counts cost avoided, money recovered, and protected revenue at its contribution margin. Run-rate is the yearly value of the fixes in place by Friday, if they hold.</p><p class="sig">The Wake Experience · wakepe.com</p></footer>' +
+      '<section class="qtr"><h2>Thirteen weeks like this one</h2><p class="sub">Projected from this week. Fixes in place keep paying, open problems get found the way they usually are, and new ones keep arriving. On your own, unwatched fixes slip back a little each week; with Wake, every fix has its number on watch and new problems are caught the week they show up.</p>' +
+        '<figure class="chart">' + qchart() + '</figure>' +
+        '<div class="qg"><div><b>' + kmoney(Q.wake.total) + '</b><span>operating profit with Wake over the quarter</span><em>On your own: ' + kmoney(Q.you.total) + '</em></div><div><b>' + kmoney(Q.wake.runRate) + '</b><span>yearly run-rate by week 13</span><em>On your own: ' + kmoney(Q.you.runRate) + '</em></div><div><b>' + Math.round(Q.hours).toLocaleString('en-US') + ' hrs</b><span>of team time back</span><em>On your own: ' + Math.round(Q.you.hours).toLocaleString('en-US') + ' hrs on follow-up</em></div></div>' +
+        (Q.wake.recovered || Q.you.recovered ? '<p class="sub after">Plus one-time recoveries: ' + money(Q.wake.recovered) + ' with Wake, ' + money(Q.you.recovered) + ' on your own.</p>' : '') + '</section>' +
+      '<footer><p>' + esc(closer) + '</p><p class="fine">Estimates use this company\'s own figures: payroll, revenue, invoices and average ticket. Profit impact is operating profit against doing nothing: cost avoided and protected revenue at its contribution margin. One-time recoveries are shown on their own. Run-rate is the yearly value of the fixes in place.</p><p class="sig">The Wake Experience · wakepe.com</p></footer>' +
       '</article>';
   }
 
@@ -191,11 +207,11 @@ export function buildRecap(world, state, { score, trace }) {
 .wxr .tk.y{color:var(--y)}.wxr .tk.w{color:var(--w)}.wxr .tk b{font:400 20px/1 'VT323',monospace;color:var(--ink)}
 .wxr .tb{display:flex;gap:2px;height:22px}
 .wxr .sg{display:block;height:100%;background:var(--ln)}
-.wxr .sg.decided{background:var(--ok)}.wxr .sg.guess{background:repeating-linear-gradient(45deg,var(--ok) 0 4px,#2E6A35 4px 8px)}
+.wxr .sg.decided{background:var(--ok)}.wxr .sg.agreed{background:repeating-linear-gradient(45deg,var(--ok) 0 4px,var(--pn) 4px 8px);box-shadow:inset 0 0 0 2px var(--pk)}.wxr .sg.guess{background:repeating-linear-gradient(45deg,var(--ok) 0 4px,#2E6A35 4px 8px)}
 .wxr .sg.parked,.wxr .sg.next{background:var(--pn);box-shadow:inset 0 0 0 2px var(--pk)}.wxr .sg.dropped,.wxr .sg.busy{background:#4A437A}
 .wxr .lg{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--dim);font-size:12.5px;margin:8px 0 0 162px}
 .wxr .lg i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px}
-.wxr .lg .decided i{background:var(--ok)}.wxr .lg .guess i{background:repeating-linear-gradient(45deg,var(--ok) 0 3px,#2E6A35 3px 6px)}.wxr .lg .parked i{box-shadow:inset 0 0 0 2px var(--pk)}.wxr .lg .dropped i{background:#4A437A}
+.wxr .lg .decided i{background:var(--ok)}.wxr .lg .guess i{background:repeating-linear-gradient(45deg,var(--ok) 0 3px,#2E6A35 3px 6px)}.wxr .lg .parked i{box-shadow:inset 0 0 0 2px var(--pk)}.wxr .lg .agreed i{background:repeating-linear-gradient(45deg,var(--ok) 0 3px,var(--pn) 3px 6px);box-shadow:inset 0 0 0 2px var(--pk)}.wxr .lg .dropped i{background:#4A437A}
 .wxr .ms{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
 .wxr .ms div{background:var(--pn);box-shadow:inset 0 0 0 2px var(--ln);padding:12px;display:flex;flex-direction:column;gap:2px}
 .wxr .ms p{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.wxr .ms i{font-style:normal;font-size:12px;color:var(--dim)}
@@ -212,7 +228,8 @@ export function buildRecap(world, state, { score, trace }) {
 .wxr .stk{font:400 20px/1 'VT323',monospace;color:var(--w)}
 .wxr .qg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .wxr .qg div{background:var(--pn2);box-shadow:inset 0 0 0 2px var(--w);padding:16px;display:flex;flex-direction:column;gap:6px}
-.wxr .qg b{font:400 40px/1 'VT323',monospace;color:var(--w)}.wxr .qg span{color:var(--dim);font-size:13.5px}
+.wxr .qg b{font:400 40px/1 'VT323',monospace;color:var(--w)}.wxr .qg span{color:var(--dim);font-size:13.5px}.wxr .qg em{font:400 19px/1.1 'VT323',monospace;font-style:normal;color:var(--y);margin-top:auto;padding-top:8px;box-shadow:0 -1px 0 var(--ln)}
+.wxr .qtr .chart{margin-bottom:12px}.wxr .sub.after{margin:10px 0 0}.wxr .lead.credit{color:var(--ink);margin-top:12px}
 .wxr footer{margin-top:30px;padding-top:16px;box-shadow:0 -2px 0 var(--ln);display:flex;flex-direction:column;gap:8px}
 .wxr footer p{color:var(--ink)}.wxr footer .fine{color:var(--dim);font-size:12.5px;max-width:60em}
 .wxr .sig{font:400 9px/1.6 'Press Start 2P',monospace;color:var(--w)!important;letter-spacing:.06em}
@@ -226,7 +243,7 @@ export function buildRecap(world, state, { score, trace }) {
     const L = [];
     L.push('THE WAKE EXPERIENCE · AFTER-ACTION REPORT');
     L.push(meta.company + ' · ' + meta.role + ' · Week of ' + meta.date, '');
-    L.push(verdict, '');
+    L.push(verdict, '', credit, '');
     L.push('SCORECARD (on your own / with Wake)');
     for (const r of S.rows) L.push('  ' + r.label + ': ' + r.you + ' / ' + r.wake);
     L.push('', 'THE MEETING');
@@ -237,8 +254,10 @@ export function buildRecap(world, state, { score, trace }) {
     L.push('', 'THE MOMENT THAT MATTERED', '  ' + moment.title);
     for (const l of moment.lines) L.push('  ' + l);
     if (moment.wake) L.push('  ' + moment.wake);
-    L.push('', 'THIRTEEN WEEKS LIKE THIS ONE');
-    L.push('  ' + kmoney(S.quarter.profit) + ' more profit before one-time recoveries · ' + S.quarter.hours + ' hrs of team time back · ' + kmoney(S.quarter.run) + ' more annual run-rate');
+    L.push('', 'THIRTEEN WEEKS LIKE THIS ONE (projected)');
+    L.push('  Operating profit: ' + kmoney(S.quarter.wake.total) + ' with Wake, ' + kmoney(S.quarter.you.total) + ' on your own.');
+    L.push('  Yearly run-rate by week 13: ' + kmoney(S.quarter.wake.runRate) + ' with Wake, ' + kmoney(S.quarter.you.runRate) + ' on your own.');
+    L.push('  Team time back: ' + Math.round(S.quarter.hours) + ' hrs.');
     L.push('', closer, '', 'Estimates use this company\'s own figures. wakepe.com');
     return L.join('\n');
   }
@@ -248,5 +267,5 @@ export function buildRecap(world, state, { score, trace }) {
       '<style>html,body{margin:0;background:#07060F}body{padding:24px 12px}' + css + '</style></head><body>' + fragment() + '</body></html>';
   }
 
-  return { score: S, finale: S, verdict, moment, closer, meta, report: { meta, css, fragment, toText, toHTML } };
+  return { score: S, finale: S, verdict, credit, moment, closer, meta, report: { meta, css, fragment, toText, toHTML } };
 }
