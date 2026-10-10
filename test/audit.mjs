@@ -29,14 +29,14 @@ for (let run = 0; run < N; run++) {
   const order = rnd() < 0.5 ? ins : ins.slice().sort(() => rnd() - 0.5);
   for (const x of order.slice(0, np)) g.pick(x.id);
   g.lockRound2();
-  const P = g.meetingPlan();
   const strat = pick(['first', 'last', 'random', 'iou', 'guess']);
-  for (const it of P.items) for (const q of it.qs) {
-    if (q.cond === 'pending' && !g.meetingPending(it.id)) continue;
-    const o = strat === 'first' ? q.opts[0] : strat === 'last' ? q.opts[q.opts.length - 1] : strat === 'iou' ? (q.opts.find((x) => ['iou', 'later', 'rethink', 'wait'].includes(x.effect)) || q.opts[0]) : strat === 'guess' ? (q.opts.find((x) => ['guess', 'bounce', 'anyway', 'self', 'drop', 'now'].includes(x.effect)) || q.opts[0]) : pick(q.opts);
-    g.answerQ(q.id, o.id);
+  const PREF = { iou: ['iou', 'later', 'rethink', 'wait', 'waitlook', 'longer', 'skip'], guess: ['guess', 'bounce', 'anyway', 'self', 'drop', 'now', 'push', 'quick'] };
+  const P = { items: g.meetingAgenda(), said: [] };
+  for (let i = 0; i < 400; i++) {
+    const st = g.meetingStep(); if (st.done) break; const b = st.beat;
+    const o = b.auto ? b.opts[0] : strat === 'first' ? b.opts[0] : strat === 'last' ? b.opts[b.opts.length - 1] : strat === 'random' ? pick(b.opts) : (b.opts.find((x) => PREF[strat].includes(x.effect)) || b.opts[0]);
+    g.answerQ(b.id, o.id); P.said.push({ beat: b, opt: o });
   }
-  g.answerQ('wrap', pick(P.wrap.opts).id);
   const R = g.recap(), SC = R.score, W = SC.week, fy = SC.final.you, fw = SC.final.wake, Y = W.meeting.you;
   const tag = { seed, shell, role, style, strat, picks: g.state.wakeOrder.join(','), dec: Y.decided + '/' + Y.items.filter((x) => x.kind === 'finding').length, yp: fy.profit, wp: fw.profit, yr: fy.runRate, wr: fw.runRate };
   S.yp.push(fy.profit); S.wp.push(fw.profit);
@@ -50,15 +50,15 @@ for (let run = 0; run < N; run++) {
   if (SC.youAhead >= SC.wakeAhead) bump('P1 ahead on measures', tag);
   if (W.tta.you !== null && W.tta.wake !== null && W.tta.you < W.tta.wake) bump('P1 faster to action', tag);
   const realItems = Y.items.filter((x) => x.kind === 'finding');
-  const chose = (eff) => Object.entries(g.state.meet.answers).some(([q, o]) => { const it = P.items.flatMap((x) => x.qs).find((x) => x.id === q); return it && it.opts.find((x) => x.id === o).effect === eff; });
-  if (realItems.length && Y.decided === 0 && !chose('wait')) bump('nothing agreed, never chose to wait', { ...tag, items: realItems.map((x) => x.handling + ':' + x.decision) });
+  const chose = (eff) => P.said.some((x) => x.opt.effect === eff);
+  if (realItems.length && Y.decided === 0 && !chose('wait') && !chose('skip') && !chose('longer') && !chose('alt') && !chose('anyway')) bump('nothing agreed, never chose to wait', { ...tag, items: realItems.map((x) => x.handling + ':' + x.decision) });
   if (realItems.length && Y.decided === 0) S.dec0++;
   // story consistency: nothing decided and no follow-ups landed, yet money moved before Wednesday
   const earlyMoney = W.board.you[1].profit;
 
   for (const it of realItems) { const L = W.rows.find((r) => r.id === it.fid).you;
     const twin = realItems.filter((x) => x.fid === it.fid).length > 1;
-    if (['decided', 'guess', 'agreed'].includes(it.decision) && L.first > 1 && !(twin && it.handling === 'counter')) bump('decided in the room but nothing starts Tuesday', { ...tag, it: it.decision, h: it.handling, first: L.first });
+    if (['decided', 'guess', 'agreed', 'pilot'].includes(it.decision) && L.first > (it.dated && !it.late && !it.tasks.some((x) => x.kind === 'brief') ? 1 : 2) && !twin) bump('decided in the room but nothing starts Tuesday', { ...tag, it: it.decision, h: it.handling, first: L.first });
     if (it.decision === 'parked' && !twin && L.first <= 1) bump('parked but started Tuesday', { ...tag, h: it.handling }); }
   if (W.rows.some((r) => r.you.days.some((x, d) => d < (r.you.first || 9) && x.p > 0 && !(world => true)()))) {}
   if (SC.quarter && SC.quarter.you && SC.quarter.you.cum[12] <= 0) bump('P1 quarter <= 0', tag);

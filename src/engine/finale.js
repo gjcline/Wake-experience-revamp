@@ -11,14 +11,13 @@
 // is assigned (people on site still fix what they can see). The scoreboard tracks profit
 // impact, run-rate added, problems resolved, time to action, team hours and open follow-ups.
 
-import { judgeFlag } from './judge.js';
+import { createMeeting, MOVED } from './meeting.js';
 
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const round1 = (x) => Math.round(x * 10) / 10;
 const OPENING = 3, PRESENT = 2, WAKE_ITEM = 2;
-const MIN = { answer: 1, iou: 3, guess: 4, bounce: 5, self: 2, later: 2, anyway: 4, rethink: 3, drop: 2, keep: 3, manual: 2, monday: 1, explain: 3, reroute: 2, now: 3, wait: 1 };
 const NEXT_WEEK = 9;
 
 export function createFinaleEngine({ world, state, rec, person, insight }) {
@@ -35,156 +34,13 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   const lc = (x) => (x ? x.charAt(0).toLowerCase() + x.slice(1) : x);
 
   // ============================================================ YOUR MEETING
-  function plan() {
-    const items = state.flags.map((f, i) => {
-      const j = judgeFlag(world, f), n = i + 1, id = 'i' + n;
-      const base = { id, n, flag: f.id, kind: j.kind, fid: j.finding || null, what: f.what, text: f.text, owner: f.owner ? who(f.owner) : null, handling: j.handling, key: j.key, qs: [] };
-      const opening = j.reactions[0] && inRoom(j.reactions[0].who) ? { ...who(j.reactions[0].who), line: j.reactions[0].line } : null;
-      base.opening = opening;
-      if (j.kind === 'falseAlarm') {
-        const x = opening || { ...who('opsdir'), line: 'That one has an explanation already.' };
-        base.qs.push({ id: id + ':fa', type: 'explain', asker: x, line: x.line + ' Do we still need to act on it?', opts: [
-          { id: 'drop', label: 'Good to know. Let\'s drop it.', effect: 'drop', reply: 'Thanks. Moving on.' },
-          { id: 'keep', label: 'Keep pulling the numbers on it anyway.', effect: 'keep', reply: 'Okay. We\'ll keep pulling it.', task: { who: x.key, what: 'Keep pulling numbers on ' + f.what.label, hrs: 3 } }] });
-        base.opening = null;
-        return base;
-      }
-      if (j.kind === 'noise') {
-        const o = who('opsdir');
-        base.qs.push({ id: id + ':pr', type: 'priority', asker: o, line: 'Is this one really a priority for this week?', opts: [
-          { id: 'drop', label: 'Fair. Let\'s drop it.', effect: 'drop', reply: 'Moving on.' },
-          { id: 'keep', label: 'I\'d still like someone on it.', effect: 'keep', reply: 'Okay. I\'ll find someone.', task: { who: 'analyst', what: 'Look into ' + f.what.label, hrs: 3 } }] });
-        base.opening = null;
-        return base;
-      }
-      // a real problem
-      const fid = j.finding, Mo = model[fid], topic = topicOf(fid);
-      const fits = j.attached.filter((a) => a.fits);
-      const flagged = f.signals.concat(...fits.map((a) => a.signals));
-      if (j.handling === 'counter') {
-        const x = opening || { ...who(ownerOf(fid)), line: 'Are we sure that fixes it?' };
-        base.qs.push({ id: id + ':ct', type: 'counter', asker: x, line: x.line, opts: [
-          { id: 'anyway', label: 'Noted. Let\'s do it anyway.', effect: 'anyway', reply: 'Okay. Your call.' },
-          { id: 'rethink', label: 'Fair point. Let me rethink it and come back.', effect: 'rethink', reply: 'Thanks. That\'s the right call.', task: { who: 'me', what: 'Rework the plan for ' + topic, hrs: 1.5 } }] });
-        base.opening = null;
-      } else {
-        // the specific question only lands when you named the fix; otherwise the room asks plainly
-        const [ak, line] = j.handling === 'aligned' ? Mo.q.why : ['opsdir', 'What do you think is driving it?'];
-        const ev = fits[0] ? fits[0].label : j.quiet ? f.what.label + (f.what.value ? ': ' + f.what.value : '') : '';
-        base.qs.push({ id: id + ':why', type: 'why', asker: { ...who(ak), line }, line, evidence: ev || null, opts: ev
-          ? [{ id: 'show', label: 'Show: ' + ev, effect: 'answer', reply: 'Okay. That is clear.' },
-            { id: 'iou', label: 'I\'ll pull the history and send it round.', effect: 'iou', reply: 'Send it when you have it.', task: { who: 'analyst', what: 'Pull the history behind ' + topic, hrs: 2.5 } }]
-          : [{ id: 'iou', label: 'I\'ll pull the history and send it round.', effect: 'iou', reply: 'Okay. Send it when you have it.', task: { who: 'analyst', what: 'Pull the history behind ' + topic, hrs: 2.5 } },
-            { id: 'guess', label: 'It\'s my read. Let\'s move on it.', effect: 'guess', reply: 'I\'d want to see the numbers. But fine.' }] });
-      }
-      {
-        const [ak, line] = j.handling === 'aligned' ? Mo.q.cost : [ctrlKey, 'What is it costing us?'];
-        const mSig = flagged.find((id2) => Mo.money.includes(id2));
-        const ev = mSig ? world.signals[mSig].label + ': ' + world.signals[mSig].value : '';
-        const bounce = ['F2', 'F4'].includes(fid) && j.handling === 'aligned';
-        const opts = [];
-        if (ev) opts.push({ id: 'show', label: 'Show: ' + ev, effect: 'answer', reply: 'Good. That is enough to act on.' });
-        opts.push({ id: 'iou', label: 'I\'ll get you a number by Wednesday.', effect: 'iou', reply: 'Get it to me and I\'ll sign off.', task: { who: ak === 'controller' ? 'controller' : 'analyst', what: 'Size the cost of ' + topic, hrs: 2 } });
-        if (!ev) opts.push(bounce
-          ? { id: 'guess', label: 'Ballpark, a few thousand a week.', effect: 'bounce', reply: 'I can\'t sign off on a ballpark. Get me the number.', task: { who: ak === 'controller' ? 'controller' : 'analyst', what: 'Size the cost of ' + topic, hrs: 2 } }
-          : { id: 'guess', label: 'Ballpark, a few thousand a week.', effect: 'guess', reply: 'A few thousand. Okay, we\'ll go with that.' });
-        base.qs.push({ id: id + ':cost', type: 'cost', asker: { ...who(ak), line }, line, evidence: ev || null, opts });
-      }
-      const right = world.briefing[fid].owner;
-      if (!f.owner) {
-        const o = who('opsdir');
-        base.qs.push({ id: id + ':own', type: 'owner', asker: { ...o, line: 'Who\'s taking this one?' }, line: 'Who\'s taking this one?', opts: [
-          { id: 'self', label: 'I\'ll take it myself.', effect: 'self', reply: 'Okay. It\'s yours.' },
-          { id: 'later', label: 'Let\'s sort out owners after the meeting.', effect: 'later', reply: 'Don\'t let it drop. Send names after.', task: { who: 'me', what: 'Find an owner for ' + topic, hrs: 0.5 } }] });
-      } else if (f.owner !== 'me' && !right.includes(f.owner) && inRoom(f.owner)) {
-        const o = who(f.owner), r = who(right[0]);
-        base.qs.push({ id: id + ':rr', type: 'reroute', auto: true, asker: { ...o, line: 'That\'s really ' + r.first + '\'s area. I can help, but ' + r.first + ' should own it.' }, line: 'That\'s really ' + r.first + '\'s area. I can help, but ' + r.first + ' should own it.', opts: [
-          { id: 'ok', label: 'Okay. ' + r.first + ' takes it.', effect: 'reroute', reply: 'Got it.', replyBy: r.key }] });
-      }
-      // When something has to be followed up, the room still gets to decide whether to move now.
-      // Moving now starts the first step on Tuesday; the full plan waits for the numbers.
-      base.qs.push({ id: id + ':go', type: 'commit', cond: 'pending', asker: { ...who('opsdir'), line: 'So do we move on this now, or wait for the numbers?' }, line: 'So do we move on this now, or wait for the numbers?', opts: [
-        { id: 'now', label: 'Move now. The numbers can follow.', effect: 'now', reply: 'Okay. Start it Tuesday, and get us the numbers as soon as you have them.' },
-        { id: 'wait', label: 'Let\'s wait for the numbers.', effect: 'wait', reply: 'Fine. We\'ll pick it up when they land.' }] });
-      return base;
-    });
-    const o = who('opsdir');
-    const wrap = { id: 'wrap', type: 'check', asker: { ...o, line: 'How will we know any of this is working before ' + thu + '?' }, line: 'How will we know any of this is working before ' + thu + '?', opts: [
-      { id: 'manual', label: 'I\'ll check in with each of you Wednesday.', effect: 'manual', reply: 'Okay. Wednesday it is.' },
-      { id: 'monday', label: 'Let\'s review it all next Monday.', effect: 'monday', reply: 'Next Monday, then.' }] };
-    return { items, wrap };
-  }
-  const optOf = (q) => { const a = state.meet.answers[q.id]; return q.opts.find((o) => o.id === a) || q.opts.find((o) => o.effect === 'iou') || q.opts[0]; };
-  // does this item, as answered so far, leave anything to follow up?
-  function pending(itemId) {
-    const it = plan().items.find((x) => x.id === itemId); if (!it || it.kind !== 'finding') return false;
-    return it.qs.some((q) => q.type !== 'commit' && ['iou', 'bounce', 'later', 'rethink'].includes(optOf(q).effect));
-  }
-  function answer(qid, optId) {
-    const P = plan(), all = P.items.flatMap((x) => x.qs).concat(P.wrap);
-    const q = all.find((x) => x.id === qid); if (!q) return null;
-    const o = q.opts.find((x) => x.id === optId) || q.opts[0];
-    state.meet.answers[qid] = o.id;
-    rec('meeting_answer', { q: qid, question: q.type, effect: o.effect });
-    const by = o.replyBy ? who(o.replyBy) : q.asker;
-    return { ...o, by, minutes: MIN[o.effect] || 1 };
-  }
-
-  // What came out of your meeting, item by item.
-  function yours() {
-    const P = plan();
-    const wrapEffect = optOf(P.wrap).effect;
-    const items = P.items.map((it) => {
-      let minutes = PRESENT, asked = 0, answered = 0, guess = 0, tasks = [], handling = it.handling, owner = it.owner, decision, self = false;
-      let commit = null;
-      const open = it.kind === 'finding' && pending(it.id);
-      for (const q of it.qs) {
-        if (q.type === 'commit') { if (open) { commit = optOf(q).effect; minutes += MIN[commit]; } continue; }
-        const o = optOf(q);
-        minutes += MIN[o.effect] || 1;
-        if (!q.auto) asked += 1;
-        if (o.effect === 'answer' || o.effect === 'guess') answered += 1;
-        if (o.effect === 'guess') guess += 1;
-        if (o.task) tasks.push({ ...o.task, item: it.n, fid: it.fid, kind: o.effect });
-        if (o.effect === 'rethink') { handling = 'aligned'; guess += 1; }
-        if (o.effect === 'self') { owner = who('me'); self = true; }
-        if (o.effect === 'reroute') owner = who(world.briefing[it.fid].owner[0]);
-      }
-      if (it.opening && !it.qs.some((q) => q.type === 'counter')) minutes += 1;
-      if (it.kind !== 'finding') {
-        const keep = it.qs.some((q) => optOf(q).effect === 'keep');
-        decision = keep ? 'busy' : 'dropped';
-        return { ...it, minutes, asked, answered, tasks, decision, s: NEXT_WEEK, mult: 0, owner };
-      }
-      decision = open ? (commit === 'now' ? 'agreed' : 'parked') : guess ? 'guess' : 'decided';
-      let mult = Math.pow(0.85, Math.min(guess, 1)) * (self ? 0.8 : 1) * (wrapEffect === 'monday' ? 0.85 : 1);
-      if (handling === 'counter') mult = 1;
-      return { ...it, minutes, asked, answered, tasks, guess, decision, s: 1, mult, owner, handling, self, commit };
-    });
-    const wrapMin = MIN[wrapEffect];
-    const minutes = OPENING + items.reduce((n, x) => n + x.minutes, 0) + wrapMin;
-    const asked = items.reduce((n, x) => n + x.asked, 0) + 1, answered = items.reduce((n, x) => n + x.answered, 0);
-    // two findings on the same problem share their follow-ups
-    const seen = new Set();
-    const tasks = items.flatMap((x) => x.tasks.concat(x.self ? [{ who: 'me', what: 'Run the ' + topicOf(x.fid) + ' fix yourself', hrs: 3, item: x.n, fid: x.fid, kind: 'self' }] : [])).filter((t) => { const k = t.who + '|' + t.what; if (seen.has(k)) return false; seen.add(k); return true; });
-    // Follow-ups land in people's queues. Each person turns around about two a day, starting
-    // Tuesday; an item can act the day after its last follow-up lands.
-    const queue = {};
-    for (const t of tasks) { if (['keep', 'self'].includes(t.kind)) { t.day = 1; continue; } const k = (queue[t.who] = (queue[t.who] || 0) + 1); t.day = 1 + Math.floor((k - 1) / 2); }
-    const dayOf = (t) => (tasks.find((x) => x.who === t.who && x.what === t.what) || t).day;
-    for (const it of items) {
-      if (it.kind !== 'finding') continue;
-      const follow = it.tasks.filter((x) => x.kind !== 'keep');
-      for (const t of it.tasks) t.day = dayOf(t);
-      const last = follow.length ? Math.max(...follow.map(dayOf)) : 0;
-      it.s = last + 1 > 4 ? NEXT_WEEK : Math.max(1, last + 1);
-      if (it.s === NEXT_WEEK && it.decision === 'parked') it.decision = 'next';
-    }
-    const DECIDED = ['decided', 'guess', 'agreed'];
-    const decidedInRoom = items.filter((x) => DECIDED.includes(x.decision)).length;
-    const clear = new Set(items.filter((x) => DECIDED.includes(x.decision) && x.owner && x.owner.key !== 'me').map((x) => x.owner.key));
-    return { items, wrap: wrapEffect, minutes, asked, answered, tasks, decided: decidedInRoom, ious: tasks.filter((x) => !['keep', 'self'].includes(x.kind)).length, people: clear.size };
-  }
+  // The meeting director (meeting.js) runs the room. These are the entry points.
+  const M = createMeeting({ world, state, person });
+  const step = () => M.step();
+  const answer = (id, optId) => { const r = M.answer(id, optId); if (r) rec('meeting_answer', { q: id, effect: r.effect }); else rec('meeting_answer', { q: id }); return r; };
+  const yours = () => M.result();
+  // the prep each meeting needed: from 7:48 AM to the moment the briefing was locked in
+  const prep = () => ({ you: Math.max(0, (state.submittedAt || 600) - 468), wake: Math.max(0, (state.wakeDoneAt || 468) - 468) });
 
   // ============================================================ WAKE'S MEETING
   function wake() {
@@ -205,7 +61,8 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const watch = items.length;
     const wrap = { asker: { ...who('opsdir'), line: 'How will we know any of this is working before ' + thu + '?' }, answer: watch + ' numbers on watch, checked daily. Each owner gets an alert if theirs drifts.' };
     const people = new Set(items.flatMap((x) => x.owners.map((o) => o.key))).size;
-    return { items, wrap, minutes: OPENING + items.length * WAKE_ITEM + 1, asked, answered: asked, decided: items.length, ious: 0, people };
+    const minutes = OPENING + items.length * WAKE_ITEM + 1, attendees = world.central.length + world.locations.length + 1;
+    return { items, wrap, minutes, attendees, hours: Math.round(minutes * attendees / 6) / 10, asked, answered: asked, decided: items.length, ownerDate: items.length, real: items.length, deferred: 0, ious: 0, people };
   }
 
   // ============================================================ AFTER THE MEETING
@@ -216,6 +73,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     mine.push({ who: who('me'), what: 'Build ' + thu + ' brief for ' + boss, hrs: 2, day: 2 });
     if (Y.wrap === 'manual') mine.push({ who: who('me'), what: 'Check in with each owner on Wednesday', hrs: Math.max(0.5, Math.round(0.25 * Y.items.filter((x) => x.kind === 'finding').length * 2) / 2), day: 2 });
     for (const x of Y.tasks) if (x.kind === 'self') mine.push({ who: who('me'), what: x.what, hrs: 3, day: 1 });
+    if (Y.trackerHours) mine.push({ who: who('me'), what: 'Build the tracker and send it round', hrs: Y.trackerHours, day: 1 });
     const holds = (world.sources.cal.wakeToday || []).filter((h) => (h.id === 'ev_w_eq' && state.wakeOrder.includes('F2')) || (h.id === 'ev_w_ap' && state.wakeOrder.includes('F4')));
     const done = [
       { at: '10:15 AM', what: 'Decisions, owners and due dates sent to ' + Wk.people + (Wk.people === 1 ? ' person' : ' people') },
@@ -292,17 +150,13 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const Y = yours();
     const youPlan = {};
     const rank = { aligned: 4, partial: 3, unclear: 2, counter: 1 };
-    for (const it of Y.items) if (it.kind === 'finding') {
+    const first1 = (x) => Math.min(x.s, x.pre ? x.pre.start : 9);
+    for (const it of Y.items) if (it.kind === 'finding' && it.decision !== 'dropped') {
       const mode = it.handling === 'aligned' ? 'aligned' : it.handling === 'counter' ? 'counter' : it.handling === 'partial' ? 'partial' : 'unclear';
-      const agreed = it.decision === 'agreed';
-      // an agreed investigation simply starts; an agreed fix starts its first step at part strength
-      const s = agreed && mode !== 'aligned' ? 1 : it.s;
-      const plan = { mode, key: it.key, s, mult: it.mult, item: it.n, waited: ['parked', 'next', 'agreed'].includes(it.decision) && s > 1,
-        pre: agreed && mode === 'aligned' && it.s > 1 ? { start: 1, e: 0.6 * it.mult } : null };
+      const plan = { mode, key: it.key, s: it.s, mult: it.mult, item: it.n, pilot: it.pilot, waited: ['parked', 'next', 'agreed'].includes(it.decision) && it.s > 1, pre: it.pre };
       const prev = youPlan[it.fid];
-      const first1 = (x) => Math.min(x.s, x.pre ? x.pre.start : 9);
       if (!prev || rank[mode] > rank[prev.mode] || (rank[mode] === rank[prev.mode] && first1(plan) < first1(prev))) youPlan[it.fid] = plan;
-      // two findings on one problem: whatever the room settled first still starts on time
+      // two items on one problem: whatever the room settled first still starts on time
       const best = youPlan[it.fid], other = best === plan ? prev : plan;
       if (other && best.mode !== 'counter' && other.mode !== 'counter' && first1(other) < first1(best) && !best.pre) best.pre = { start: first1(other), e: 0.4 * best.mult };
     }
@@ -369,7 +223,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
         cumH += hours[d];
         const runRate = Math.round(rows.reduce((n, r) => { const p = r[side].days[d].p; return n + model[r.id].run * (p < 0 ? p / 2 : p); }, 0) / 100) * 100;
         const resolved = rows.filter((r) => r[side].days[d].status === 'fixed').length;
-        const open = side === 'you' ? A.mine.filter((x) => x.kind && x.kind !== 'keep' && x.day > d).length + Y.items.filter((x) => x.decision === 'next').length : 0;
+        const open = side === 'you' ? A.mine.filter((x) => x.kind && !['keep', 'watch', 'brief', 'self'].includes(x.kind) && x.day > d).length + Y.items.filter((x) => x.decision === 'next').length : 0;
         const small = side === 'wake' ? routine.filter((r) => r.wake.day <= d).length : routine.filter((r) => r.you.done && d >= 4).length;
         return { profit: Math.round(cum), oneTime, runRate, resolved, hours: round1(cumH), open, small };
       });
@@ -387,11 +241,12 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const fmtT = (x) => (x === null ? 'None this week' : x === 0 ? 'Same day' : x + (x === 1 ? ' day' : ' days'));
     const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
     const row = (id, label, you, wake, yv, wv, lower) => ({ id, label, you, wake, youWins: lower ? yv < wv : yv > wv, tie: yv === wv });
+    const P = prep();
     const rows = [
       row('ready', 'Briefing ready', fmt(state.submittedAt || 600), fmt(state.wakeDoneAt || 468), state.submittedAt, state.wakeDoneAt, true),
       row('found', 'Problems found', found + ' of ' + n, n + ' of ' + n, found, n),
-      row('meeting', 'Meeting length', Y.minutes + ' min', Wk.minutes + ' min', Y.minutes, Wk.minutes, true),
-      row('answered', 'Questions answered in the room', Y.answered + ' of ' + Y.asked, Wk.answered + ' of ' + Wk.asked, Y.answered / Y.asked, Wk.answered / Wk.asked),
+      row('room', 'Leadership hours in the meeting', hrs(Y.hours), hrs(Wk.hours), Y.hours, Wk.hours, true),
+      row('owned', 'Decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, Wk.ownerDate + ' of ' + Wk.items.length, Y.ownerDate / Math.max(1, Y.items.length), Wk.ownerDate / Math.max(1, Wk.items.length)),
       row('tta', 'Time to action', fmtT(W.tta.you), fmtT(W.tta.wake), W.tta.you === null ? 99 : W.tta.you, W.tta.wake === null ? 99 : W.tta.wake, true),
       row('resolved', 'Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved),
       row('hours', 'Team hours on follow-up', hrs(fy.hours), hrs(fw.hours), fy.hours, fw.hours, true),
@@ -403,7 +258,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     // what the player did well on their own, in their own numbers
     const credit = { found, resolved: fy.resolved, runRate: fy.runRate, profit: fy.profit, decided: Y.decided, items: Y.items.filter((x) => x.kind === 'finding').length,
       wins: rows.filter((r) => r.youWins).map((r) => r.label), ties: rows.filter((r) => r.tie).map((r) => r.label), quarter: quarter.you.total };
-    return { rows, wakeAhead, youAhead, found, n, week: W, quarter, credit, final: { you: fy, wake: fw } };
+    return { rows, wakeAhead, youAhead, found, n, week: W, quarter, credit, prep: P, final: { you: fy, wake: fw } };
   }
   // ============================================================ THIRTEEN WEEKS
   // The quarter, projected from this week. Week 1 is the week just played. From week 2, the
@@ -453,5 +308,5 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
 
   const fmt = (min) => { const h24 = Math.floor(min / 60), m = min % 60; return (((h24 + 11) % 12) + 1) + ':' + String(m).padStart(2, '0') + ' ' + (h24 < 12 ? 'AM' : 'PM'); };
 
-  return { plan, answer, pending, yours, wake, after, week, score, DAYS };
+  return { step, answer, yours, prep, agenda: () => M.agenda(), wake, after, week, score, DAYS };
 }

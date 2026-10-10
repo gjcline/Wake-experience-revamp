@@ -1098,7 +1098,7 @@ export function generateScenario(shell, role, seed) {
   const fin = { revWeek: Math.round(revTotal * 1000), cm: CM };
   if (A) {
     const wN = A.n.wait, wn = A.b.wait, wk = Math.round((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000);
-    model.F1 = { kind: 'cost', weekly: wk, run: Math.round(wk * 52 * 0.6),
+    model.F1 = { kind: 'cost', weekly: wk, run: Math.round(wk * 52 * 0.6), pts: (A.n.labor - A.b.labor).toFixed(1), wait: wN,
       metric: { label: 'Wait past the promised time', short: 'Wait', unit: 'min', good: 'down', start: wN, target: wn + 4, ok: { op: 'le', v: wn + 5 }, drift: 0.5, ramp: [0.3, 0.6, 0.85, 1, 1] },
       sq: { e: 0.35, s: 2, text: F(a) + ' pulls a {lead} onto the ' + peak + ' shift on their own.' },
       act: { aligned: '{Lead} coverage moves back to the ' + peaks + '.', partial: F('analyst') + ' starts digging into the schedule.', unclear: F(a) + ' asks what to change first.', counter: { cut: 'Hours cut ten percent' + atL(A) + '.', hire: 'Two hires approved. They start in three weeks.' } },
@@ -1108,7 +1108,7 @@ export function generateScenario(shell, role, seed) {
   }
   if (B) {
     const q = money(V.quote), pay = Math.max(1, Math.ceil(V.quote / Math.max(1, f2Week * CM)));
-    model.F2 = { kind: 'revenue', weekly: f2Week, run: Math.round(f2Week * CM * 52 * 0.75),
+    model.F2 = { kind: 'revenue', weekly: f2Week, run: Math.round(f2Week * CM * 52 * 0.75), quote: V.quote, partner: !!partner, cover: partner ? C.id : null, equipCo,
       metric: { label: 'Unplanned downtime', short: 'Downtime', unit: 'hrs', good: 'down', start: 0, path: [0, 1, 1, 9, 13], ok: { op: 'le', v: 1 }, ramp: [1, 1, 1, 1, 1] },
       sq: { e: 0.25, s: 3, text: F(b) + ' works around the failure: some of the work is moved to later in the week.' },
       act: { aligned: 'Replacement ordered. Overflow plan set for the next failure.', partial: F('opsdir') + ' weighs repair against replace.', unclear: F(b) + ' calls for another repair.', counter: { route: partner ? 'Overflow sent to ' + C.name + ' again.' : 'Backlog pushed to Saturday.', repair: 'Technician out again.', recognize: (partner ? C.name : 'The team') + ' celebrates the record week.' } },
@@ -1119,7 +1119,7 @@ export function generateScenario(shell, role, seed) {
   }
   {
     const ow = V.overWeek;
-    model.F4 = { kind: 'cost', weekly: ow, credit: V.over, run: ow * 52,
+    model.F4 = { kind: 'cost', weekly: ow, credit: V.over, run: ow * 52, lock: lockDate,
       metric: { label: 'Billed over contract', short: 'Overbilled', unit: '$', good: 'down', start: 0, path: [0.2, 0.4, 0.6, 0.8, 1].map((x) => Math.round(ow * x)), ok: { op: 'p', v: 0.9 }, ramp: [1, 1, 1, 1, 1] },
       sq: { e: 0, s: 9, text: '' },
       act: { aligned: 'Dispute sent with six weeks of invoices.', partial: 'Invoices under review, line by line.', unclear: 'Filed as product mix.', counter: { raiseprice: 'Prices raised two percent.', cut: 'Usage tightened at every {unit}.', freeze: 'Discretionary spend frozen.' } },
@@ -1139,7 +1139,7 @@ export function generateScenario(shell, role, seed) {
       money: [] };
   }
   if (E) {
-    model.F5 = { kind: 'cost', weekly: 4200, perExit: 4200, run: Math.round(0.6 * 52 * 4200 * 2 / 3),
+    model.F5 = { kind: 'cost', weekly: 4200, perExit: 4200, run: Math.round(0.6 * 52 * 4200 * 2 / 3), post: E.n.post.toFixed(1),
       metric: { label: 'New-hire exits', short: 'Exits', unit: 'count', good: 'down', start: 0, path: [0, 0, 0, 0, 1], ok: { op: 'le', v: 0 }, ramp: [1, 1, 1, 1, 1] },
       sq: { e: 0.2, s: 2, text: F(e) + ' gets next week\'s schedule out a day earlier than usual.' },
       act: { aligned: 'Two weeks of schedules being built, with help.', partial: 'Exit notes under review.', unclear: F(e) + ' covers another shift personally.', counter: { pay: 'Starting pay raised a dollar.', hire: 'More roles posted.' } },

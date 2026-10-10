@@ -344,9 +344,10 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
   // All of it lives in finale.js. These are the entry points the screens call.
   const FX = createFinaleEngine({ world, state, rec, person, insight });
   function presented(which) { rec(which === 'wake' ? 'presented_wake' : 'presented_yours'); }
-  const meetingPlan = () => FX.plan();
+  const meetingStep = () => FX.step();
   const answerQ = (qid, optId) => FX.answer(qid, optId);
-  const meetingPending = (itemId) => FX.pending(itemId);
+  const meetingPrep = () => FX.prep();
+  const meetingAgenda = () => FX.agenda();
   const meetingYours = () => FX.yours();
   const meetingWake = () => FX.wake();
   const afterMeeting = () => FX.after();
@@ -387,7 +388,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     startRound2, briefing, assign, moveWake, putThrough, lockRound2,
     tickWake, listR2, unreadR2, openR2, insights, insight, trace, pick, assignments, r2Ready, MIN_PICKS, MAX_PICKS,
     traced: (id) => rec('trace_opened', { signal: id }),
-    meetingPlan, answerQ, meetingPending, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,
+    meetingStep, answerQ, meetingPrep, meetingAgenda, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,
     clockLabel: () => fmtClock(state.clock),
   };
 }

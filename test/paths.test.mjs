@@ -16,14 +16,23 @@ const flaggable = (g, id) => g.world.signals[id].sources.find((s) => ['report', 
 const pick = (g, sig, pred) => g.answers(sig).find(pred);
 const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.find((id) => flaggable(g, id));
 
-// answer every question in the meeting the same way: the first option, a follow-up, or a guess
+// run the meeting beat by beat, answering every question the same way: the first option,
+// a follow-up, a guess, or follow-ups but moving now
+const PREFER = {
+  iou: ['iou', 'later', 'rethink', 'wait', 'waitlook', 'longer', 'skip'],
+  guess: ['guess', 'bounce', 'anyway', 'self', 'drop', 'now', 'push', 'quick', 'clarify', 'interim', 'accept'],
+  now: ['iou', 'later', 'now', 'waitlook', 'accept', 'date'],
+};
 function meet(g, how = 'first') {
-  const P = g.meetingPlan();
-  for (const q of P.items.flatMap((x) => x.qs).concat(P.wrap)) {
-    const o = how === 'iou' ? (q.opts.find((x) => ['iou', 'later', 'rethink', 'wait'].includes(x.effect)) || q.opts[0]) : how === 'now' ? (q.opts.find((x) => ['iou', 'later', 'now'].includes(x.effect)) || q.opts[0]) : how === 'guess' ? (q.opts.find((x) => ['guess', 'bounce', 'anyway', 'self', 'drop'].includes(x.effect)) || q.opts[0]) : q.opts[0];
-    g.answerQ(q.id, o.id);
+  const said = [];
+  for (let i = 0; i < 400; i++) {
+    const st = g.meetingStep(); if (st.done) break;
+    const b = st.beat;
+    const o = b.auto || how === 'first' ? b.opts[0] : (b.opts.find((x) => PREFER[how].includes(x.effect)) || b.opts[0]);
+    g.answerQ(b.id, o.id); said.push({ beat: b, opt: o });
   }
-  return P;
+  assert.ok(g.meetingStep().done, 'the meeting finishes');
+  return { items: g.meetingAgenda(), said };
 }
 
 function finish(g, { through = [], reorder = false, how = 'first' } = {}) {
@@ -56,7 +65,10 @@ function invariants(g, out, name) {
   assert.ok(b.filtered.length >= 1, name + ': at least one false alarm filtered');
   for (const c of b.cards.filter((x) => !x.routine)) assert.ok(c.evidence.length >= 4 && c.owners.length >= 1 && new Set(c.evidence.map((e) => e.system)).size >= 2, name + ': card ' + c.id + ' is cross-system and owned');
   assert.equal(d.yours.items.length, g.state.flags.length);
-  for (const it of d.plan.items) assert.ok(it.qs.length >= (it.kind === 'finding' ? 2 : 1) && it.qs.every((q) => q.line && q.asker.name && q.opts.length >= 1), name + ': every item meets the room');
+  for (const it of d.plan.items) assert.ok(d.plan.said.some((x) => x.beat.item === it.n && x.beat.type === 'ask' && x.beat.line && x.beat.who.name), name + ': every item meets the room');
+  const lines = d.plan.said.filter((x) => x.beat.type === 'ask').map((x) => x.beat.line);
+  assert.ok(new Set(lines).size >= lines.length - 1, name + ': the room does not repeat itself');
+  assert.ok(d.yours.minutes > d.wake.minutes && d.yours.hours > d.wake.hours, name + ': more leadership time on your own');
   assert.equal(d.wake.answered, d.wake.asked, name + ': Wake answers every question in the room');
   assert.equal(d.wake.ious, 0);
   assert.ok(d.wake.minutes < d.yours.minutes, name + ': Wake\'s meeting is shorter');
@@ -71,7 +83,11 @@ function invariants(g, out, name) {
   assert.ok(fw.profit > fy.profit && fw.runRate > fy.runRate && fw.resolved >= fy.resolved, name + ': Wake wins the week on the money that matters');
   assert.ok(rc.score.quarter.wake.total > rc.score.quarter.you.total && rc.score.quarter.you.total > 0, name + ': the quarter widens the gap, and your baseline is real');
   assert.ok(rc.score.wakeAhead > rc.score.youAhead, name + ': the verdict and the numbers agree');
-  for (const it of d.yours.items.filter((x) => ['decided', 'guess', 'agreed'].includes(x.decision))) assert.ok(wk.rows.find((r) => r.id === it.fid).you.first <= 1 || d.yours.items.filter((x) => x.fid === it.fid).length > 1, name + ': what the room decided starts Tuesday');
+  for (const it of d.yours.items.filter((x) => ['decided', 'guess', 'agreed', 'pilot'].includes(x.decision))) {
+    const firstDay = wk.rows.find((r) => r.id === it.fid).you.first, twin = d.yours.items.filter((x) => x.fid === it.fid).length > 1;
+    const clean = it.dated && !it.late && !it.tasks.some((x) => x.kind === 'brief');
+    assert.ok(twin || firstDay <= (clean ? 1 : 2), name + ': what the room decided starts Tuesday, or Wednesday without a firm date');
+  }
   assert.ok(wk.board.wake[4].hours < wk.board.you[4].hours, name + ': fewer hours with Wake');
   assert.ok(rc.moment.title && rc.moment.lines.length >= 2 && rc.closer && rc.verdict);
   assert.equal(rc.score.rows.length, 9, name + ': nine head-to-head measures');
@@ -155,14 +171,15 @@ test('expected outcomes', () => {
   assert.ok(A.wk.board.you[4].resolved < A.wk.board.wake[4].resolved, 'parked work resolves less by Friday');
   assert.ok(A.wk.board.you[4].profit > 0, 'your plan still creates value');
   const N2 = run(PATHS.aligned, 'now');
-  assert.ok(N2.d.yours.items.every((y) => y.decision === 'agreed'), 'the room can always agree to move, even without the numbers');
+  assert.ok(N2.d.yours.items.every((y) => ['agreed', 'decided', 'guess', 'pilot'].includes(y.decision)) && N2.d.yours.items.some((y) => y.decision === 'agreed'), 'the room can always agree to move, even without the numbers');
   assert.ok(N2.wk.board.you[4].profit > A.wk.board.you[4].profit, 'moving ahead of the numbers is worth more than waiting');
   const G = run(PATHS.aligned, 'guess');
-  assert.ok(G.d.yours.items.filter((y) => !['F2', 'F4'].includes(y.fid)).every((y) => ['decided', 'guess'].includes(y.decision)), 'a guess keeps it moving');
-  assert.ok(G.d.yours.items.filter((y) => ['F2', 'F4'].includes(y.fid)).every((y) => y.decision === 'agreed' && y.tasks.some((x) => /Size the cost/.test(x.what))), 'no one signs off on a ballpark: it moves, but the number is still owed');
+  const bounced = new Set(G.d.plan.said.filter((x) => x.opt.effect === 'bounce').map((x) => x.beat.item));
+  assert.ok(G.d.yours.items.every((y) => ['decided', 'guess', 'pilot', 'agreed'].includes(y.decision)), 'a guess keeps it moving');
+  assert.ok([...bounced].every((n) => { const y = G.d.yours.items[n - 1]; return y.decision === 'agreed' && y.tasks.some((x) => /Size the cost/.test(x.what)); }), 'no one signs off on a ballpark: it moves, but the number is still owed');
   assert.ok(G.wk.board.you[4].profit > A.wk.board.you[4].profit, 'deciding sooner is worth more');
   const C = run(PATHS.counter, 'guess');
-  assert.ok(C.d.plan.items.every((y) => y.handling === 'counter' && y.qs[0].type === 'counter'), 'obvious moves get pushback');
+  assert.ok(C.d.plan.items.every((y) => y.handling === 'counter' && C.d.plan.said.some((x) => x.beat.id === y.id + ':ct')), 'obvious moves get pushback');
   assert.ok(C.wk.rows.filter((r) => C.d.yours.items.some((y) => y.fid === r.id)).every((r) => r.you.mode === 'counter'), 'pushing through runs the counter move');
   assert.ok(C.wk.rows.some((r) => r.you.days.some((x) => x.status === 'worse')), 'and some of it gets worse');
   const D = run(PATHS.distracted, 'guess');
@@ -174,7 +191,7 @@ test('expected outcomes', () => {
   assert.equal(T.g.state.flags.length, 3);
   assert.equal(T.g.state.flags[0].attached.length, 1, 'attached and detached context');
   assert.ok(T.d.plan.items[0].handling === 'aligned' && T.d.plan.items[0].text.includes('tell me Wednesday'), 'edits change the answer and keep the note');
-  assert.ok(T.d.plan.items[0].qs.find((q) => q.type === 'why').evidence, 'context you brought answers the room');
+  assert.ok(T.d.plan.items[0].ev && T.d.plan.said.some((x) => x.opt.effect === 'answer'), 'context you brought answers the room');
   assert.ok(T.d.yours.answered >= 1);
   const sum = T.g.session().summary;
   assert.equal(sum.contextAttached, 1);

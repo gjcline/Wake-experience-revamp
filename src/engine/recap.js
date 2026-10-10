@@ -115,6 +115,7 @@ export function buildRecap(world, state, { score, trace }) {
       '<div class="lg"><span class="decided"><i></i>Decided</span><span class="guess"><i></i>Decided on a guess</span><span class="agreed"><i></i>Agreed, numbers to follow</span><span class="parked"><i></i>Parked for follow-ups</span><span class="dropped"><i></i>Dropped</span></div>';
   }
 
+  const PR = S.prep, dur = (m) => (m >= 60 ? Math.floor(m / 60) + ' hr ' + (m % 60) + ' min' : m + ' min');
   const ms2 = (label, yv, wv) => '<div><p><i>On your own</i><b>' + esc(yv) + '</b></p><p><i>With Wake</i><b class="w">' + esc(wv) + '</b></p><span>' + esc(label) + '</span></div>';
   function fragment() {
     const kpis = pair('Operating profit impact this week', money(fy.profit), money(fw.profit), fy.profit, fw.profit) +
@@ -128,10 +129,10 @@ export function buildRecap(world, state, { score, trace }) {
         '<td class="num"><span class="y">' + money(r.you.profit) + (r.you.credit ? ' + ' + kmoney(r.you.credit) + ' back' : '') + '</span><span class="w">' + money(r.wake.profit) + (r.wake.credit ? ' + ' + kmoney(r.wake.credit) + ' back' : '') + '</span></td></tr>';
     }).join('');
     const meet = '<div class="ms">' +
-      ms2('questions answered in the room', Y.answered + ' of ' + Y.asked, K.answered + ' of ' + K.asked) +
-      ms2('decided before anyone left', Y.decided + ' of ' + Y.items.length, K.decided + ' of ' + K.items.length) +
-      ms2('follow-ups owed', String(Y.ious), '0') +
-      ms2('work the meeting created', hrs(A.hours), 'Done by 10:16 AM') + '</div>';
+      ms2('prep before the meeting', dur(PR.you), dur(PR.wake)) +
+      ms2('leadership hours in the room (' + Y.attendees + ' people)', Y.hours.toFixed(1) + ' hrs', K.hours.toFixed(1) + ' hrs') +
+      ms2('decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, K.ownerDate + ' of ' + K.items.length) +
+      ms2('items carried to another meeting', String(Y.deferred), '0') + '</div>';
     const m = moment;
     const mom = m.excerpt
       ? '<div class="mo"><div class="saw"><p class="mk">What you saw</p><p class="src">' + esc(m.excerpt.source.title) + ' · ' + esc(m.excerpt.source.system) + '</p><p class="q">' + esc(m.opener) + '</p></div>' +
@@ -144,7 +145,7 @@ export function buildRecap(world, state, { score, trace }) {
       '<div class="kpis">' + kpis + '</div></section>' +
       '<section><h2>The week, day by day</h2><p class="sub">Cumulative operating profit impact against doing nothing, Monday afternoon to Friday.' + (fw.oneTime || fy.oneTime ? ' One-time recoveries come on top: ' + money(fw.oneTime) + ' with Wake' + (fy.oneTime ? ', ' + money(fy.oneTime) + ' on your own' : ', none on your own this week') + '.' : '') + '</p><figure class="chart">' + chart() + '</figure></section>' +
       '<section><h2>Scorecard</h2><table class="sc"><thead><tr><th></th><th class="y">On your own</th><th class="w">With Wake</th></tr></thead><tbody>' + score + '</tbody></table></section>' +
-      '<section><h2>The meeting</h2><p class="sub">Same room, same agenda, same questions. What you could answer on the spot decided what got decided.</p>' + timelines() + meet + '</section>' +
+      '<section><h2>The meeting</h2><p class="sub">Same room, same people, same questions. Prep, time in the room, and whether each decision left with an owner and a start date.</p>' + timelines() + meet + '</section>' +
       '<section><h2>Problem by problem</h2><table class="pb"><thead><tr><th>Problem</th><th class="num">Monday</th><th>Friday, on your own</th><th>Friday, with Wake</th><th class="num">Operating profit</th></tr></thead><tbody>' + probs + '</tbody></table></section>' +
       '<section><h2>The moment that mattered</h2>' + mom + '</section>' +
       '<section class="qtr"><h2>Thirteen weeks like this one</h2><p class="sub">Projected from this week. Fixes in place keep paying, open problems get found the way they usually are, and new ones keep arriving. On your own, unwatched fixes slip back a little each week; with Wake, every fix has its number on watch and new problems are caught the week they show up.</p>' +
@@ -247,8 +248,8 @@ export function buildRecap(world, state, { score, trace }) {
     L.push('SCORECARD (on your own / with Wake)');
     for (const r of S.rows) L.push('  ' + r.label + ': ' + r.you + ' / ' + r.wake);
     L.push('', 'THE MEETING');
-    L.push('  On your own: ' + Y.minutes + ' min, ' + Y.answered + ' of ' + Y.asked + ' questions answered, ' + Y.decided + ' of ' + Y.items.length + ' decided, ' + Y.ious + ' follow-ups owed.');
-    L.push('  With Wake: ' + K.minutes + ' min, ' + K.answered + ' of ' + K.asked + ' questions answered, ' + K.decided + ' of ' + K.items.length + ' decided, no follow-ups.');
+    L.push('  On your own: ' + dur(PR.you) + ' of prep, ' + Y.minutes + ' min in the room (' + Y.hours.toFixed(1) + ' leadership hours), ' + Y.ownerDate + ' of ' + Y.items.length + ' decisions with an owner and a start date, ' + Y.deferred + ' carried to another meeting.');
+    L.push('  With Wake: ' + dur(PR.wake) + ' of prep, ' + K.minutes + ' min in the room (' + K.hours.toFixed(1) + ' leadership hours), ' + K.ownerDate + ' of ' + K.items.length + ' decisions with an owner and a start date, none carried over.');
     L.push('', 'PROBLEM BY PROBLEM (Friday)');
     for (const r of WK.rows) L.push('  ' + r.label + ' · ' + r.metric.label + ': ' + r.you.to + ' (' + STATUS[r.you.status].toLowerCase() + ') on your own, ' + r.wake.to + ' (' + STATUS[r.wake.status].toLowerCase() + ') with Wake.');
     L.push('', 'THE MOMENT THAT MATTERED', '  ' + moment.title);

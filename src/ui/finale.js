@@ -11,7 +11,7 @@ const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleStri
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
 const clockAt = (min) => { const t = 600 + min, hh = Math.floor(t / 60), mm = t % 60; return ((hh + 11) % 12 + 1) + ':' + String(mm).padStart(2, '0') + ' ' + (hh < 12 ? 'AM' : 'PM'); };
 const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
-const DECISION = { decided: 'DECIDED', guess: 'DECIDED ON A GUESS', agreed: 'AGREED · NUMBERS TO FOLLOW', parked: 'PARKED', next: 'PARKED TO NEXT WEEK', dropped: 'DROPPED', busy: 'KEPT ON THE LIST' };
+const DECISION = { decided: 'DECIDED', guess: 'DECIDED ON YOUR WORD', pilot: 'DECIDED · SMALLER START', agreed: 'AGREED · NUMBERS TO FOLLOW', parked: 'PARKED', next: 'PARKED TO NEXT WEEK', dropped: 'DROPPED', busy: 'KEPT ON THE LIST' };
 const STATUS = { open: 'OPEN', waiting: 'WAITING', working: 'IN PROGRESS', fixed: 'RESOLVED', worse: 'WORSE' };
 
 export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST }) {
@@ -40,21 +40,26 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const clock = h('b', { class: 'fx-clock' }, '10:00 AM'), elapsed = h('span', { class: 'fx-el' }, '0 MIN');
     const pips = h('div', { class: 'fx-pips' });
     const cnt = (label, cls) => { const b = h('b', {}, '0'); return { el: h('div', { class: 'fx-cnt ' + cls }, b, h('span', {}, label)), b }; };
-    const C = { ans: cnt('ANSWERED IN THE ROOM', 'ans'), owed: cnt('FOLLOW-UPS OWED', 'owed'), dec: cnt('DECIDED', 'dec') };
+    const C = { hrs: cnt('LEADERSHIP HOURS IN THE ROOM', 'ans'), owed: cnt('FOLLOW-UPS OWED', 'owed'), dec: cnt('DECIDED', 'dec') };
+    const people = room.length + 1;
+    const hoursAt = (m) => (m * people / 60).toFixed(1);
     const log = h('div', { class: 'fx-log', 'aria-live': 'polite' });
     const choices = h('div', { class: 'fx-choices' });
     const ctl = h('div', { class: 'fx-ctl' });
     const tag = h('span', { class: 'round-tag' + (side === 'wake' ? ' cyan' : '') }, side === 'wake' ? 'THE MEETING · WITH WAKE' : 'THE MEETING · ON YOUR OWN');
     const el = show(side === 'wake' ? 'wake' : 'day', 'fx-meet ' + side,
       h('header', { class: 'bar' }, h('div', { class: 'when' }, tag, clock, elapsed, h('span', { class: 'co' }, W.shell.company))),
-      h('div', { class: 'fx-hud' }, h('div', { class: 'fx-agenda' }, h('span', {}, 'AGENDA'), pips), C.ans.el, C.owed.el, C.dec.el),
+      h('div', { class: 'fx-hud' }, h('div', { class: 'fx-agenda' }, h('span', {}, 'AGENDA'), pips), C.hrs.el, C.owed.el, C.dec.el),
       h('div', { class: 'fx-mgrid' }, h('div', { class: 'fx-roomcol' }, table, screen), h('div', { class: 'fx-talk' }, log, choices, ctl)));
     own();
     let used = 0;
+    C.hrs.b.textContent = '0.0';
     const S = {
-      el, seats, screen, log, choices, ctl, C, pips,
-      set(m) { used = m; clock.textContent = clockAt(m); elapsed.textContent = m + ' MIN'; },
-      async tick(m, fast) { const steps = fast ? 1 : Math.max(1, m); for (let i = 0; i < steps; i++) { used += m / steps; clock.textContent = clockAt(Math.round(used)); elapsed.textContent = Math.round(used) + ' MIN'; if (!fast) await wait(60); } },
+      el, seats, screen, log, choices, ctl, C, pips, people,
+      set(m) { used = m; clock.textContent = clockAt(m); elapsed.textContent = m + ' MIN'; C.hrs.b.textContent = hoursAt(m); },
+      async tick(m, fast) { const steps = fast ? 1 : Math.max(1, Math.round(m)); for (let i = 0; i < steps; i++) { used += m / steps; clock.textContent = clockAt(Math.round(used)); elapsed.textContent = Math.round(used) + ' MIN'; C.hrs.b.textContent = hoursAt(used); if (!fast) await wait(60); } },
+      async to(m, fast) { if (m > used) await S.tick(m - used, fast); },
+      out(keys) { keys.forEach((k) => seats[k] && seats[k].classList.add('out')); },
       count(k, v) { C[k].b.textContent = String(v); C[k].el.classList.remove('bump'); void C[k].el.offsetWidth; C[k].el.classList.add('bump'); },
       talk(k) { Object.values(seats).forEach((s) => s.classList.remove('talk')); if (seats[k]) seats[k].classList.add('talk'); },
       say(k, text, cls = '') {
@@ -71,70 +76,73 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
   const stampEl = (decision, extra) => h('div', { class: 'fx-stamp s-' + decision }, h('b', {}, DECISION[decision] || 'DECIDED'), extra ? h('span', {}, extra) : null);
 
   // ------------------------------------------------------------ meeting 1: on your own
+  // The engine directs the room one beat at a time; this screen plays each beat as it comes.
   function meeting() {
-    const P = game.meetingPlan();
     const S = stage('you');
-    let answered = 0, owed = 0, decided = 0;
-    const meta = { answer: 'answers it', iou: 'adds a follow-up', later: 'adds a follow-up', bounce: 'a ballpark', guess: 'on your word', self: 'you own it', anyway: 'your call', rethink: 'adds a follow-up', drop: 'moves on', keep: 'keeps a team on it', manual: 'your time, midweek', monday: 'no check until Monday', reroute: 'continue', now: 'starts Tuesday', wait: 'nothing moves yet' };
-    const choose = (q) => new Promise((resolve) => {
-      const opts = q.opts.map((o, i) => h('button', { class: 'fx-opt' + (o.effect === 'answer' ? ' ev' : ''), type: 'button', onclick: () => pick(o) }, h('i', {}, String.fromCharCode(65 + i)), h('span', {}, o.label), h('em', {}, meta[o.effect] || '')));
+    let owed = 0, decided = 0, lastItem = -1;
+    const choose = (b) => new Promise((resolve) => {
+      const opts = b.opts.map((o, i) => h('button', { class: 'fx-opt' + (o.effect === 'answer' ? ' ev' : ''), type: 'button', onclick: () => pick(o) }, h('i', {}, String.fromCharCode(65 + i)), h('span', {}, o.label), h('em', {}, o.meta || '')));
       const pick = (o) => { document.onkeydown = null; S.choices.replaceChildren(); sfx.select(); resolve(o); };
       S.choices.replaceChildren(h('p', { class: 'fx-ask' }, 'Your answer'), ...opts);
-      document.onkeydown = (e) => { const i = '123'.indexOf(e.key) >= 0 ? '123'.indexOf(e.key) : 'abc'.indexOf(e.key.toLowerCase()); if (i >= 0 && q.opts[i]) pick(q.opts[i]); };
+      document.onkeydown = (e) => { const i = '123'.indexOf(e.key) >= 0 ? '123'.indexOf(e.key) : 'abc'.indexOf(e.key.toLowerCase()); if (i >= 0 && b.opts[i]) pick(b.opts[i]); };
       try { opts[0].focus({ preventScroll: true }); } catch (e) { /* fine */ }
       S.choices.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
     });
     const owe = (task) => { owed += 1; S.count('owed', owed); S.note(h('div', { class: 'fx-iou' }, h('b', {}, 'FOLLOW-UP'), h('span', {}, first(task.who) + ': ' + task.what))); };
-    const notes = (it) => S.screen.querySelector('.fx-scr-body').replaceChildren(
-      h('p', { class: 'fx-scr-n' }, it.n + ' / ' + P.items.length), h('p', { class: 'fx-scr-t' }, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('p', { class: 'fx-scr-s' }, '"' + it.text + '"'),
+    const notes = (it, total) => S.screen.querySelector('.fx-scr-body').replaceChildren(
+      h('p', { class: 'fx-scr-n' }, it.n + ' / ' + total), h('p', { class: 'fx-scr-t' }, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('p', { class: 'fx-scr-s' }, '"' + it.text + '"'),
       h('div', { class: 'fx-scr-meta' }, h('span', {}, it.what.where || ''), h('span', {}, it.owner ? 'Owner: ' + it.owner.name : 'No owner named')));
+    const outcomeText = (o) => {
+      const fu = o.follow + (o.follow === 1 ? ' follow-up' : ' follow-ups');
+      if (o.decision === 'agreed') return 'Starts Tuesday · ' + fu + ' to land';
+      if (['parked', 'next'].includes(o.decision)) return o.follow ? fu + ' first' : 'Back on next week\'s agenda';
+      if (!['decided', 'guess', 'pilot'].includes(o.decision)) return '';
+      return (o.owner ? o.owner.name : 'No owner') + (o.dated ? '' : ' · no start date');
+    };
 
     (async () => {
-      S.agenda(P.items.length, 0);
-      S.say('opsdir', 'Let\'s get started. What have you got for us?');
-      S.note(h('p', { class: 'fx-hint' }, 'The room will ask questions. Answer with what you brought.'));
-      await S.tick(3);
-      for (const [i, it] of P.items.entries()) {
-        if (!alive) return;
-        S.agenda(P.items.length, i); notes(it);
-        await wait(300);
-        S.say('me', '"' + it.text + '"', 'pres');
-        await S.tick(2); await wait(500);
-        if (it.opening) { S.say(it.opening.key, it.opening.line); await S.tick(1); await wait(700); }
-        for (const q of it.qs) {
-          if (!alive) return;
-          if (q.cond === 'pending' && !game.meetingPending(it.id)) continue;
-          S.say(q.asker.key, q.line, 'q'); await wait(350);
-          const o = await choose(q);
-          const res = game.answerQ(q.id, o.id);
-          if (!q.auto) S.say('me', o.label, 'a');
-          await wait(350);
-          S.say(res.by.key, res.reply, o.effect === 'answer' ? 'ok' : '');
-          if (o.effect === 'answer' || o.effect === 'guess') { answered += 1; S.count('ans', answered); }
-          if (res.task && o.effect !== 'keep') owe(res.task);
-          await S.tick(res.minutes); await wait(400);
+      for (let guard = 0; guard < 400 && alive; guard++) {
+        const st = game.meetingStep();
+        if (st.done) break;
+        const b = st.beat;
+        await S.to(st.tally.minutes);
+        if (st.item && st.item.n !== lastItem) { lastItem = st.item.n; S.agenda(st.total, st.item.n - 1); notes(st.item, st.total); }
+        if (b.first) S.agenda(st.total, 0);
+        if (b.type === 'stamp') {
+          const moved = ['decided', 'guess', 'agreed', 'pilot'].includes(b.outcome.decision);
+          if (moved) { decided += 1; S.count('dec', decided); }
+          S.note(stampEl(b.outcome.decision, outcomeText(b.outcome))); sfx[moved ? 'coin' : 'back']();
+          game.answerQ(b.id, 'ok'); await wait(650); continue;
         }
-        const out = game.meetingYours().items[i];
-        const moved = ['decided', 'guess', 'agreed'].includes(out.decision);
-        if (moved) { decided += 1; S.count('dec', decided); }
-        const fu = out.tasks.filter((x) => x.kind !== 'keep').length, fuText = fu + (fu === 1 ? ' follow-up' : ' follow-ups');
-        S.note(stampEl(out.decision, out.decision === 'agreed' ? 'Starts Tuesday · ' + fuText + ' to land' : ['parked', 'next'].includes(out.decision) ? fuText + ' first' : moved && out.owner ? out.owner.name : ''));
-        sfx[moved ? 'coin' : 'back']();
-        await wait(700);
+        if (b.type === 'present') { await wait(250); S.say('me', b.line, 'pres'); game.answerQ(b.id, 'ok'); await wait(650); continue; }
+        if (b.auto) {
+          S.say(b.who.key, b.line, b.effect === 'trust' ? 'ok' : '');
+          if (b.leave) S.out(b.leave);
+          const res = game.answerQ(b.id, b.opts[0].id);
+          if (b.first) S.note(h('p', { class: 'fx-hint' }, 'The room will ask questions. Answer with what you brought.'));
+          if (res && res.reply) { await wait(450); S.say(res.reply.by.key, res.reply.line); }
+          await wait(700); continue;
+        }
+        S.say(b.who.key, b.line, 'q'); await wait(300);
+        const o = await choose(b);
+        if (!alive) return;
+        const res = game.answerQ(b.id, o.id);
+        S.say('me', o.label, 'a');
+        if (res && res.reply) { await wait(380); S.say(res.reply.by.key, res.reply.line, o.effect === 'answer' ? 'ok' : ''); }
+        if (o.task && !['keep', 'watch'].includes(o.effect)) owe(o.task);
+        await wait(380);
       }
-      S.agenda(P.items.length, P.items.length);
-      S.say(P.wrap.asker.key, P.wrap.line, 'q');
-      const o = await choose(P.wrap);
-      const res = game.answerQ(P.wrap.id, o.id);
-      S.say('me', o.label, 'a'); await wait(300); S.say(res.by.key, res.reply);
-      await S.tick(res.minutes);
+      if (!alive) return;
       const Y = game.meetingYours();
-      S.set(Y.minutes); S.talk(null);
+      S.set(Y.minutes); S.talk(null); S.agenda(Y.items.length, Y.items.length);
       game.presented('yours');
       await wait(500);
       S.choices.replaceChildren(h('div', { class: 'fx-done y' },
         h('p', { class: 'fx-done-k' }, 'MEETING OVER · ' + clockAt(Y.minutes)),
-        h('div', { class: 'fx-done-row' }, h('div', {}, h('b', {}, Y.answered + '/' + Y.asked), h('span', {}, 'answered in the room')), h('div', {}, h('b', {}, String(Y.decided)), h('span', {}, 'decided')), h('div', {}, h('b', {}, String(Y.ious)), h('span', {}, 'follow-ups owed'))),
+        h('div', { class: 'fx-done-row' },
+          h('div', {}, h('b', {}, Y.hours.toFixed(1)), h('span', {}, 'leadership hours')),
+          h('div', {}, h('b', {}, Y.ownerDate + '/' + Y.items.length), h('span', {}, 'with an owner and a date')),
+          h('div', {}, h('b', {}, String(Y.ious)), h('span', {}, 'follow-ups owed'))),
         h('p', {}, 'Same room. Same 10:00 AM. Now run it with the briefing you built with Wake.'),
         btn('RUN IT WITH WAKE ▶', meetingWake, 'btn primary')));
       sfx.credit();
@@ -170,7 +178,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
           S.say(q.asker.key, q.asker.line, 'q'); await pause(650);
           const a = S.say('wake', q.answer, 'wake');
           if (q.chips) a.querySelector('div').appendChild(h('div', { class: 'fx-chips' }, q.chips.map((c) => h('span', {}, h('b', {}, c.sys), ' ' + c.label))));
-          answered += 1; S.count('ans', answered); await pause(900);
+          answered += 1; await pause(900);
         }
         S.say(it.owner.key, it.onIt, 'ok'); await pause(500);
         decided += 1; S.count('dec', decided);
@@ -179,8 +187,8 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
       }
       if (!alive) return;
       S.agenda(K.items.length, K.items.length);
-      if (!skipped) { S.say(K.wrap.asker.key, K.wrap.asker.line, 'q'); await pause(600); S.say('wake', K.wrap.answer, 'wake'); answered += 1; S.count('ans', answered); await S.tick(1, fast); }
-      S.set(K.minutes); S.count('ans', K.answered); S.count('dec', K.decided);
+      if (!skipped) { S.say(K.wrap.asker.key, K.wrap.asker.line, 'q'); await pause(600); S.say('wake', K.wrap.answer, 'wake'); answered += 1; await S.tick(1, fast); }
+      S.set(K.minutes); S.count('dec', K.decided);
       game.presented('wake');
       await pause(700);
       result();
@@ -195,7 +203,10 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const seg = (min, cls, label) => h('i', { class: 'seg ' + cls, style: { width: (min / max * 100) + '%' }, title: label }, h('span', {}, label));
     const yBar = h('div', { class: 'fx-tl y' }, seg(3, 'open', ''), Y.items.map((it) => seg(it.minutes, it.decision, String(it.n))), seg(Y.minutes - 3 - Y.items.reduce((n, x) => n + x.minutes, 0), 'open', ''));
     const kBar = h('div', { class: 'fx-tl w' }, seg(3, 'open', ''), K.items.map((it) => seg(it.minutes, 'decided', String(it.n))), seg(1, 'open', ''));
-    const duel = (label, yv, kv, yb, kb) => h('div', { class: 'fx-duel' }, h('b', { class: 'y' + (yb ? ' win' : '') }, yv), h('span', {}, label), h('b', { class: 'w' + (kb ? ' win' : '') }, kv));
+    const duel = ([label, sub], yv, kv, yb, kb) => h('div', { class: 'fx-duel' }, h('b', { class: 'y' + (yb ? ' win' : '') }, yv), h('span', {}, label, h('small', {}, sub)), h('b', { class: 'w' + (kb ? ' win' : '') }, kv));
+    const P = game.meetingPrep(), T = game.week().tta;
+    const dur = (m) => (m >= 60 ? Math.floor(m / 60) + ' hr ' + (m % 60) + ' min' : m + ' min');
+    const fmtT = (x) => (x === null ? 'None this week' : x === 0 ? 'Same day' : x + (x === 1 ? ' day' : ' days'));
     const task = (x) => h('li', {}, av(x.who.key, 26), h('div', {}, h('b', {}, x.who.key === 'me' ? 'You' : x.who.name), h('p', {}, x.what)), h('em', {}, hrs(x.hrs)));
     show('wake', 'fx-result',
       h('header', { class: 'bar' }, h('div', { class: 'when' }, h('span', { class: 'round-tag cyan' }, 'THE MEETING · RESULT'), h('span', { class: 'co' }, w().shell.company))),
@@ -204,13 +215,14 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
         h('div', { class: 'fx-tlrow' }, h('p', { class: 'fx-tlk y' }, 'ON YOUR OWN', h('b', {}, Y.minutes + ' min')), yBar),
         h('div', { class: 'fx-tlrow' }, h('p', { class: 'fx-tlk w' }, 'WITH WAKE', h('b', {}, K.minutes + ' min')), kBar),
         h('div', { class: 'fx-tlrow' }, h('span'), axis),
-        h('div', { class: 'fx-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on a guess'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
+        h('div', { class: 'fx-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on your word'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
       h('section', { class: 'fx-duels' },
         h('div', { class: 'fx-duel head' }, h('b', { class: 'y' }, 'ON YOUR OWN'), h('span'), h('b', { class: 'w' }, 'WITH WAKE')),
-        duel('Questions answered in the room', Y.answered + ' of ' + Y.asked, K.answered + ' of ' + K.asked, Y.answered / Y.asked > 0.99, true),
-        duel('Decided before anyone left', Y.decided + ' of ' + Y.items.length, K.decided + ' of ' + K.items.length, false, true),
-        duel('Follow-ups owed', String(Y.ious), '0', Y.ious === 0, true),
-        duel('People who left with clear work', String(Y.people), String(K.people), Y.people >= K.people, K.people >= Y.people)),
+        duel(['Prep before the meeting', '7:48 AM to briefing locked'], dur(P.you), dur(P.wake), P.you <= P.wake, P.wake <= P.you),
+        duel(['Leadership hours in the room', Y.attendees + ' people × meeting length'], Y.hours.toFixed(1) + ' hrs', K.hours.toFixed(1) + ' hrs', Y.hours <= K.hours, K.hours <= Y.hours),
+        duel(['Decisions with an owner and a start date', 'Out of every item on the agenda'], Y.ownerDate + ' of ' + Y.items.length, K.ownerDate + ' of ' + K.items.length, Y.ownerDate / Y.items.length >= 1, true),
+        duel(['Items carried to another meeting', 'Parked, or waiting on numbers'], String(Y.deferred), '0', Y.deferred === 0, true),
+        duel(['Time to first action', 'Average, from Monday\'s meeting'], fmtT(T.you), fmtT(T.wake), T.you !== null && T.you <= T.wake, true)),
       h('section', { class: 'fx-after' },
         h('div', { class: 'fx-acol y' }, h('h2', {}, 'Your afternoon'), h('p', { class: 'fx-asub' }, hrs(A.hours) + ' of work the meeting created'), h('ul', { class: 'fx-tasks' }, A.mine.map(task))),
         h('div', { class: 'fx-acol w' }, h('h2', {}, 'With Wake, by 10:16 AM'), h('p', { class: 'fx-asub' }, 'Done before anyone was back at their desk'), h('ul', { class: 'fx-done-list' }, A.done.map((d) => h('li', {}, h('i', {}, '✓'), h('div', {}, h('b', {}, d.at), h('p', {}, d.what))))))),

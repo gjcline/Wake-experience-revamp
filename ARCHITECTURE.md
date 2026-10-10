@@ -47,7 +47,11 @@ and narrates the player through it with a live guide.
                    judge.js         reads a finding: the picked answer (fixed intent), any words written,
                                     the owner and attached context -> handling, reactions, status
                    game.js          the Simulation Engine: rounds, clock, flags, briefing
-                   finale.js        the meeting questions and answers, follow-up queues, Wake's meeting, the
+                   meeting.js       the meeting director: each item is a scene built from the problem, the people
+                                    with a stake in it, what you brought and how the meeting has gone (trust,
+                                    stakeholder pushback and their own fixes, connections, tangents, a time check,
+                                    people stepping out, the rushed close). A generator: answers replay exactly.
+                   finale.js        follow-up queues, Wake's meeting, the
                                     afternoon after, the week model (per-problem measure, weekly value from the
                                     company's own numbers, what happens when nobody is assigned), the score
                    recap.js         the verdict, the moment, and the one-page report (screen + download)
@@ -63,6 +67,7 @@ and narrates the player through it with a live guide.
                                     plus the live guide
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
+                   audit.mjs        thousands of random games: flags the moment any number stops telling one story
 
 ## How a written action is judged
 
