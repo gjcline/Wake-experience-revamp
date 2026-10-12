@@ -10,21 +10,30 @@ and narrates the player through it with a live guide.
    bird's-eye arrival at the office.
 2. Round 1, on your own. The desk holds every report, email, text and location file. The
    clock runs 7:48 to 10:00 by itself (one minute every two seconds). Nothing costs time.
-   The player flags 3 to 5 data points and writes the action for the team, with an optional
-   owner, then locks in a briefing.
+   The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
+   pick one of four reads (with the action beneath it), say it in their own words, name an
+   owner, say how sure they are. Words and confidence are kept for the sales team.
 3. Rewind to 7:48. Round 2, with Wake. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
 4. The meeting, twice. The room asks what any leadership team asks: what is driving it, what
    it is costing us, who owns it, how we will know. On your own, what you brought decides
    what you can answer; the rest becomes follow-ups in people's queues, and each item acts the
-   day after its last follow-up lands. With Wake, the same questions are answered in the room.
+   day after its last follow-up lands. Without the evidence, each item also gets talked around
+   (another theory, what done looks like, is it bigger, who signs off, what if we're wrong, the
+   history, the data, "what are we doing?"): topics rotate through the meeting, every option set
+   rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
 5. The week. Walk back. Both plans run Monday afternoon to Friday on the city map, with a
    six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,
-   team hours, open follow-ups) and each problem's own measure.
-6. Friday evening, then the final score (nine measures), thirteen weeks at this pace, one
-   moment taken from the player's own morning, and a dark one-page after-action report.
+   team hours, open follow-ups) and each problem's own measure. On your own, the team on site
+   handles the most visible problem by itself and every day logs something, so a decent week
+   resolves one or two. With Wake, owners act with the numbers attached and everything is
+   resolved by Tuesday or Wednesday.
+6. Friday evening, then the final score: your week rated ("a solid week", "a good week") next
+   to the week with Wake ("a terrific week"), your numbers as the base bar with Wake's extra on
+   top, nine measures with an "ahead by" column (no points, no winner), thirteen weeks at this
+   pace, one moment taken from the player's own morning, and a dark one-page report.
 
 ## Layout
 
@@ -37,6 +46,10 @@ and narrates the player through it with a live guide.
                                 the room's reactions and the week. Problems claim metrics at a location;
                                 core claims never collide and optional ones give way, so every number has
                                 exactly one story. ?seed=123 in the URL replays a company.
+                   exec.js      the executive library for Round 2: income statement, cash flow, balance
+                                sheet, quarterly earnings, location trends, labor report, manager
+                                scorecards, expansion outlook. Every figure ties to the company's weekly
+                                revenue, labor, materials and cash.
                    business.js  fixed constants: the shape of the morning, the concept map
                    rounds.js    fixed rules: action intents and how each kind of action lands
     src/engine/    config.js        content + shell + role -> one resolved world
@@ -64,7 +77,9 @@ and narrates the player through it with a live guide.
                    finale.js        the meeting room (questions, answers, follow-ups), Wake's meeting, the result,
                                     the week as a two-player match on the city map, the final score and the report
                    app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
-                                    plus the live guide
+                                    plus the live guide: chapters per place. Leave a step and it pauses; enter
+                                    a place with its own chapter and that plays; return and the first resumes.
+                                    Modal steps (the Round 2 suite tour) hold the desk until NEXT.
                    arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
                    audit.mjs        thousands of random games: flags the moment any number stops telling one story

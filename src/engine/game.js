@@ -91,7 +91,9 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
       secondary: SECONDARY.includes(src.kind), attachedTo: attachedTo(src.id),
       related: signals.related(sourceId, state).map(({ id, via }) => ({ id, title: world.sources[id].title, kind: world.sources[id].kind, opened: state.sources[id].opened > 0, via: via.map((x) => world.signals[x].label), hl: via })),
     };
-    if (src.blocks) v.blocks = src.blocks.map((b) => ({ title: b.title, note: b.note || '', cols: b.cols, rows: b.rows.map((r) => ({ total: !!r.total, cells: r.cells.map((c) => ({ t: c.t, s: c.s || null, tone: c.tone || '', flag: c.s ? flagNo(c.s) : 0 })) })) }));
+    if (src.blocks) v.blocks = src.blocks.map((b) => (b.type ? { ...b } : { title: b.title, note: b.note || '', cols: b.cols, rows: b.rows.map((r) => ({ total: !!r.total, head: !!r.head, indent: !!r.indent, grand: !!r.grand, cells: r.cells.map((c) => ({ t: c.t, s: c.s || null, tone: c.tone || '', spark: c.spark || null, flag: c.s ? flagNo(c.s) : 0 })) })) }));
+    if (src.doc) v.doc = src.doc;
+    if (src.groups) v.groups = src.groups;
     if (src.tiles) v.tiles = src.tiles.map((t) => ({ ...sig(t.id), label: t.label }));
     if (src.rows) v.rows = src.rows.map((r) => ({ label: r.label, cells: r.ids.map(sig) }));
     if (src.kind === 'location' && src.loc) v.loc = src.loc;
@@ -113,30 +115,41 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
   }
 
   // The common answers for a data point: four styles, in an order fixed by the seed.
+  // Each answer shows as a short read (what you think is going on) with the action beneath it.
+  const READ = { 'repair:cost': 'It needs a proper fix', 'route:process': 'Work around it for now', 'investigate:analyze': 'We need to know why first', 'investigate:wait': 'Probably nothing yet',
+    'hire:invest': 'We\'re short-handed', 'cut:cost': 'Costs need to come down', 'freeze:cost': 'Protect the cash', 'support:people': 'Worth a discussion', 'recognize:people': 'This deserves credit',
+    'replace:invest': 'It has to be replaced', 'schedule:process': 'The schedule is off', 'posting:process': 'Schedules go out too late', 'dispute:process': 'We\'re being overbilled',
+    'followup:process': 'Regulars are slipping away', 'promoMore:growth': 'The offer is working', 'pay:invest': 'Pay isn\'t competitive', 'raiseprice:pricing': 'Our costs went up' };
+  const shape = (a) => {
+    const m = a.text.match(/^(.+?[.?!])\s+(.+)$/);
+    const lead = m && m[1].split(/\s+/).length <= 9 ? m[1].replace(/\.$/, '') : null;
+    return { ...a, read: lead || READ[a.intent + ':' + a.style] || READ[Object.keys(READ).find((k) => k.startsWith(a.intent + ':'))] || 'My read', act: lead ? m[2] : a.text };
+  };
   function answers(signalId) {
     const list = world.answers[world.ansKey[signalId]] || [];
-    return list.map((a, i) => ({ ...a, o: hash(seed + ':' + signalId + ':' + i) })).sort((a, b) => a.o - b.o).map(({ o: _o, ...a }) => a);
+    return list.map((a, i) => ({ ...a, o: hash(seed + ':' + signalId + ':' + i) })).sort((a, b) => a.o - b.o).map(({ o: _o, ...a }) => shape(a));
   }
   const answerById = (id) => { if (!id) return null; const [k] = id.split(':'); return (world.answers[k] || []).find((a) => a.id === id) || null; };
   const compose = (choice, note) => [choice ? choice.text : '', String(note || '').trim()].filter(Boolean).join(' ').slice(0, 400);
 
-  function flag({ signals: ids, source, choice, note, owner, text }) {
+  function flag({ signals: ids, source, choice, note, owner, text, confidence }) {
     if (state.phase !== 'morning' || state.flags.length >= MAX_FLAGS) return null;
     const a = answerById(choice);
     const n = String(note !== undefined ? note : text || '').trim().slice(0, 280);
     if (!a && n.length < 3) return null;
     const f = { id: 'f' + (++state.flagSeq), signals: [].concat(ids), source, choice: a ? a.id : null, intent: a ? a.intent : null, style: a ? a.style : 'own', note: n,
-      text: compose(a, n), owner: owner || null, attached: [], at: state.clock, what: describe([].concat(ids), source) };
+      text: compose(a, n), owner: owner || null, confidence: confidence || null, attached: [], at: state.clock, what: describe([].concat(ids), source) };
     state.flags.push(f);
     for (const id of f.signals) state.signals[id].pinned = true;
-    rec('flag_added', { flag: f.id, signals: f.signals, source, choice: f.choice, intent: f.intent, style: f.style, owner: f.owner, wrote: n.length > 0, words: n.split(/\s+/).filter(Boolean).length, text: f.text });
+    rec('flag_added', { flag: f.id, signals: f.signals, source, choice: f.choice, intent: f.intent, style: f.style, owner: f.owner, confidence: f.confidence, wrote: n.length > 0, words: n.split(/\s+/).filter(Boolean).length, text: f.text });
     return f;
   }
-  function editFlag(id, { choice, note, owner, text }) {
+  function editFlag(id, { choice, note, owner, text, confidence }) {
     const f = state.flags.find((x) => x.id === id); if (!f || state.phase !== 'morning') return null;
     if (choice !== undefined) { const a = answerById(choice); f.choice = a ? a.id : null; f.intent = a ? a.intent : null; f.style = a ? a.style : 'own'; }
     if (note !== undefined || text !== undefined) f.note = String(note !== undefined ? note : text).trim().slice(0, 280);
     if (owner !== undefined) f.owner = owner || null;
+    if (confidence !== undefined) f.confidence = confidence || null;
     f.text = compose(answerById(f.choice), f.note);
     rec('flag_edited', { flag: id, choice: f.choice, owner: f.owner, text: f.text });
     return f;
@@ -368,7 +381,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
       summary: {
         sourcesOpened: Object.values(state.sources).filter((s) => s.opened).length,
         categoriesOpened: [...new Set(Object.entries(state.sources).filter(([, s]) => s.opened).map(([id]) => world.sources[id].cat))],
-        flags: judged.map((j) => ({ signal: j.signal, kind: j.kind, finding: j.finding, handling: j.handling, style: j.style, obvious: j.obvious, quiet: j.quiet, owner: j.owner, text: j.text, wrote: j.note, at: j.at,
+        flags: judged.map((j, i) => ({ signal: j.signal, kind: j.kind, finding: j.finding, handling: j.handling, style: j.style, obvious: j.obvious, quiet: j.quiet, owner: j.owner, text: j.text, wrote: j.note, at: j.at, confidence: state.flags[i].confidence,
           attached: j.attached.map((a) => ({ item: a.key, fits: a.fits })) })),
         styles, wroteOwn: judged.filter((j) => j.note).length, ownersNamed: judged.filter((j) => j.owner).length,
         contextAttached: judged.reduce((n, j) => n + j.attached.length, 0), contextThatFits: judged.reduce((n, j) => n + j.backed, 0),

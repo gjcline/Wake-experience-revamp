@@ -28,7 +28,8 @@ function meet(g, how = 'first') {
   for (let i = 0; i < 400; i++) {
     const st = g.meetingStep(); if (st.done) break;
     const b = st.beat;
-    const o = b.auto || how === 'first' ? b.opts[0] : (b.opts.find((x) => PREFER[how].includes(x.effect)) || b.opts[0]);
+    // options rotate, so 'first' means the strongest answer on the table, then the first one
+    const o = b.auto ? b.opts[0] : how === 'first' ? (b.opts.find((x) => x.effect === 'answer') || b.opts[0]) : (b.opts.find((x) => PREFER[how].includes(x.effect)) || b.opts[0]);
     g.answerQ(b.id, o.id); said.push({ beat: b, opt: o });
   }
   assert.ok(g.meetingStep().done, 'the meeting finishes');

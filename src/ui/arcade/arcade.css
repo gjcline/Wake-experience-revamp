@@ -73,6 +73,25 @@
 .rule-list b { font: 400 11px/1.4 var(--px); letter-spacing: .06em; color: var(--a-cyan); display: block; margin-bottom: 6px; }
 .rule-list p { margin: 0; font-size: 22px; line-height: 1.2; }
 .rule-list li:last-child b { color: var(--a-pink); }
+.panel-px.intro { gap: 18px; }
+.intro-k { margin: 0; font: 400 9px/1 var(--px); color: var(--a-pink); letter-spacing: .1em; }
+.intro h1 { margin: 0; }
+.intro-lines { display: flex; flex-direction: column; gap: 6px; min-height: 5.6em; cursor: default; }
+.intro-lines p { margin: 0; font: 500 clamp(17px, 2vw, 20px)/1.45 var(--read); color: var(--a-ink); }
+.intro-lines p:last-child { color: var(--a-cyan); }
+.stg-path { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; position: relative; }
+.stg-path::before { content: ''; position: absolute; left: 22px; right: 22px; top: 21px; border-top: 3px dotted var(--a-line); }
+.stg { position: relative; display: flex; flex-direction: column; gap: 10px; opacity: 0; }
+.stg.in { animation: boot .3s steps(3) both; opacity: 1; }
+.stg-n { width: 44px; height: 44px; display: grid; place-items: center; font: 400 14px/1 var(--px); color: var(--a-ink); background: var(--a-bg); box-shadow: inset 0 0 0 3px var(--a-line); position: relative; z-index: 1; }
+.stg.here .stg-n { color: var(--a-bg); background: var(--a-yellow); box-shadow: 4px 4px 0 var(--a-pink); animation: blinksoft 1.6s steps(1) infinite; }
+.stg-ic { position: absolute; left: 54px; top: 8px; }
+.stg b { font: 400 9px/1.5 var(--px); letter-spacing: .05em; color: var(--a-yellow); display: block; margin-bottom: 4px; }
+.stg:nth-child(2) b { color: var(--a-cyan); }
+.stg:nth-child(3) b { color: var(--a-pink); }
+.stg:nth-child(4) b { color: #5BD66B; }
+.stg p { margin: 0; font: 400 15px/1.4 var(--read); color: var(--a-dim); }
+.intro-foot { margin-top: 6px; }
 
 /* setup */
 .setup { gap: 26px; }
@@ -127,6 +146,10 @@
   .a-screen { padding-inline: 16px; padding-top: 70px; }
   .attract .hud, .arrival .hud { right: 126px; left: 16px; }
   .rule-list { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .stg-path { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .stg-path::before { left: 21px; right: auto; top: 22px; bottom: 22px; border-top: 0; border-left: 3px dotted var(--a-line); }
+  .stg { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .stg-ic { display: none; }
   .rule-list p { font-size: 20px; }
   .sel-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sel-row .sel:last-child { grid-column: 1 / -1; }

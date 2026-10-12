@@ -140,3 +140,58 @@
 
 .round2 .when .clock { color: var(--a-cyan); }
 .pop.trace .pp-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 12px; }
+
+/* ---------------------------------------------------------------- executive library */
+.brief-intro { margin: 2px 0 10px; padding: 12px 14px; background: rgba(57, 229, 224, .08); box-shadow: inset 3px 0 0 var(--a-cyan); display: flex; flex-direction: column; gap: 7px; font-size: 14px; line-height: 1.5; color: var(--a-ink, #E9E6F5); }
+.brief-intro .bi-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.brief-intro .bi-top b { font: 400 9px/1 var(--px); color: var(--a-cyan); }
+.brief-intro .bi-top span { font: 400 15px/1 var(--term); color: var(--a-dim); }
+.exec-group { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.exec-group .eg-h { font: 400 8px/1.4 var(--px); color: var(--a-dim); letter-spacing: .06em; padding: 6px 2px 2px; }
+.exec-item .item-text strong { font-size: 15px; }
+
+.docp.fin-doc { max-width: 980px; padding: 30px 34px 22px; gap: 0; }
+.fd-head { text-align: center; padding-bottom: 14px; border-bottom: 3px double #1E2533; }
+.fd-head .fd-co { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #3E4757; font-weight: 600; }
+.docp.fin-doc .fd-head h3 { font: 400 26px/1.2 Georgia, 'Times New Roman', serif !important; color: #111827; margin: 6px 0 4px; letter-spacing: .01em; }
+.fd-head .fd-per { font-size: 13.5px; color: #4B5563; font-style: italic; font-family: Georgia, 'Times New Roman', serif; }
+.fd-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; font-size: 11.5px; color: #6B7280; padding: 8px 0 2px; }
+.fin-doc .docp-intro { font-size: 13px; color: #4B5563; margin-top: 6px; }
+.fd-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; padding-top: 8px; border-top: 1px solid #D1D5DB; font-size: 11px; color: #9CA3AF; text-transform: uppercase; letter-spacing: .08em; }
+
+.kpis-x { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 18px; border-top: 2px solid #1E2533; border-bottom: 1px solid #D1D5DB; }
+.kx { display: flex; flex-direction: column; gap: 3px; padding: 11px 14px 12px; border-left: 1px solid #E5E7EB; min-width: 0; }
+.kx:first-child { border-left: 0; padding-left: 0; }
+.kx-l { font-size: 11px; color: #6B7280; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.kx strong { font-size: 22px; line-height: 1.15; color: #111827; font-variant-numeric: tabular-nums; font-weight: 600; }
+.kx-s { font-size: 12px; color: #6B7280; }
+.kx.neg .kx-s { color: #B91C1C; }
+.kx.pos .kx-s { color: #15803D; }
+
+.fin-doc .dblock { margin-top: 22px; }
+.fin-doc .dblock h4 { font-size: 12px; letter-spacing: .1em; color: #1E2533; padding-bottom: 6px; border-bottom: 1px solid #1E2533; }
+.dtable.fin { font-size: 14px; }
+.dtable.fin th { color: #4B5563; border-bottom: 1px solid #9CA3AF; font-size: 11px; white-space: nowrap; }
+.dtable.fin td { border-bottom: 1px solid #F0F1F4; white-space: nowrap; }
+.dtable.fin td:first-child { white-space: normal; min-width: 180px; }
+.dtable.fin tr.head td { font-weight: 700; color: #111827; padding-top: 14px; border-bottom: 0; }
+.dtable.fin tr.indent td:first-child { padding-left: 26px; color: #374151; }
+.dtable.fin tr.total td { font-weight: 700; border-top: 1px solid #1E2533; border-bottom: 0; }
+.dtable.fin tr.grand td { font-weight: 800; border-top: 1px solid #1E2533; border-bottom: 3px double #1E2533; background: #F7F8FA; }
+.dtable.fin td.neg { color: #B91C1C; }
+.dtable.fin td.pos { color: #15803D; }
+.dtable .sp { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.spark polyline { stroke: #374151; }
+.spark circle { fill: #374151; }
+.spark.neg polyline { stroke: #B91C1C; }
+.spark.neg circle { fill: #B91C1C; }
+.dtext ul { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.dtext li, .dtext p { font-size: 14.5px; line-height: 1.55; color: #1F2937; }
+@media (max-width: 760px) {
+  .docp.fin-doc { padding: 20px 14px 16px; }
+  .kpis-x { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kx:nth-child(3) { border-left: 0; padding-left: 0; }
+  .kx:nth-child(n+3) { border-top: 1px solid #E5E7EB; }
+  .kx strong { font-size: 19px; }
+  .docp.fin-doc .fd-head h3 { font-size: 21px; }
+}

@@ -49,8 +49,9 @@ export function buildRecap(world, state, { score, trace }) {
   }
 
   const total = S.rows.length;
-  const verdict = S.youAhead === 0 && S.wakeAhead === total ? 'With Wake, ahead on all ' + (WORD[total] || total) + ' measures.'
-    : S.wakeAhead >= S.youAhead ? 'With Wake, ahead on ' + S.wakeAhead + ' of ' + total + ' measures.' : 'On your own, ahead on ' + S.youAhead + ' of ' + total + ' measures.';
+  const RT = S.rating || { you: 'A solid week', wake: 'A terrific week' };
+  const verdict = RT.you + ' on your own. With Wake, ' + RT.wake.charAt(0).toLowerCase() + RT.wake.slice(1) + '.';
+  void total; void WORD;
   const C = S.credit;
   const join = (xs) => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]);
   const mine = [];
@@ -58,22 +59,22 @@ export function buildRecap(world, state, { score, trace }) {
   if (C.decided) mine.push('got ' + C.decided + ' decided in the room');
   if (C.resolved) mine.push('resolved ' + C.resolved + ' by Friday');
   if (C.runRate > 0) mine.push('added ' + kmoney(C.runRate) + ' of yearly run-rate');
-  const won = C.wins.length ? ' You also came out ahead on ' + join(C.wins.map((x) => x.toLowerCase())) + '.' : '';
+  const won = C.wins.length ? ' Your own week was ahead on ' + join(C.wins.map((x) => x.toLowerCase())) + '.' : '';
   const solid = C.found * 2 >= n || C.resolved >= 1;
   const credit = (mine.length ? 'On your own you ' + join(mine) + '.' + won + (solid ? ' That is a real week, and it is where the business runs today.' : ' That is where the business runs today.')
     : 'On your own, the people on site still handled some of it themselves' + (C.runRate > 0 ? ', ' + kmoney(C.runRate) + ' of yearly run-rate' : '') + '. That is where the business runs today.')
-    + ' With Wake, the same Monday resolved ' + S.final.wake.resolved + ' of ' + n + ' and added ' + kmoney(S.final.wake.runRate) + '.';
+    + ' With Wake, the same Monday resolved ' + (S.final.wake.resolved === n ? 'all ' + n : S.final.wake.resolved + ' of ' + n) + (S.by && S.by.wake ? ' by ' + S.by.wake : '') + ', added ' + kmoney(S.final.wake.runRate) + ' of run-rate, and gave the team ' + Math.max(0, Math.round((S.final.you.hours - S.final.wake.hours) * 10) / 10) + ' hours back for what comes next.';
   const closer = 'Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems before you sat down. The rest of the week followed from that.';
   const meta = { company: world.shell.company, role: world.role.label, shell: world.shell.label, date: world.shell.mondayLong, size: world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit, headcount: world.shell.headcount };
 
   // ---------------------------------------------------------------- pieces
-  const pair = (label, yv, wv, yn, wn, lower) => {
+  const pair = (label, yv, wv, yn, wn, lower, ahead) => {
     const top = Math.max(1, Math.abs(yn), Math.abs(wn));
     const yb = Math.max(2, Math.abs(yn) / top * 100), wb = Math.max(2, Math.abs(wn) / top * 100);
-    const yWin = lower ? yn < wn : yn > wn, wWin = lower ? wn < yn : wn > yn;
+    void lower;
     return '<div class="kpi"><p class="kl">' + esc(label) + '</p>' +
-      '<div class="kv y' + (yWin ? ' win' : '') + '"><span>On your own</span><b>' + esc(yv) + '</b><i style="width:' + yb.toFixed(1) + '%"></i></div>' +
-      '<div class="kv w' + (wWin ? ' win' : '') + '"><span>With Wake</span><b>' + esc(wv) + '</b><i style="width:' + wb.toFixed(1) + '%"></i></div></div>';
+      '<div class="kv y"><span>On your own</span><b>' + esc(yv) + '</b><i style="width:' + yb.toFixed(1) + '%"></i></div>' +
+      '<div class="kv w"><span>With Wake</span><b>' + esc(wv) + '</b><i style="width:' + wb.toFixed(1) + '%"></i></div>' + (ahead ? '<p class="ka">' + esc(ahead) + '</p>' : '') + '</div>';
   };
 
   // two cumulative lines on one axis, labelled at the end
@@ -118,11 +119,12 @@ export function buildRecap(world, state, { score, trace }) {
   const PR = S.prep, dur = (m) => (m >= 60 ? Math.floor(m / 60) + ' hr ' + (m % 60) + ' min' : m + ' min');
   const ms2 = (label, yv, wv) => '<div><p><i>On your own</i><b>' + esc(yv) + '</b></p><p><i>With Wake</i><b class="w">' + esc(wv) + '</b></p><span>' + esc(label) + '</span></div>';
   function fragment() {
-    const kpis = pair('Operating profit impact this week', money(fy.profit), money(fw.profit), fy.profit, fw.profit) +
-      pair('Run-rate added, annualized', kmoney(fy.runRate), kmoney(fw.runRate), fy.runRate, fw.runRate) +
-      pair('Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved) +
-      pair('Team hours on follow-up', hrs(fy.hours), hrs(fw.hours), fy.hours, fw.hours, true);
-    const score = S.rows.map((r) => '<tr><th>' + esc(r.label) + '</th><td class="y' + (r.youWins ? ' win' : '') + '">' + esc(r.you) + '</td><td class="w' + (!r.youWins && !r.tie ? ' win' : '') + '">' + esc(r.wake) + '</td></tr>').join('');
+    const ah = (id) => { const r = S.rows.find((x) => x.id === id); return r && r.ahead ? 'Ahead by ' + r.ahead + ' with Wake' : ''; };
+    const kpis = pair('Operating profit impact this week', money(fy.profit), money(fw.profit), fy.profit, fw.profit, false, ah('profit')) +
+      pair('Run-rate added, annualized', kmoney(fy.runRate), kmoney(fw.runRate), fy.runRate, fw.runRate, false, ah('run')) +
+      pair('Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved, false, S.by && S.by.wake ? 'With Wake, all ' + n + ' by ' + S.by.wake : ah('resolved')) +
+      pair('Team hours on follow-up', hrs(fy.hours), hrs(fw.hours), fy.hours, fw.hours, true, ah('hours'));
+    const score = S.rows.map((r) => '<tr><th>' + esc(r.label) + '</th><td class="y">' + esc(r.you) + '</td><td class="w">' + esc(r.wake) + '</td><td class="a">' + (r.ahead ? esc(r.ahead) : '<span>' + (r.youWins ? 'Yours this time' : 'Even') + '</span>') + '</td></tr>').join('');
     const probs = WK.rows.map((r) => {
       const cell = (L) => '<td><b>' + esc(L.to) + '</b><span class="st ' + L.status + '">' + STATUS[L.status] + '</span></td>';
       return '<tr><th>' + esc(r.label) + '<span>' + esc(r.metric.label) + '</span></th><td class="num">' + esc(r.you.from) + '</td>' + cell(r.you) + cell(r.wake) +
@@ -144,7 +146,7 @@ export function buildRecap(world, state, { score, trace }) {
       '<section class="hero"><h1>' + esc(verdict) + '</h1><p class="lead">One week at ' + esc(meta.company) + ' (' + esc(meta.size.toLowerCase()) + ', ' + meta.headcount + ' people), run twice from the same Monday morning. Once prepared on your own. Once prepared with Wake. Same data, same people, same five days.</p><p class="lead credit">' + esc(credit) + '</p>' +
       '<div class="kpis">' + kpis + '</div></section>' +
       '<section><h2>The week, day by day</h2><p class="sub">Cumulative operating profit impact against doing nothing, Monday afternoon to Friday.' + (fw.oneTime || fy.oneTime ? ' One-time recoveries come on top: ' + money(fw.oneTime) + ' with Wake' + (fy.oneTime ? ', ' + money(fy.oneTime) + ' on your own' : ', none on your own this week') + '.' : '') + '</p><figure class="chart">' + chart() + '</figure></section>' +
-      '<section><h2>Scorecard</h2><table class="sc"><thead><tr><th></th><th class="y">On your own</th><th class="w">With Wake</th></tr></thead><tbody>' + score + '</tbody></table></section>' +
+      '<section><h2>Scorecard</h2><table class="sc"><thead><tr><th></th><th class="y">On your own</th><th class="w">With Wake</th><th class="a">Ahead by</th></tr></thead><tbody>' + score + '</tbody></table></section>' +
       '<section><h2>The meeting</h2><p class="sub">Same room, same people, same questions. Prep, time in the room, and whether each decision left with an owner and a start date.</p>' + timelines() + meet + '</section>' +
       '<section><h2>Problem by problem</h2><table class="pb"><thead><tr><th>Problem</th><th class="num">Monday</th><th>Friday, on your own</th><th>Friday, with Wake</th><th class="num">Operating profit</th></tr></thead><tbody>' + probs + '</tbody></table></section>' +
       '<section><h2>The moment that mattered</h2>' + mom + '</section>' +
@@ -178,7 +180,7 @@ export function buildRecap(world, state, { score, trace }) {
 .wxr .kv b{font:400 26px/1 'VT323',monospace;color:var(--dim);text-align:right}
 .wxr .kv i{grid-column:1/-1;height:6px;display:block;background:var(--ln)}
 .wxr .kv.y i{background:var(--y);opacity:.55}.wxr .kv.w i{background:var(--w);opacity:.55}
-.wxr .kv.win b{color:var(--ink)}.wxr .kv.y.win i,.wxr .kv.w.win i{opacity:1}
+.wxr .kv.w b{color:var(--ink)}.wxr .kv.w i{opacity:1}
 .wxr section{padding-top:30px}
 .wxr h2{font-size:22px!important;font-weight:600;line-height:1.2;padding-bottom:8px;box-shadow:0 2px 0 var(--ln);margin-bottom:12px!important}
 .wxr .sub{color:var(--dim);font-size:14px;margin:-4px 0 12px}
@@ -196,7 +198,8 @@ export function buildRecap(world, state, { score, trace }) {
 .wxr thead th.y{color:var(--y)}.wxr thead th.w{color:var(--w)}
 .wxr .sc tbody th{font-weight:500;color:var(--ink);width:44%}
 .wxr .sc td{font:400 20px/1.1 'VT323',monospace;color:var(--dim)}
-.wxr .sc td.win{color:var(--ink)}.wxr .sc td.y.win{box-shadow:inset 3px 0 0 var(--y)}.wxr .sc td.w.win{box-shadow:inset 3px 0 0 var(--w)}
+.wxr .sc td.y{color:#D9C77A}.wxr .sc td.w{color:var(--ink)}.wxr .sc td.a{color:var(--w);box-shadow:inset 3px 0 0 var(--w)}.wxr .sc td.a span{font:400 13px/1 'Chakra Petch',sans-serif;color:var(--dim)}.wxr .sc th.a{color:var(--w)}
+.wxr .ka{grid-column:1/-1;font-size:12.5px;color:var(--w);margin-top:2px}
 .wxr .num{text-align:right}
 .wxr .pb tbody th{font-weight:600}.wxr .pb tbody th span{display:block;font-weight:400;color:var(--dim);font-size:12.5px}
 .wxr .pb td b{font:400 20px/1.1 'VT323',monospace;display:block}
@@ -245,8 +248,8 @@ export function buildRecap(world, state, { score, trace }) {
     L.push('THE WAKE EXPERIENCE · AFTER-ACTION REPORT');
     L.push(meta.company + ' · ' + meta.role + ' · Week of ' + meta.date, '');
     L.push(verdict, '', credit, '');
-    L.push('SCORECARD (on your own / with Wake)');
-    for (const r of S.rows) L.push('  ' + r.label + ': ' + r.you + ' / ' + r.wake);
+    L.push('SCORECARD (on your own / with Wake / ahead by)');
+    for (const r of S.rows) L.push('  ' + r.label + ': ' + r.you + ' / ' + r.wake + (r.ahead ? ' / ' + r.ahead : ' / even'));
     L.push('', 'THE MEETING');
     L.push('  On your own: ' + dur(PR.you) + ' of prep, ' + Y.minutes + ' min in the room (' + Y.hours.toFixed(1) + ' leadership hours), ' + Y.ownerDate + ' of ' + Y.items.length + ' decisions with an owner and a start date, ' + Y.deferred + ' carried to another meeting.');
     L.push('  With Wake: ' + dur(PR.wake) + ' of prep, ' + K.minutes + ' min in the room (' + K.hours.toFixed(1) + ' leadership hours), ' + K.ownerDate + ' of ' + K.items.length + ' decisions with an owner and a start date, none carried over.');

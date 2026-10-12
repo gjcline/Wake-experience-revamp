@@ -219,6 +219,38 @@
 .composer .label.sub { font: 400 9px/1.6 var(--px); color: var(--a-dim); margin-top: 2px; }
 .composer .label.sub .quiet { text-transform: none; font: 400 14px/1.4 var(--read); }
 .composer textarea { max-width: none; }
+/* four steps, four colors: read, own words, owner, confidence */
+.composer { --c1: #A98BFF; --c2: #FF4F8B; --c3: #5BD66B; --c4: #FF9F43; }
+.cprog { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.cprog li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font: 400 8px/1.3 var(--px); color: var(--a-dim); background: var(--a-bg); box-shadow: inset 0 -3px 0 var(--a-line); }
+.cprog li i { font-style: normal; width: 18px; height: 18px; display: grid; place-items: center; font: 400 8px/1 var(--px); box-shadow: inset 0 0 0 2px currentColor; flex: none; }
+.cprog li.done { color: var(--a-ink); }
+.cprog .cp0.done { box-shadow: inset 0 -3px 0 var(--c1); } .cprog .cp0.done i { background: var(--c1); color: var(--a-bg); box-shadow: none; }
+.cprog .cp1.done { box-shadow: inset 0 -3px 0 var(--c2); } .cprog .cp1.done i { background: var(--c2); color: var(--a-bg); box-shadow: none; }
+.cprog .cp2.done { box-shadow: inset 0 -3px 0 var(--c3); } .cprog .cp2.done i { background: var(--c3); color: var(--a-bg); box-shadow: none; }
+.cprog .cp3.done { box-shadow: inset 0 -3px 0 var(--c4); } .cprog .cp3.done i { background: var(--c4); color: var(--a-bg); box-shadow: none; }
+.cstep2 { --c: var(--c1); display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; background: rgba(255, 255, 255, .025); box-shadow: inset 4px 0 0 var(--c); }
+.cstep2.s2 { --c: var(--c2); } .cstep2.s3 { --c: var(--c3); } .cstep2.s4 { --c: var(--c4); }
+.cs-head { display: flex; gap: 12px; align-items: flex-start; }
+.cs-head > b { flex: none; width: 26px; height: 26px; background: var(--c); color: var(--a-bg); font: 400 11px/26px var(--px); text-align: center; }
+.cs-head > div { display: flex; flex-direction: column; gap: 4px; }
+.cstep2 .label { font: 400 11px/1.6 var(--px); color: var(--c) !important; }
+.cstep2 .help { font-size: 14.5px; color: var(--a-dim); line-height: 1.45; }
+.cstep2 .answer { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 12px 40px; }
+.cstep2 .a-read { font: 600 17px/1.3 var(--disp); color: var(--a-ink); }
+.cstep2 .a-act { font-size: 14px; line-height: 1.4; color: var(--a-dim); }
+.cstep2 .a-act::before { content: '→ '; color: var(--c1); }
+.cstep2 .answer.on { background: rgba(169, 139, 255, .12); box-shadow: inset 0 0 0 3px var(--c1); }
+.cstep2 .answer.on i { background: var(--c1); box-shadow: inset 0 0 0 3px var(--a-panel2), 0 0 0 2px var(--c1); }
+.cstep2 .answer.on .a-act { color: var(--a-ink); }
+.cstep2 textarea { box-shadow: inset 0 0 0 3px var(--a-line); }
+.cstep2 textarea:focus { box-shadow: inset 0 0 0 3px var(--c2); }
+.wcount { align-self: flex-end; font: 400 8px/1 var(--px); color: var(--c2); min-height: 8px; margin-top: -4px; }
+.cstep2.s3 .owner-chip.on { box-shadow: inset 0 0 0 3px var(--c3); background: rgba(91, 214, 107, .12); }
+.sure { display: flex; flex-wrap: wrap; gap: 8px; }
+.sure-chip { padding: 10px 16px 9px; border: 0; background: var(--a-panel2); box-shadow: inset 0 0 0 2px var(--a-line); font: 400 10px/1 var(--px); color: var(--a-ink); }
+.sure-chip:hover { box-shadow: inset 0 0 0 2px var(--a-ink); }
+.sure-chip.on { color: var(--a-bg); background: var(--c4); box-shadow: none; }
 .owner-pick { display: flex; flex-direction: column; gap: 10px; max-height: none; overflow: visible; }
 .og { display: flex; flex-direction: column; gap: 6px; }
 .og-t { font: 400 8px/1.4 var(--px); color: var(--a-dim); }
@@ -266,6 +298,7 @@
   .btn.back-desk { padding: 12px 12px 11px; font-size: 10px; }
   .reader { padding-inline: 12px; }
   .answers { grid-template-columns: minmax(0, 1fr); }
+  .cprog { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .calv { grid-template-columns: minmax(0, 1fr); padding: 14px; }
   .wk-grid { grid-template-columns: minmax(0, 1fr); }
   .wk-day { min-height: 0; }

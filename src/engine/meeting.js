@@ -26,7 +26,8 @@ const MIN = {
   none: 0, present: 2, say: 1, answer: 1, guess: 3, iou: 3, bounce: 4, self: 2, later: 2, assign: 1, volunteer: 1, late: 2, reroute: 2, brief: 1,
   pilot: 3, push: 3, anyway: 3, ask: 2, adopt: 2, rethink: 3, clarify: 2, vague: 1, alt: 2, interim: 3, waitlook: 2, longer: 1, approve: 2, review: 2,
   drop: 1, watch: 1, keep: 3, offline: 1, park: 1, go: 6, speed: 1, time: 1, merge: 1, link: 2, separate: 2, now: 3, wait: 1, quick: 1, date: 2, skip: 1,
-  manual: 2, monday: 1, tracker: 2, accept: 1, swap: 2, trust: 0,
+  manual: 2, monday: 1, tracker: 2, accept: 1, swap: 2, trust: 0, reason: 2,
+  hold: 2, loop: 2, circle: 3, move: 1, chime: 2,
 };
 const EFFECT_META = {
   answer: 'answers it', guess: 'on your word', iou: 'adds a follow-up', bounce: 'a ballpark', self: 'you own it', later: 'adds a follow-up', assign: 'names an owner',
@@ -35,7 +36,8 @@ const EFFECT_META = {
   drop: 'moves on', watch: 'light touch', keep: 'keeps a team on it', offline: 'after the meeting', park: 'stays on track', go: 'takes the time',
   speed: 'faster', time: 'full discussion', merge: 'one plan', link: 'one owner', separate: 'separate plans', now: 'starts Tuesday', wait: 'nothing moves yet',
   quick: 'no date', date: 'owner and date', skip: 'next week', manual: 'your time, midweek', monday: 'no check until Monday', tracker: 'your time, weekly',
-  accept: 'starts later', swap: 'someone else', late: 'starts later',
+  accept: 'starts later', swap: 'someone else', late: 'starts later', reason: 'in your words',
+  hold: 'holds the line', loop: 'adds a follow-up', circle: 'more discussion', move: 'moves on',
 };
 
 export function createMeeting({ world, state, person }) {
@@ -154,9 +156,146 @@ export function createMeeting({ world, state, person }) {
     later2: ['Let me think about it and come back.', 'Give me a day to think it through.', 'I want to sleep on it.'],
     noiseQ: [['analyst', 'Isn\'t that inside its normal range?'], [chair, 'Is this one for this room?'], [ctrl, 'I looked at that one. It moves around every month.'], [chair, 'Is that a trend, or just a week?']],
     faQ: ['So do we still need to do anything with it?', 'Anything left to act on there?', 'Can we take that one off the list?', 'Are we good on that one, then?'],
+    clarify: ['Let\'s do that. It\'s your call on the ground.', 'Good. Do that.', 'That makes sense. Go with it.', 'You know it best. Let\'s do it your way.'],
+    vague: ['Use your judgment. Just get it moving.', 'Whatever you think is best. Just start.', 'Figure out what works and go.'],
+    interimPre: ['We look into it by Wednesday, and ', 'We dig in this week, and in the meantime ', 'We get the full picture by Wednesday. Until then, '],
+    faDrop: ['Good to know. Let\'s drop it.', 'Then it\'s off the list.', 'Okay. Nothing to do there.'],
+    faWatch: ['Let\'s just keep an eye on it next week.', 'Let\'s watch it for a week.', 'Keep it on the radar.'],
+    faKeep: ['Pull the numbers on it anyway.', 'I\'d still like to see the detail.', 'Let\'s confirm it properly.'],
+    nzDrop: ['Fair. Let\'s drop it.', 'Okay. It can come off the list.', 'Then let\'s move on.'],
+    nzOff: ['Let\'s take it offline after the meeting.', 'I\'ll follow up on it separately.', 'Let me look at it after this.'],
+    nzKeep: ['I\'d still like someone on it.', 'Can someone dig into it anyway?', 'I want it looked at.'],
+    park: ['Let\'s take that offline after the meeting.', 'Can we come back to that after?', 'Hold that for after the meeting.'],
+    goOn: ['Go ahead.', 'Sure, quickly.', 'Okay, what is it?'],
+    merge: ['Yes. One plan covers both.', 'Same thing. Let\'s treat them as one.', 'Right. Fold them together.'],
+    link: ['Yes. Same fix, applied there too.', 'Same root. Same fix.', 'Good catch. Apply the same fix.'],
+    separate: ['They\'re different. Let\'s take it separately.', 'I\'d keep them apart.', 'Not quite. Let\'s treat it on its own.'],
     ownerQ: [[chair, 'Who\'s taking this one?'], [ctrl, 'Whose name goes next to this?'], [chair, 'Who owns it?'], ['hr', 'Who\'s going to drive it?']],
   };
   const vary = (ctx, key) => { const list = POOL[key]; const i = (ctx.used[key] = (ctx.used[key] || 0) + 1) - 1; return list[(i + hash(world.seed + key)) % list.length]; };
+
+  // ------------------------------------------------------------ the conversation that goes around
+  // Without the evidence in hand, each item gets talked around: another theory, what done looks
+  // like, whether it's bigger than it looks, who has to sign off, what happens if it's wrong.
+  // Every turn costs minutes and most of them leave someone a follow-up. Topics rotate through
+  // the meeting so no item gets the same conversation, and the options rotate with them.
+  function sideOf(fid) {
+    const boss = world.characters.boss ? world.characters.boss.name.split(' ')[0] : 'the board';
+    const P = placeOf(fid);
+    const S = {
+      F1: { theory: [['trainer', 'Could it be the newer people being slower? That would look like a schedule problem too.'], ['analyst', 'Isn\'t this just seasonal? It always gets busier this time of year.']], wide: 'If the template is wrong' + (P ? ' at ' + P : '') + ', is it wrong everywhere? Should we look at every schedule?', past: 'We changed that template for a reason. Wasn\'t it to cut morning overtime?', done: 'Overtime and the ' + V.waitLabel + ' both come down by Friday.', sign: 'hr' },
+      F2: { theory: [['analyst', 'Is it the ' + V.equipment + ', or how it\'s being run? Maybe it\'s an operator issue.'], [ctrl, 'Could it be the parts ' + (model.F2 ? model.F2.equipCo : 'the vendor') + ' is using on the repairs?']], wide: 'Are the others the same age? Should we be looking at all of them?', past: 'Didn\'t we replace one of these a couple of years ago and still have trouble?', done: 'No unplanned downtime between now and delivery.', sign: ctrl },
+      F3: { theory: [['marketing', 'Couldn\'t the regulars just be seasonal? People travel this time of year.'], [chair, 'Maybe someone opened nearby. Has anyone checked the competition?']], wide: 'Should we look at returning ' + V.customers + ' across every ' + V.unit + ' while we\'re at it?', past: 'We tried a loyalty program once. It didn\'t move much.', done: 'Returning ' + V.customers + ' back up a couple of points within the month.', sign: 'marketing' },
+      F4: { theory: [[chair, 'Could it be our own usage? Waste, or over-ordering?'], ['analyst', 'Does the contract have an escalation clause? Has anyone actually read it?']], wide: 'Should we audit every vendor while we\'re at it?', past: 'We had a billing dispute with them before. It took months.', done: 'A credit from the supplier, and invoices back at contract price.', sign: ctrl },
+      F5: { theory: [[ctrl, 'Could it be pay? Everyone around us is raising wages.'], ['trainer', 'Maybe it\'s onboarding, not the schedule. Are new people getting trained properly?']], wide: 'Is this happening everywhere, or just' + (P ? ' at ' + P : ' here') + '?', past: 'We tried posting schedules early once. It lasted two weeks.', done: 'No new-hire exits for the next month.', sign: 'hr' },
+    }[fid] || { theory: [[chair, 'Are we sure that\'s the real cause?']], wide: 'Is this bigger than it looks?', past: 'Haven\'t we seen this before?', done: 'It stops showing up in the numbers.', sign: chair };
+    return { ...S, boss };
+  }
+  const DRAG_POOL = {
+    holdTheory: ['I don\'t think so. The timing lines up with what I said.', 'Possible, but I\'d still start with my read.', 'I hear that, but I think it\'s what I said.', 'Maybe partly. I\'d still go with my explanation.'],
+    loopTheory: ['Worth ruling out. Can someone check it this week?', 'Fair. Let\'s get that checked before we commit.', 'Good question. Let\'s look into it after.', 'We should check that. Who can take it?'],
+    circleTheory: ['Could be both, honestly. What does everyone think?', 'Let\'s talk that through. Anyone else seeing it?', 'Hmm. Let\'s hear from the room on that.'],
+    doneQ: [[chair, 'How will we know when this is actually fixed?'], [ctrl, 'What does done look like on this one?'], [chair, 'What number are we watching to know it worked?'], ['analyst', 'What\'s the measure of success here?']],
+    holdDone: ['', 'We\'ll know when ', 'The test is simple: '],
+    vagueDone: ['We\'ll know when we see it.', 'It\'ll be obvious when it\'s working.', 'When people stop complaining about it.', 'We\'ll feel it on the floor.'],
+    loopDone: ['Let me define that properly after the meeting.', 'I\'ll come back with a target.', 'Good question. Let me think about the right measure.'],
+    wideQ: [chair, ctrl, 'analyst', 'hr'],
+    narrow: ['Just this one for now. Let\'s not boil the ocean.', 'Let\'s fix this one first, then look wider.', 'One thing at a time. Just this one.'],
+    widen: ['Yes, let\'s look everywhere while we\'re at it.', 'Good idea. Let\'s widen it.', 'Probably worth it. Let\'s check all of them.'],
+    listIt: ['Let\'s add it to the list for another week.', 'Park it on the list. Separate conversation.', 'Let\'s note it and come back to it.'],
+    pastQ: ['analyst', 'hr', chair, ctrl, 'marketing'],
+    holdPast: ['This time is different. The cause is different.', 'That was a different problem.', 'Maybe, but the numbers say something else this time.'],
+    circlePast: ['What happened last time? Does anyone remember?', 'Who was here for that? What went wrong?', 'Let\'s hear what happened before we decide.'],
+    loopPast: ['Let me find out what we did last time and come back.', 'I\'ll dig up the history on that.', 'Let\'s check what we learned last time first.'],
+    signQ: ['Do we need to run this by ', 'Should ', 'Does '],
+    noSign: ['No. It\'s within what we can decide here.', 'We can make this call in this room.', 'It doesn\'t need sign-off. It\'s an operating decision.'],
+    runBy: ['Let\'s run it by them first, to be safe.', 'Better to get their sign-off before we move.', 'I\'d rather check with them first.'],
+    loopIn: ['Let\'s loop them in after.', 'We\'ll keep them posted.', 'I\'ll send them a note after this.'],
+    riskQ: [[ctrl, 'And if we\'re wrong about this?'], [chair, 'What\'s the downside if it doesn\'t work?'], ['hr', 'What happens to people if this backfires?'], [ctrl, 'What does it cost us if we\'re wrong?']],
+    reversible: ['Then we change it back. It\'s reversible.', 'We\'d know within a week and undo it.', 'Low risk. We can walk it back.'],
+    downside: ['Let\'s write up the downside before we commit.', 'Fair. Let me think through the risks properly.', 'Let me map out what could go wrong first.'],
+    worth: ['Then we\'ve learned something. Still worth trying.', 'Doing nothing has a downside too.', 'It\'s a risk either way. I\'d rather act.'],
+    recapQ: ['Sorry, I\'ve lost the thread. What are we actually doing on this one?', 'Can someone summarize where we landed on this?', 'Wait, so what did we decide here?', 'I\'m confused. Is this decided or not?'],
+    restate: ['We ', 'To be clear: we ', 'The plan is: we '],
+    notes: ['Let\'s capture it in the notes and move on.', 'I\'ll write it up and send it round.', 'Let me summarize it in an email after.'],
+    endOf: ['Let\'s come back to it at the end.', 'Hold that thought. We\'ll circle back.', 'Let\'s revisit it once we\'ve been through everything.'],
+    dataQ: [['analyst', 'Are we confident in these numbers? That report had issues last month.'], [ctrl, 'Which report is that from? I want to make sure we\'re looking at the same thing.'], [chair, 'Is that number right? It doesn\'t match what I saw last week.']],
+    trustData: ['They\'re right. I checked them.', 'It\'s the same report we always use.', 'I\'m confident in them.'],
+    checkData: ['Let\'s double-check them before we act.', 'Fair. Let\'s reconcile it first.', 'Let\'s get ' + first('analyst') + ' to verify it.'],
+    closeData: ['Close enough to work with.', 'Directionally, it\'s right.', 'Even if it\'s off a little, the trend is the same.'],
+    chime: ['I think we\'re overthinking this.', 'Can I add one thing? We talked about something like this in the spring and never landed it.', 'For what it\'s worth, I\'d want to see the numbers before we go much further.', 'I\'m not sure we have enough to decide this today.', 'We keep coming back to this one.', 'Can we take this offline? We\'re going in circles.', 'I\'d just add that my team is already stretched.', 'Honestly, I see it both ways.'],
+    moveOn: ['Okay. Moving on.', 'Fair enough.', 'Alright.', 'Let\'s keep going.'],
+  };
+  const dv = (ctx, key) => { const list = DRAG_POOL[key]; const i = (ctx.used['d:' + key] = (ctx.used['d:' + key] || 0) + 1) - 1; return list[(i + hash(world.seed + 'd' + key)) % list.length]; };
+  const TOPICS = ['theory', 'done', 'wide', 'risk', 'sign', 'past', 'data', 'recap'];
+  const loopTask = (who, what, hrs = 1) => ({ task: { who, what, hrs, kind: 'loop' } });
+  function nextTopic(ctx, it, skip) {
+    if (!ctx.deck) { const d = TOPICS.slice(); for (let i = d.length - 1; i > 0; i--) { const j = hash(world.seed + 'deck' + i) % (i + 1); [d[i], d[j]] = [d[j], d[i]]; } ctx.deck = d; ctx.deckAt = 0; }
+    for (let n = 0; n < ctx.deck.length; n++) { const k = ctx.deck[(ctx.deckAt + n) % ctx.deck.length]; if (!skip.has(k)) { ctx.deckAt = (ctx.deckAt + n + 1) % ctx.deck.length; return k; } }
+    return null;
+  }
+  const speak = (ctx, it, k, fallback) => (k && inRoom(k) && !ctx.out.has(k) && k !== ctx.lastSpeaker ? k : fallback && inRoom(fallback) && !ctx.out.has(fallback) ? fallback : chair);
+  function* drag(ctx, it, count) {
+    const S = script(it.fid), X = sideOf(it.fid), topic = topicOf(it.fid), had = new Set(ctx.dragOn[it.id] || []);
+    for (let n = 0; n < count; n++) {
+      const k = nextTopic(ctx, it, had); if (!k) return; had.add(k); ctx.dragOn[it.id] = [...had];
+      const id = it.id + ':d' + n;
+      let speaker, line, opts;
+      if (k === 'theory') {
+        const [sk, sl] = X.theory[(hash(world.seed + it.id + 'th') + n) % X.theory.length];
+        speaker = speak(ctx, it, sk, 'analyst'); line = sl;
+        opts = [opt('hold', dv(ctx, 'holdTheory'), 'hold', dv(ctx, 'moveOn')), opt('loop', dv(ctx, 'loopTheory'), 'loop', 'I can look at it.', { replyBy: 'analyst', ...loopTask('analyst', 'Rule out the other theory on ' + topic, 2) }), opt('circle', dv(ctx, 'circleTheory'), 'circle', null)];
+      } else if (k === 'done') {
+        const [qk, ql] = dv(ctx, 'doneQ'); speaker = speak(ctx, it, qk, chair); line = ql;
+        const lead = dv(ctx, 'holdDone');
+        opts = [opt('hold', lead ? lead + lcFirst(X.done) : X.done, 'hold', pickBy(id + 'ok', ['Okay. Let\'s hold to that.', 'Good. Write that down.', 'Fair.'])), opt('circle', dv(ctx, 'vagueDone'), 'circle', pickBy(id + 'vg', ['That\'s not really a measure.', 'Hmm. We\'ll need something firmer than that.', 'I\'d want a number.'])), opt('loop', dv(ctx, 'loopDone'), 'loop', 'Okay. Send it round.', loopTask('me', 'Define the success measure for ' + topic, 0.5))];
+      } else if (k === 'wide') {
+        speaker = speak(ctx, it, dv(ctx, 'wideQ'), ctrl); line = X.wide;
+        opts = [opt('hold', dv(ctx, 'narrow'), 'hold', dv(ctx, 'moveOn')), opt('loop', dv(ctx, 'widen'), 'loop', 'That\'s a bigger job. I\'ll need a week.', { replyBy: 'analyst', ...loopTask('analyst', 'Check the rest of the business for ' + topic, 3) }), opt('loop', dv(ctx, 'listIt'), 'loop', 'Okay.', loopTask('me', 'Add the wider review of ' + topic + ' to next week', 0.5))];
+        opts[2].id = 'list';
+      } else if (k === 'risk') {
+        const [qk, ql] = dv(ctx, 'riskQ'); speaker = speak(ctx, it, qk, ctrl); line = ql;
+        opts = [opt('hold', dv(ctx, 'reversible'), 'hold', pickBy(id + 'rv', ['Okay. As long as we watch it.', 'Fine.', 'Fair enough.'])), opt('circle', dv(ctx, 'worth'), 'circle', null), opt('loop', dv(ctx, 'downside'), 'loop', 'Good. I\'d like to see that.', loopTask('me', 'Write up the downside of the ' + topic + ' plan', 1))];
+      } else if (k === 'sign') {
+        speaker = speak(ctx, it, X.sign !== chair ? X.sign : ctrl, ctrl);
+        const q = dv(ctx, 'signQ'), b = X.boss;
+        line = q === 'Should ' ? 'Should ' + b + ' see this before we commit?' : q === 'Does ' ? 'Does ' + b + ' need to sign off on this first?' : 'Do we need to run this by ' + b + ' before we do anything?';
+        opts = [opt('hold', dv(ctx, 'noSign'), 'hold', pickBy(id + 'ns', ['Okay. As long as we\'re covered.', 'Fine by me.', 'Alright.'])), opt('loop', dv(ctx, 'runBy'), 'loop', 'Probably wise.', loopTask('me', 'Run the ' + topic + ' plan by ' + b, 0.5)), opt('move', dv(ctx, 'loopIn'), 'move', 'Okay.')];
+      } else if (k === 'past') {
+        speaker = speak(ctx, it, dv(ctx, 'pastQ'), 'hr'); line = X.past;
+        opts = [opt('hold', dv(ctx, 'holdPast'), 'hold', pickBy(id + 'hp', ['Okay. I hope so.', 'Fair.', 'If you say so.'])), opt('circle', dv(ctx, 'circlePast'), 'circle', null), opt('loop', dv(ctx, 'loopPast'), 'loop', 'Okay.', loopTask('me', 'Find out what happened last time with ' + topic, 1))];
+      } else if (k === 'data') {
+        if (it.ev) continue;
+        const [qk, ql] = dv(ctx, 'dataQ'); speaker = speak(ctx, it, qk, 'analyst'); line = ql;
+        opts = [opt('hold', dv(ctx, 'trustData'), 'hold', pickBy(id + 'td', ['Okay.', 'Alright. I\'ll trust that.', 'Fine.'])), opt('loop', dv(ctx, 'checkData'), 'loop', 'I\'ll reconcile it today.', { replyBy: 'analyst', ...loopTask('analyst', 'Reconcile the numbers behind ' + topic, 1.5) }), opt('circle', dv(ctx, 'closeData'), 'circle', pickBy(id + 'cd', ['I\'m not sure that\'s good enough.', 'Hmm. Directionally isn\'t a decision.', 'Okay, but I\'d still like it checked.']))];
+      } else {
+        speaker = speak(ctx, it, chair, ctrl); line = dv(ctx, 'recapQ');
+        opts = [opt('hold', dv(ctx, 'restate') + lcFirst(S.step) + '.', 'hold', pickBy(id + 'rc', ['Got it. Thanks.', 'Okay, that\'s clear.', 'Right.'])), opt('loop', dv(ctx, 'notes'), 'loop', 'Please do.', loopTask('me', 'Write up where we landed on ' + topic, 0.5)), opt('circle', dv(ctx, 'endOf'), 'circle', null)];
+      }
+      const o = yield beat(id, 'ask', speaker, line, opts, { item: it.n });
+      ctx.lastSpeaker = speaker;
+      if (o.effect === 'circle') {
+        const others = ROOM.filter((m) => m !== speaker && !ctx.out.has(m) && m !== chair);
+        const ck = others[hash(world.seed + id + 'ch') % others.length] || chair;
+        yield say(id + ':ch', ck, dv(ctx, 'chime'), { item: it.n, effect: 'chime' });
+        ctx.lastSpeaker = ck;
+      }
+    }
+  }
+  // the options never sit in the same order twice
+  function rotate(opts, id) { if (opts.length < 3) return opts; const r = hash(world.seed + 'rot' + id) % opts.length; return opts.slice(r).concat(opts.slice(0, r)); }
+  // how long the room talks an item around, before the money and the owner
+  function dragCount(ctx, it) {
+    if (ctx.rushed || ctx.cur.linked) return 0;
+    let n = 2;
+    if (it.ev) n -= 1;
+    if (it.costEv) n -= 1;
+    if (it.own) n -= 0;
+    if (['unclear', 'partial'].includes(it.handling)) n += 1;
+    if (ctx.trust >= 2) n -= 1;
+    if (ctx.minutes > 40) n -= 1;
+    return Math.max(it.ev ? 0 : 1, Math.min(3, n));
+  }
 
   // ------------------------------------------------------------ the agenda
   function agenda() {
@@ -167,13 +306,15 @@ export function createMeeting({ world, state, person }) {
       const flagged = f.signals.concat(...fits.map((a) => a.signals));
       const ev = !fid ? '' : fits[0] ? fits[0].label : j.quiet ? f.what.label + (f.what.value ? ': ' + f.what.value : '') : '';
       const mSig = fid ? flagged.find((s) => model[fid].money.includes(s)) : null;
+      const note = String(f.note || '').trim();
       return { id: 'i' + (i + 1), n: i + 1, flag: f.id, kind: j.kind, fid, what: f.what, text: f.text, owner: f.owner ? who(f.owner) : null, handling: j.handling, key: j.key,
+        own: note.split(/\s+/).filter(Boolean).length >= 5 ? note : '',
         reactions: j.reactions, signal: j.signal, ev, costEv: mSig ? world.signals[mSig].label + ': ' + world.signals[mSig].value : '' };
     });
   }
 
   // ------------------------------------------------------------ beats
-  const beat = (id, type, speaker, line, opts, extra = {}) => ({ id, type, who: speaker ? who(speaker) : null, line, opts, ...extra });
+  const beat = (id, type, speaker, line, opts, extra = {}) => ({ id, type, who: speaker ? who(speaker) : null, line, opts: type === 'ask' ? rotate(opts, id) : opts, ...extra });
   const say = (id, speaker, line, extra) => beat(id, 'say', speaker, line, [{ id: 'ok', effect: 'say' }], { auto: true, ...extra });
   const opt = (id, label, effect, reply, more = {}) => ({ id, label, effect, reply, meta: EFFECT_META[effect] || '', ...more });
 
@@ -232,6 +373,7 @@ export function createMeeting({ world, state, person }) {
           opt('adopt', vary(ctx, 'adopt'), 'adopt', 'I can start on it tomorrow.', { replyBy: own }),
           opt('rethink', vary(ctx, 'later2'), 'rethink', 'Sure.', { task: { who: 'me', what: 'Rework the plan for ' + topicOf(it.fid), hrs: 1.5 } })], { item: it.n });
       }
+      yield* drag(ctx, it, Math.min(1, dragCount(ctx, it)));
       if (out.handling !== 'counter') yield* sizeIt(ctx, it);
       yield* ownerBeats(ctx, it);
       return;
@@ -244,17 +386,19 @@ export function createMeeting({ world, state, person }) {
     if (it.handling === 'unclear') {
       const [ik, il] = S.idea;
       yield beat(it.id + ':clar', 'ask', ik, 'What do you want changed first? ' + il, [
-        opt('clarify', 'Let\'s do that. It\'s your call on the ground.', 'clarify', 'Okay. I\'ll get it moving.'),
+        opt('clarify', vary(ctx, 'clarify'), 'clarify', 'Okay. I\'ll get it moving.'),
         opt('alt', S.alt, 'alt', 'If you say so.'),
-        opt('vague', 'Use your judgment. Just get it moving.', 'vague', 'Okay. I\'ll figure something out.')], { item: it.n });
+        opt('vague', vary(ctx, 'vague'), 'vague', 'Okay. I\'ll figure something out.')], { item: it.n });
+      yield* drag(ctx, it, dragCount(ctx, it));
       if (out.handling !== 'counter') yield* ownerBeats(ctx, it);
       return;
     }
     if (it.handling === 'partial') {
       yield beat(it.id + ':mean', 'ask', pickBy(it.id + 'mean', [chair, ctrl]), vary(ctx, 'meanQ'), [
-        opt('interim', 'We look into it by Wednesday, and ' + S.meantime + '.', 'interim', 'Good. That\'s something this week.'),
+        opt('interim', vary(ctx, 'interimPre') + S.meantime + '.', 'interim', 'Good. That\'s something this week.'),
         opt('waitlook', vary(ctx, 'waitlook'), 'waitlook', 'Okay. Wednesday.'),
         opt('longer', vary(ctx, 'longer'), 'longer', 'Next Monday, then.')], { item: it.n });
+      yield* drag(ctx, it, dragCount(ctx, it));
       yield* ownerBeats(ctx, it);
       return;
     }
@@ -267,13 +411,14 @@ export function createMeeting({ world, state, person }) {
     if (ctx.trust <= -2 && !it.ev) {
       yield beat(it.id + ':skep', 'ask', ctrl, vary(ctx, 'skep'), [
         opt('iou', vary(ctx, 'iouWhy'), 'iou', 'Then let\'s get them.', { task: { who: 'analyst', what: 'Pull the history behind ' + topicOf(it.fid), hrs: 2.5 } }),
-        opt('guess', 'Not yet. But the pattern is clear: ' + lcFirst(S.assert[0]), 'guess', 'Okay. I\'ll hold you to it.')], { item: it.n });
+        it.own ? opt('reason', 'Not yet. Here\'s my thinking: "' + it.own + '"', 'reason', 'Okay. That\'s at least a reason.') : opt('guess', 'Not yet. But the pattern is clear: ' + lcFirst(S.assert[0]), 'guess', 'Okay. I\'ll hold you to it.')], { item: it.n });
     } else {
       // the challenge comes from someone who hasn't just spoken
       const whys = S.why.filter(([k]) => !reaction || k !== reaction.who);
       const [wk, wl] = (whys.length ? whys : S.why)[hash(world.seed + it.id) % (whys.length || S.why.length)];
       const opts = [];
       if (it.ev) opts.push(opt('show', 'Show: ' + it.ev, 'answer', pickBy(it.id + 'ok', ['Okay. That\'s clear.', 'Fair enough. I can see it.', 'That makes sense.'])));
+      if (it.own) opts.push(opt('reason', 'In my words: "' + it.own + '"', 'reason', pickBy(it.id + 'rs', ['That\'s a reasonable read.', 'Okay, I follow the logic.', 'Fair. I\'d still like to see it in the numbers.'])));
       opts.push(opt('assert', S.assert[hash(world.seed + it.id + 'a') % S.assert.length], 'guess', pickBy(it.id + 'g', ['Maybe. I\'d want to see it.', 'Could be. Do you have it in the numbers?', 'Okay. I\'ll take your word for now.'])));
       opts.push(opt('iou', vary(ctx, 'iouWhy'), 'iou', vary(ctx, 'iouOk'), { task: { who: 'analyst', what: 'Pull the history behind ' + topicOf(it.fid), hrs: 2.5 } }));
       yield beat(it.id + ':why', 'ask', wk, wl, opts, { item: it.n });
@@ -286,6 +431,7 @@ export function createMeeting({ world, state, person }) {
         opt('pilot', S.pilot, 'pilot', vary(ctx, 'pilotOk')),
         opt('iou', 'Let\'s work out the details together after this.', 'iou', 'Okay.', { task: { who: ck, what: 'Work out the plan for ' + topicOf(it.fid), hrs: 1.5 } })], { item: it.n });
     }
+    yield* drag(ctx, it, dragCount(ctx, it));
     yield* sizeIt(ctx, it);
     yield* ownerBeats(ctx, it);
   }
@@ -352,8 +498,8 @@ export function createMeeting({ world, state, person }) {
     const line = same ? pickBy(it.id + 'ln', ['Isn\'t this the same thing as item ' + twin.n + '?', 'Didn\'t we just cover this with item ' + twin.n + '?'])
       : 'This looks like the same root as item ' + twin.n + ': the schedule. Same fix?';
     const o = yield beat(it.id + ':link', 'ask', speaker, line, [
-      opt(same ? 'merge' : 'link', same ? 'Yes. One plan covers both.' : 'Yes. Same fix, applied there too.', same ? 'merge' : 'link', 'Good catch.'),
-      opt('separate', 'They\'re different. Let\'s take it separately.', 'separate', 'Okay.')], { item: it.n });
+      opt(same ? 'merge' : 'link', vary(ctx, same ? 'merge' : 'link'), same ? 'merge' : 'link', 'Good catch.'),
+      opt('separate', vary(ctx, 'separate'), 'separate', 'Okay.')], { item: it.n });
     if (o.effect === 'merge') return true;
     if (o.effect === 'link') ctx.cur.linked = true;
     return false;
@@ -363,9 +509,9 @@ export function createMeeting({ world, state, person }) {
     const r = it.reactions[0] && inRoom(it.reactions[0].who) ? it.reactions[0] : { who: chair, line: 'That one has an explanation already.' };
     yield say(it.id + ':fa', r.who, r.line, { item: it.n });
     yield beat(it.id + ':faq', 'ask', chair, vary(ctx, 'faQ'), [
-      opt('drop', 'Good to know. Let\'s drop it.', 'drop', 'Thanks. Moving on.'),
-      opt('watch', 'Let\'s just keep an eye on it next week.', 'watch', 'Fine.', { task: { who: r.who === chair ? 'analyst' : r.who, what: 'Check ' + it.what.label + ' next week', hrs: 0.5 } }),
-      opt('keep', 'Pull the numbers on it anyway.', 'keep', 'Okay. We\'ll pull it.', { task: { who: r.who === chair ? 'analyst' : r.who, what: 'Pull numbers on ' + it.what.label, hrs: 3 } })], { item: it.n });
+      opt('drop', vary(ctx, 'faDrop'), 'drop', 'Thanks. Moving on.'),
+      opt('watch', vary(ctx, 'faWatch'), 'watch', 'Fine.', { task: { who: r.who === chair ? 'analyst' : r.who, what: 'Check ' + it.what.label + ' next week', hrs: 0.5 } }),
+      opt('keep', vary(ctx, 'faKeep'), 'keep', 'Okay. We\'ll pull it.', { task: { who: r.who === chair ? 'analyst' : r.who, what: 'Pull numbers on ' + it.what.label, hrs: 3 } })], { item: it.n });
   }
 
   function* noise(ctx, it) {
@@ -373,17 +519,17 @@ export function createMeeting({ world, state, person }) {
     const local = s && s.loc ? mgrOf(s.loc) : null;
     const [k, line] = local && inRoom(local) && !ctx.localNoise ? (ctx.localNoise = true, [local, 'That\'s normal for us this time of year.']) : vary(ctx, 'noiseQ');
     yield beat(it.id + ':nz', 'ask', k, line, [
-      opt('drop', 'Fair. Let\'s drop it.', 'drop', 'Moving on.'),
-      opt('offline', 'Let\'s take it offline after the meeting.', 'offline', 'Sure.', { task: { who: 'me', what: 'Follow up on ' + it.what.label, hrs: 1 } }),
-      opt('keep', 'I\'d still like someone on it.', 'keep', 'Okay. I\'ll find someone.', { task: { who: 'analyst', what: 'Look into ' + it.what.label, hrs: 3 } })], { item: it.n });
+      opt('drop', vary(ctx, 'nzDrop'), 'drop', 'Moving on.'),
+      opt('offline', vary(ctx, 'nzOff'), 'offline', 'Sure.', { task: { who: 'me', what: 'Follow up on ' + it.what.label, hrs: 1 } }),
+      opt('keep', vary(ctx, 'nzKeep'), 'keep', 'Okay. I\'ll find someone.', { task: { who: 'analyst', what: 'Look into ' + it.what.label, hrs: 3 } })], { item: it.n });
   }
 
   function* tangent(ctx, it) {
     const r = world.routine[hash(world.seed + 'tr') % world.routine.length];
     const raiser = r.loc && inRoom(mgrOf(r.loc)) ? mgrOf(r.loc) : r.owner && inRoom(r.owner) && r.owner !== chair ? r.owner : pickBy('raiser', ['hr', 'marketing', 'trainer']);
     yield beat('tangent', 'ask', raiser, 'Before we move on, can I raise something? ' + t(r.headline), [
-      opt('park', 'Let\'s take that offline after the meeting.', 'park', 'Sure, no problem.'),
-      opt('go', 'Go ahead.', 'go', 'Thanks. So, here\'s the situation...')], { item: 0 });
+      opt('park', vary(ctx, 'park'), 'park', 'Sure, no problem.'),
+      opt('go', vary(ctx, 'goOn'), 'go', 'Thanks. So, here\'s the situation...')], { item: 0 });
   }
 
   function* timeCheck(ctx, left) {
@@ -408,10 +554,10 @@ export function createMeeting({ world, state, person }) {
   function replay(open) {
     const answers = state.meet.answers;
     const ctx = {
-      minutes: 3, trust: 0, rushed: false, timeChecked: false, used: {}, out: new Set(), load: {}, items_out: [], cur: null, wrap: 'manual', tasks: [],
+      minutes: 3, trust: 0, rushed: false, timeChecked: false, used: {}, dragOn: {}, lastSpeaker: null, out: new Set(), load: {}, items_out: [], cur: null, wrap: 'manual', tasks: [],
       begin(it) { this.cur = { n: it.n, id: it.id, kind: it.kind, fid: it.fid, what: it.what, text: it.text, handling: it.handling, key: it.key, owner: it.owner, tasks: [], minutes: 0, asked: 0, answered: 0, guess: 0, mult: 1, decision: null, dated: true, pilot: false, self: false, s: 1, pre: null, interim: false, longer: false, late: false, commit: null, rushed: this.rushed, merged: false, linked: false, skip: false }; this.items_out.push(this.cur); return this.cur; },
       end() { const c = this.cur; settle(c, this); if (c.owner && c.owner.key !== 'me' && MOVED.concat(['parked']).includes(c.decision)) this.load[c.owner.key] = (this.load[c.owner.key] || 0) + 1; },
-      pending(c) { return c.tasks.some((x) => !['keep', 'watch'].includes(x.kind)); },
+      pending(c) { return c.tasks.some((x) => !['keep', 'watch', 'loop'].includes(x.kind)); },
       outOf(twin) { return this.items_out.find((x) => x.n === twin.n); },
     };
     const gen = flow(ctx);
@@ -454,6 +600,7 @@ export function createMeeting({ world, state, person }) {
     switch (e) {
       case 'answer': c.answered += 1; ctx.trust += 1; break;
       case 'guess': c.answered += 1; c.guess += 1; ctx.trust -= 1; break;
+      case 'reason': c.answered += 1; c.reasoned = true; break;
       case 'bounce': ctx.trust -= 1; break;
       case 'self': c.owner = who('me'); c.self = true; break;
       case 'pilot': c.pilot = true; break;
@@ -489,7 +636,7 @@ export function createMeeting({ world, state, person }) {
     }
     if (c.skip) { c.decision = 'next'; c.dated = false; return; }
     const open = ctx.pending(c);
-    let mult = (c.guess ? 0.85 : 1) * (c.self ? 0.8 : 1) * (c.pilot ? 0.65 : 1) * (c.push ? 0.95 : 1) * (c.adopted ? 0.9 : 1) * (c.swapped ? 0.85 : 1) * (!c.dated ? 0.9 : 1);
+    let mult = (c.guess ? 0.85 : c.reasoned ? 0.95 : 1) * (c.self ? 0.8 : 1) * (c.pilot ? 0.65 : 1) * (c.push ? 0.95 : 1) * (c.adopted ? 0.9 : 1) * (c.swapped ? 0.85 : 1) * (!c.dated ? 0.9 : 1);
     if (c.handling === 'counter') mult = 1;
     c.mult = mult;
     if (c.longer) { c.decision = 'next'; c.dated = false; return; }
@@ -509,12 +656,12 @@ export function createMeeting({ world, state, person }) {
       const k = x.who + '|' + x.what; if (seen.has(k)) continue; seen.add(k); tasks.push(x);
     }
     const queue = {};
-    for (const x of tasks) { if (['keep', 'self', 'watch', 'brief'].includes(x.kind)) { x.day = 1; continue; } const k = (queue[x.who] = (queue[x.who] || 0) + 1); x.day = 1 + Math.floor((k - 1) / 2); }
+    for (const x of tasks) { if (['keep', 'self', 'watch', 'brief'].includes(x.kind)) { x.day = 1; continue; } if (x.kind === 'loop') { x.day = 2; continue; } const k = (queue[x.who] = (queue[x.who] || 0) + 1); x.day = 1 + Math.floor((k - 1) / 2); }
     const dayOf = (x) => (tasks.find((y) => y.who === x.who && y.what === x.what) || x).day;
     for (const c of items) {
       if (c.kind !== 'finding' || c.merged) continue;
       for (const x of c.tasks) x.day = dayOf(x);
-      const follow = c.tasks.filter((x) => !['keep', 'watch', 'brief'].includes(x.kind));
+      const follow = c.tasks.filter((x) => !['keep', 'watch', 'brief', 'loop'].includes(x.kind));
       const last = follow.length ? Math.max(...follow.map(dayOf)) : 0;
       let s = Math.max(1, last + 1);
       if (c.late || c.tasks.some((x) => x.kind === 'brief') || !c.dated) s = Math.max(s, 2);

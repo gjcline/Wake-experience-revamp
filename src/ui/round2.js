@@ -172,15 +172,22 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     else if (pk === 'brief') openDoc('x_brief');
     else if (pk === 'calendar') openDoc('cal');
     else if (pk === 'team') renderTeam();
-    else { drawList(); if (pk === 'briefs' && window.innerWidth > 760) openDoc('x_forecast'); }
-    coach.emit('panel:' + pk);
+    else { drawList(); if (pk === 'briefs' && window.innerWidth > 760) openDoc(w.sources.x_pl ? 'x_pl' : 'x_forecast'); }
+    coach.emit('panel:' + pk); coach.context(pk);
   }
-  function closePanel() { kind = null; docId = null; pop = null; panel.hidden = true; drawSpots(); drawTray(); sfx.back(); coach.emit('desk'); }
+  function closePanel() { kind = null; docId = null; pop = null; panel.hidden = true; drawSpots(); drawTray(); sfx.back(); coach.emit('desk'); coach.context('desk'); }
 
   function drawList() {
     if (kind === 'briefs') {
-      panel._list.replaceChildren(...['x_forecast', 'x_pacing', 'x_brief'].map((id) => { const s = w.sources[id];
-        return h('button', { class: 'item rep' + (id === docId ? ' on' : ''), type: 'button', onclick: () => openDoc(id) }, h('span', { class: 'wk-dot' }), h('span', { class: 'item-text' }, h('strong', {}, s.title), h('span', {}, s.sub), h('span', { class: 'by' }, 'Wake · ' + s.when))); }));
+      const groups = w.sources.x_list.groups || [['Briefs', ['x_forecast', 'x_pacing', 'x_brief']]];
+      const item = (id) => { const s = w.sources[id]; if (!s) return null;
+        return h('button', { class: 'item rep exec-item' + (id === docId ? ' on' : ''), type: 'button', onclick: () => openDoc(id) }, h('span', { class: 'wk-dot' }), h('span', { class: 'item-text' }, h('strong', {}, s.title), h('span', {}, s.sub))); };
+      panel._list.replaceChildren(
+        h('div', { class: 'brief-intro' },
+          h('p', { class: 'bi-top' }, h('b', {}, 'WAKE'), h('span', {}, 'Prepared 7:48 AM')),
+          h('p', {}, 'Your executive documents for the week: the statements, the quarter, ' + (M ? 'every ' + V.unit + ', ' : '') + 'your people and the plan.'),
+          h('p', {}, 'Wake built them from the same systems as your insights, so the gathering and reconciling is already done. The time that used to go into pulling numbers now goes into reading them and deciding what the business does next.')),
+        ...groups.map(([g, ids]) => h('div', { class: 'exec-group' }, h('p', { class: 'eg-h' }, g.toUpperCase()), ...ids.map(item))));
       return;
     }
     if (kind === 'message') return drawThreads();
@@ -219,7 +226,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         h('p', { class: 'hdrs' }, 'To: You' + (v.cc ? '   Cc: ' + v.cc : '')),
         h('div', { class: 'body' }, v.body.map((p) => h('p', {}, p)))));
     } else if (v.kind === 'calendar') { renderCalendar(v); }
-    else if (v.kind === 'exec') { renderExec(v); }
+    else if (v.kind === 'exec') { renderExec(v); R.prepend(back); }
     R.scrollTop = 0;
     drawList(); drawSpots();
     sfx.blip();
@@ -346,7 +353,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   function popup(kids, cls = '') {
     const old = panel.querySelector('.pop'); if (old) old.remove();
     const el = h('div', { class: 'pop calpop trace ' + cls, role: 'dialog' },
-      h('button', { class: 'pop-x', type: 'button', 'aria-label': 'Close', onclick: () => { el.remove(); pop = null; sfx.back(); coach.emit('traceClosed'); } }, '✕ CLOSE'),
+      h('button', { class: 'pop-x', type: 'button', 'aria-label': 'Close', onclick: () => { coach.emit('traceClosed'); el.remove(); pop = null; sfx.back(); } }, '✕ CLOSE'),
       h('div', { class: 'pop-body' }, ...[].concat(kids).flat().filter(Boolean)));
     const head = panel.querySelector('.panel-head');
     el.style.top = (head ? head.offsetHeight : 64) + 'px';
@@ -366,14 +373,25 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         h('p', { class: 'docp-foot' }, 'Every figure in this draft comes from this morning\'s data. Open any insight on your computer to see the lines behind it.')));
       return;
     }
-    const isNum = (t) => /^[-+$(●▲]?\s?\$?\d/.test(String(t).trim());
-    R.replaceChildren(h('div', { class: 'docp' },
-      h('div', { class: 'docp-sys' }, h('span', {}, 'PREPARED BY WAKE'), h('span', {}, v.when)),
-      h('h3', {}, v.title), h('p', { class: 'docp-intro' }, v.intro),
-      v.blocks.map((b) => h('section', { class: 'dblock' }, h('h4', {}, b.title), b.note ? h('p', { class: 'dnote' }, b.note) : null,
-        h('div', { class: 'dscroll' }, h('table', { class: 'dtable' },
-          h('thead', {}, h('tr', {}, b.cols.map((c, i) => h('th', { class: i && b.rows.some((r) => isNum(r.cells[i] && r.cells[i].t)) ? 'n' : '' }, c)))),
-          h('tbody', {}, b.rows.map((r) => h('tr', { class: r.total ? 'total' : '' }, r.cells.map((c, i) => h('td', { class: [i && isNum(c.t) ? 'n' : '', c.tone].filter(Boolean).join(' ') }, c.t)))))))))));
+    const isNum = (t) => /^[-+$(●▲≥≤]?\s?\$?\d/.test(String(t).trim());
+    const d = v.doc || { company: w.shell.company, title: v.title, period: v.sub, systems: '' };
+    const spark = (vals, tone) => { const lo = Math.min(...vals), hi = Math.max(...vals), sp = hi - lo || 1, W2 = 72, H2 = 20;
+      const pts = vals.map((x, i) => (i / (vals.length - 1) * W2).toFixed(1) + ',' + (H2 - 2 - (x - lo) / sp * (H2 - 4)).toFixed(1)).join(' ');
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); el.setAttribute('viewBox', '0 0 ' + W2 + ' ' + H2); el.setAttribute('width', W2); el.setAttribute('height', H2); el.setAttribute('class', 'spark' + (tone ? ' ' + tone : '')); el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = '<polyline fill="none" stroke-width="1.6" points="' + pts + '"/><circle r="2.2" cx="' + pts.split(' ').pop().split(',')[0] + '" cy="' + pts.split(' ').pop().split(',')[1] + '"/>'; return el; };
+    const table = (b) => h('section', { class: 'dblock' }, b.title ? h('h4', {}, b.title) : null, b.note ? h('p', { class: 'dnote' }, b.note) : null,
+      h('div', { class: 'dscroll' }, h('table', { class: 'dtable fin' },
+        h('thead', {}, h('tr', {}, b.cols.map((c, i) => h('th', { class: i && b.rows.some((r) => r.cells[i] && (isNum(r.cells[i].t) || r.cells[i].spark)) ? 'n' : '' }, c)))),
+        h('tbody', {}, b.rows.map((r) => h('tr', { class: ['total', 'head', 'indent', 'grand'].filter((k) => r[k]).join(' ') },
+          r.head ? h('td', { colspan: b.cols.length }, r.cells[0].t) : r.cells.map((c, i) => h('td', { class: [i && (isNum(c.t) || c.spark) ? 'n' : '', c.tone].filter(Boolean).join(' ') }, c.spark ? h('span', { class: 'sp' }, spark(c.spark, c.tone), c.t ? h('span', {}, c.t) : null) : c.t))))))));
+    const kpis = (b) => h('div', { class: 'kpis-x' }, b.items.map((k) => h('div', { class: 'kx' + (k.tone ? ' ' + k.tone : '') }, h('span', { class: 'kx-l' }, k.label), h('strong', {}, k.value), k.sub ? h('span', { class: 'kx-s' }, k.sub) : null)));
+    const text = (b) => h('section', { class: 'dblock dtext' }, b.title ? h('h4', {}, b.title) : null, (b.paras || []).map((p) => h('p', {}, p)), b.bullets ? h('ul', {}, b.bullets.map((x) => h('li', {}, x))) : null);
+    R.replaceChildren(h('div', { class: 'docp fin-doc' },
+      h('header', { class: 'fd-head' }, h('p', { class: 'fd-co' }, d.company), h('h3', {}, d.title), h('p', { class: 'fd-per' }, d.period)),
+      h('p', { class: 'fd-meta' }, h('span', {}, 'Prepared by Wake · ' + v.when), d.systems ? h('span', {}, 'Source: ' + d.systems) : null),
+      v.intro ? h('p', { class: 'docp-intro' }, v.intro) : null,
+      v.blocks.map((b) => (b.type === 'kpis' ? kpis(b) : b.type === 'text' ? text(b) : table(b))),
+      h('p', { class: 'fd-foot' }, h('span', {}, 'Confidential · for internal use'), h('span', {}, d.company))));
   }
 
   // ------------------------------------------------------------ calendar, annotated
@@ -464,18 +482,41 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
 
   // ------------------------------------------------------------ the tour
   function tour() {
-    coach.run([
-      { text: 'Welcome back to your desk. Same Monday, same 7:48 AM, same data. The stack of reports and location files is gone. Wake read all of it before you sat down.', target: '.scene-wrap', next: 'NEXT ▶' },
-      { text: 'Everything you dug through in Round 1 now lives on your computer, in the same place the reports used to land. Open it.', target: '.spot[data-kind="report"]', wait: 'panel:wake', hint: 'Click the computer' },
-      { text: 'These are your insights, ranked. Each one starts with the data behind it: the same lines from this morning\'s reports, inbox and phone, already connected.', target: '.ins', next: 'NEXT ▶' },
-      { text: 'Click any source to see exactly what it said and where it came from.', target: '.ins .src-chip', wait: 'trace', hint: 'Click a source' },
-      { text: 'That\'s the original line, as it arrived this morning, and how Wake read it. Go as deep as you like, or don\'t. Close it when you\'re done.', target: '.pop .pop-body', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done' },
-      { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.ins .pick', wait: 'pick', hint: 'Assign one' },
-      { text: 'Head back to your desk for a moment.', target: '.panel .back-desk', wait: 'desk', hint: 'Click ◀ BACK TO DESK' },
-      { text: 'Texts still land on your phone, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', target: '.spot[data-kind="message"]', next: 'NEXT ▶' },
-      { text: 'This side of the desk used to hold raw data. Now it holds the forecast, your targets, and a draft of Thursday\'s brief. Wake keeps them current. You finally have time to read them.', target: '.spot[data-kind="location"]', next: 'NEXT ▶' },
-      { text: 'When you\'ve assigned ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ', lock in your briefing. Your meeting is at 10:00 AM.', target: '.wake-tray', next: 'LET\'S GO ▶' },
-    ]);
+    // The guide, in chapters. The computer first; then, back at the desk, a short tour of the
+    // rest of the suite that holds the desk until it's done; then each place explains itself.
+    const boss = w.characters.boss.name.split(' ')[0];
+    const tour = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: () => coach.seen('panel:wake') });
+    coach.chapters({
+      desk: [
+        { text: 'Welcome back to your desk. Same Monday, same 7:48 AM, same data. The stack of reports and location files is gone. Wake read all of it before you sat down.', target: '.scene-wrap', next: 'NEXT ▶', once: true },
+        { text: 'Everything you dug through in Round 1 now lives on your computer, in the same place the reports used to land. Open it.', target: '.spot[data-kind="report"]', wait: 'panel:wake', hint: 'Click the computer', skipIf: () => coach.seen('panel:wake') },
+        tour('A quick tour of the rest of your desk. Texts still land on your phone, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.spot[data-kind="message"]'),
+        tour('This side of the desk used to hold raw data. Now it holds your executive briefs: the statements, forecasts and reports you\'d normally wait days for, current as of 7:48 AM.', '.spot[data-kind="location"]'),
+        tour('Thursday\'s brief for ' + boss + ' is already drafted from this morning\'s numbers. You review it. You don\'t write it.', '.spot[data-kind="note"]'),
+        tour('Your inbox is connected. Wake has read every email, and each one is tagged with the insight it feeds.', '.spot[data-kind="email"]'),
+        tour('Your calendar carries Wake\'s suggested holds: the time today\'s decisions will need.', '.spot[data-kind="calendar"]'),
+        tour('When you\'ve assigned ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ', lock in your briefing. Your meeting is at 10:00 AM. The desk is yours.', '.wake-tray', 'LET\'S GO ▶'),
+      ],
+      wake: [
+        { text: 'These are your insights, ranked. Each one starts with the data behind it: the same lines from this morning\'s reports, inbox and phone, already connected.', target: '.ins', next: 'NEXT ▶' },
+        { text: 'Click any source to see exactly what it said and where it came from.', target: '.ins .src-chip', wait: 'trace', hint: 'Click a source', skipIf: () => coach.seen('trace') },
+        { text: 'That\'s the original line, as it arrived this morning, and how Wake read it. Go as deep as you like, or don\'t. Close it when you\'re done.', target: '.pop .pop-body', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', when: () => !!document.querySelector('.pop .pop-body') },
+        { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.ins .pick', wait: 'pick', hint: 'Assign one', skipIf: () => coach.seen('pick') },
+        { text: 'Head back to your desk for a quick tour.', target: '.panel .back-desk', wait: 'desk', hint: 'Click ◀ BACK TO DESK' },
+      ],
+      briefs: [
+        { text: 'Every document here ties to the same numbers behind your insights, and none of them waited for month end. Read them the way an owner would: where is the business going, and what only you can move.', target: '.panel .brief-intro', next: 'GOT IT ▶', once: true },
+      ],
+      message: [
+        { text: 'Texts that belong to an insight have a SEND TO WAKE button. Send one and watch where it lands.', target: '.panel .list', next: 'GOT IT ▶', once: true },
+      ],
+      email: [
+        { text: 'Each email shows the insight it already feeds, or that it needs nothing from you. Nothing to forward.', target: '.panel .list', next: 'GOT IT ▶', once: true },
+      ],
+      calendar: [
+        { text: 'The cyan holds are Wake\'s suggestions: the time today\'s decisions will take. Click any meeting to see what it means now.', target: '.panel .reader', next: 'GOT IT ▶', once: true },
+      ],
+    }, 'desk');
   }
 
   // go

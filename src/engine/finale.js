@@ -19,6 +19,7 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const round1 = (x) => Math.round(x * 10) / 10;
 const OPENING = 3, PRESENT = 2, WAKE_ITEM = 2;
 const NEXT_WEEK = 9;
+const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
 
 export function createFinaleEngine({ world, state, rec, person, insight }) {
   const t = world.t, model = world.model, fin = world.fin;
@@ -88,20 +89,30 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   // How hard each plan pushes each problem, day by day. p is the share of the fix in place.
   function curve(fid, plan) {
     const Mo = model[fid], ramp = Mo.metric.ramp;
-    const at = (start, e, d) => (d < start ? 0 : e * ramp[Math.min(4, d - start)]);
+    // with the numbers attached, the owner skips the first day of figuring it out
+    const at = (start, e, d) => (d < start ? 0 : e * ramp[Math.min(4, d - start + (plan.fast || 0))]);
     const act = plan.mode === 'aligned' || plan.mode === 'alert' ? { start: plan.s, e: plan.mult }
       : plan.mode === 'partial' ? { start: plan.s + 2, e: 0.9 * plan.mult, look: plan.s }
         : plan.mode === 'unclear' ? { start: plan.s, e: 0.4 * plan.mult }
           : plan.mode === 'counter' ? { start: plan.s, e: -0.25 } : { start: NEXT_WEEK, e: 0 };
     // agreed in the room ahead of the numbers: the first step starts Tuesday at part strength
     if (plan.pre && act.e > 0 && plan.pre.start < act.start) act.pre = { start: plan.pre.start, e: plan.pre.e };
-    const sq = Mo.sq;
+    const sq = fid === teamFix() ? { ...Mo.sq, e: 0.9, s: 1, team: true } : Mo.sq;
     return { act, sq, p: DAYS.map((_, d) => {
       const a = Math.max(at(act.start, act.e, d), act.pre ? at(act.pre.start, act.pre.e, d) : 0);
       return act.e < 0 ? at(act.start, act.e, d) : Math.max(a, sq.e ? at(sq.s, sq.e, d) : 0);
     }) };
   }
-  const fmtM = (Mo, v) => { const u = Mo.metric.unit; return u === '$' ? money(v) : u === 'count' ? (v === 1 ? '1 exit' : v + ' exits') : u === '%' ? v + '%' : v + ' ' + u; };
+  // A good company fixes some things without being told. The most visible problem on site gets
+  // handled by the people who see it every day, so on your own something is always resolved.
+  let team;
+  function teamFix() {
+    if (team !== undefined) return team;
+    const can = ['F2', 'F1', 'F5'].filter((f) => model[f] && model[f].sq && model[f].sq.e > 0);
+    team = can.length ? can[hash(world.seed + 'team') % can.length] : null;
+    return team;
+  }
+  const fmtM = (Mo, v) => { const u = Mo.metric.unit; return u === '$' ? money(v) : u === 'count' ? (v === 1 ? '1 exit' : v + ' exits') : u === '%' ? v + '%' : u === 'hrs' && v === 1 ? '1 hr' : v + ' ' + u; };
   const okAt = (Mo, m, p) => { const o = Mo.metric.ok; return p > 0 && (o.op === 'le' ? m <= o.v : o.op === 'ge' ? m >= o.v : p >= o.v); };
 
   function lane(fid, plan, side) {
@@ -163,7 +174,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     // With Wake, what you handed off starts Monday. Everything else Wake found is still on its
     // watch: the owner gets the alert with the numbers attached at 7:48 Tuesday and acts on it.
     const wakePlan = {};
-    for (const f of world.findings) wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: 1 } : { mode: 'alert', key: 'aligned', s: 1, mult: 1 };
+    for (const f of world.findings) wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: 1, fast: 1 } : { mode: 'alert', key: 'aligned', s: 1, mult: 1 };
     return { Y, youPlan, wakePlan };
   }
 
@@ -209,6 +220,15 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       if (!['F2', 'F4', 'F5'].includes(r.id)) { moved(r, 'you', d, yLog); moved(r, 'wake', d, wLog); }
     });
     for (const r of routine) { if (r.wake.done) wLog[r.wake.day].push({ t: r.wake.text, k: 'good' }); if (r.you.done) yLog[4].push({ t: r.label + '. Done after a reminder.', k: 'info' }); }
+    // the moment a problem is resolved, on either side
+    for (const r of rows) for (const [side, log] of [['you', yLog], ['wake', wLog]]) {
+      const ds = r[side].days, d = ds.findIndex((x, i) => x.status === 'fixed' && (i === 0 || ds[i - 1].status !== 'fixed'));
+      if (d >= 0) log[d].push({ t: 'Resolved: ' + r.label + (r.place ? ' at ' + r.place : '') + '. ' + r.metric.short + ' ' + ds[d].shown + '.', k: 'win' });
+    }
+    // the business is good on its own: a day with nothing new is still a day the company ran well
+    const V = world.shell.vocab, units = world.shell.multi ? 'all ' + world.shell.size + ' ' + V.units : 'the ' + V.unit;
+    const STEADY = ['Business as usual across ' + units + '. Revenue on pace for a normal week.', 'Your managers run the day. ' + V.customers.charAt(0).toUpperCase() + V.customers.slice(1) + ' served, nothing dropped.', 'A steady day. Every ' + V.unit + ' open, staffed and on plan.', 'The team keeps the week moving. No new fires.', 'Normal day on the floor. The business does what it does well.'];
+    DAYS.forEach((_, d) => { if (!yLog[d].some((l) => ['good', 'act', 'win'].includes(l.k))) yLog[d].unshift({ t: STEADY[(hash(world.seed + 'st') + d) % STEADY.length], k: 'base' }); });
     DAYS.forEach((_, d) => { if (d > 0) wLog[d].push({ t: 'Watch check: ' + rows.filter((r) => r.wake.days[d].status === 'fixed').length + ' of ' + rows.length + ' measures on target.', k: 'info' }); });
 
     const acted = (lanes) => lanes.filter((l) => l.mode !== 'none');
@@ -240,13 +260,23 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const found = new Set(Y.items.filter((x) => x.kind === 'finding').map((x) => x.fid)).size;
     const fmtT = (x) => (x === null ? 'None this week' : x === 0 ? 'Same day' : x + (x === 1 ? ' day' : ' days'));
     const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
-    const row = (id, label, you, wake, yv, wv, lower) => ({ id, label, you, wake, youWins: lower ? yv < wv : yv > wv, tie: yv === wv });
+    // every row says how far ahead the week ran with Wake, in the row's own units
+    const dur = (m) => (m >= 60 ? Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min');
+    const AHEAD = {
+      ready: (d) => dur(Math.round(d)) + ' sooner', found: (d) => '+' + d + ' found', room: (d) => round1(d) + ' hrs back', owned: (d) => '+' + d + ' owned',
+      tta: (d) => round1(d) + (d === 1 ? ' day' : ' days') + ' sooner', resolved: (d) => '+' + d + ' resolved', hours: (d) => round1(d) + ' hrs back', profit: (d) => '+' + money(d), run: (d) => '+' + money(d),
+    };
+    const row = (id, label, you, wake, yv, wv, lower, gap) => {
+      const youWins = lower ? yv < wv : yv > wv, tie = yv === wv;
+      const d = gap !== undefined ? gap : lower ? yv - wv : wv - yv;
+      return { id, label, you, wake, youWins, tie, ahead: tie || youWins || !(d > 0) ? '' : AHEAD[id](d), lower: !!lower, yv, wv };
+    };
     const P = prep();
     const rows = [
       row('ready', 'Briefing ready', fmt(state.submittedAt || 600), fmt(state.wakeDoneAt || 468), state.submittedAt, state.wakeDoneAt, true),
       row('found', 'Problems found', found + ' of ' + n, n + ' of ' + n, found, n),
       row('room', 'Leadership hours in the meeting', hrs(Y.hours), hrs(Wk.hours), Y.hours, Wk.hours, true),
-      row('owned', 'Decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, Wk.ownerDate + ' of ' + Wk.items.length, Y.ownerDate / Math.max(1, Y.items.length), Wk.ownerDate / Math.max(1, Wk.items.length)),
+      row('owned', 'Decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, Wk.ownerDate + ' of ' + Wk.items.length, Y.ownerDate / Math.max(1, Y.items.length), Wk.ownerDate / Math.max(1, Wk.items.length), false, Wk.ownerDate - Y.ownerDate),
       row('tta', 'Time to action', fmtT(W.tta.you), fmtT(W.tta.wake), W.tta.you === null ? 99 : W.tta.you, W.tta.wake === null ? 99 : W.tta.wake, true),
       row('resolved', 'Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved),
       row('hours', 'Team hours on follow-up', hrs(fy.hours), hrs(fw.hours), fy.hours, fw.hours, true),
@@ -254,11 +284,16 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       row('run', 'Run-rate added, annualized', money(fy.runRate), money(fw.runRate), fy.runRate, fw.runRate),
     ];
     const wakeAhead = rows.filter((r) => !r.youWins && !r.tie).length, youAhead = rows.filter((r) => r.youWins).length;
+    // how each week rates, in the words an owner would use; the business was already good
+    const DAYNAME = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const allBy = W.board.wake.findIndex((x) => x.resolved === n);
+    const rating = { you: fy.resolved >= 2 || (fy.resolved >= 1 && fy.profit > 0 && found >= n - 1) ? 'A good week' : fy.resolved >= 1 || fy.profit > 0 ? 'A solid week' : 'A steady week', wake: 'A terrific week' };
+    const by = { wake: allBy >= 0 ? DAYNAME[allBy] : null, wakeDay: allBy };
     const quarter = project(W, found);
     // what the player did well on their own, in their own numbers
     const credit = { found, resolved: fy.resolved, runRate: fy.runRate, profit: fy.profit, decided: Y.decided, items: Y.items.filter((x) => x.kind === 'finding').length,
       wins: rows.filter((r) => r.youWins).map((r) => r.label), ties: rows.filter((r) => r.tie).map((r) => r.label), quarter: quarter.you.total };
-    return { rows, wakeAhead, youAhead, found, n, week: W, quarter, credit, prep: P, final: { you: fy, wake: fw } };
+    return { rows, wakeAhead, youAhead, found, n, week: W, quarter, credit, prep: P, final: { you: fy, wake: fw }, rating, by };
   }
   // ============================================================ THIRTEEN WEEKS
   // The quarter, projected from this week. Week 1 is the week just played. From week 2, the

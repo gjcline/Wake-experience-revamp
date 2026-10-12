@@ -4,6 +4,7 @@
 // in. Everything downstream (reports, inbox, phone, calendar, Wake's briefing, the meeting,
 // the week) is computed from that one scenario, so the data always agrees with itself.
 // Tokens in {braces} are shell vocabulary, resolved later by the configuration engine.
+import { buildExecLibrary } from './exec.js';
 
 // ---------------------------------------------------------------- seeded randomness
 export function makeRng(seed) {
@@ -1099,7 +1100,7 @@ export function generateScenario(shell, role, seed) {
   if (A) {
     const wN = A.n.wait, wn = A.b.wait, wk = Math.round((A.n.labor - A.b.labor) / 100 * A.n.rev * 1000);
     model.F1 = { kind: 'cost', weekly: wk, run: Math.round(wk * 52 * 0.6), pts: (A.n.labor - A.b.labor).toFixed(1), wait: wN,
-      metric: { label: 'Wait past the promised time', short: 'Wait', unit: 'min', good: 'down', start: wN, target: wn + 4, ok: { op: 'le', v: wn + 5 }, drift: 0.5, ramp: [0.3, 0.6, 0.85, 1, 1] },
+      metric: { label: 'Wait past the promised time', short: 'Wait', unit: 'min', good: 'down', start: wN, target: wn + 4, ok: { op: 'le', v: Math.max(wn + 5, Math.round(wn + 4 + (wN - wn - 4) * 0.3)) }, drift: 0.5, ramp: [0.3, 0.6, 0.85, 1, 1] },
       sq: { e: 0.35, s: 2, text: F(a) + ' pulls a {lead} onto the ' + peak + ' shift on their own.' },
       act: { aligned: '{Lead} coverage moves back to the ' + peaks + '.', partial: F('analyst') + ' starts digging into the schedule.', unclear: F(a) + ' asks what to change first.', counter: { cut: 'Hours cut ten percent' + atL(A) + '.', hire: 'Two hires approved. They start in three weeks.' } },
       q: { why: ['opsdir', 'Labor has been creeping up for weeks. What is actually driving it?'], cost: [ctrl, 'What is it costing us a week?'] },
@@ -1186,7 +1187,10 @@ export function generateScenario(shell, role, seed) {
   if (watch.length) para.push('Also on our list: ' + watch.join('; ') + '.');
   sources.x_brief = { id: 'x_brief', kind: 'exec', r2: true, from: null, when: 'Drafted 7:48 AM', title: 'Brief for Thursday\'s ' + thu.toLowerCase().replace(' with ' + bossName.toLowerCase(), ''), sub: 'Draft answer to ' + bossName + '\'s question', cat: 'exec', volume: 0, lines: [],
     to: bossName, ask: role.note.text, memo: para };
-  sources.x_list = { id: 'x_list', kind: 'exec', r2: true, title: 'Executive briefs', cat: 'exec', volume: 0, lines: [] };
+  const lib = buildExecLibrary({ shellId: shell.id, company, M, N, locations, characters, revSum, revBase, laborAvg, laborBase, V, premium, cash, wantCash, monday, bossName, A, B, D, E, X, seed: hash(seed + 'exec'), system: SD.system, peaks });
+  for (const d of [lib.pl, lib.cf, lib.bs, lib.earn, lib.trends, lib.labor, lib.reviews, lib.growthDoc]) sources[d.id] = { kind: 'exec', r2: true, from: null, when: 'Prepared 7:48 AM', cat: 'exec', volume: 0, lines: [], ...d };
+  sources.x_list = { id: 'x_list', kind: 'exec', r2: true, title: 'Executive briefs', cat: 'exec', volume: 0, lines: [],
+    groups: [['This week', ['x_brief', 'x_forecast', 'x_pacing']], ['Financial statements', ['x_pl', 'x_cash', 'x_bs']], ['Performance', ['x_earn', 'x_trends', 'x_labor', 'x_reviews']], ['Growth', ['x_growth']]] };
 
   keyAnswers();
   const headcount = locations.reduce((n, L) => n + L.staff, 0) + CENTRAL.length + R.i(2, 6);

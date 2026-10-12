@@ -30,6 +30,7 @@ const ICON = {
   table: [['.W.W.W..', 'YYYYYYY.', 'YYYYYYY.', '.W.W.W..', '........', '.K....K.', 'KKK..KKK', '........'], { W, Y, K }],
   job: [['..YYYY..', '..Y..Y..', 'YYYYYYYY', 'Y......Y', 'YYYKKYYY', 'Y......Y', 'Y......Y', 'YYYYYYYY'], { Y, K }],
   wake: [['K......K', 'K......K', 'K..KK..K', 'K..KK..K', 'K.KKKK.K', 'KKK..KKK', 'KK....KK', 'K......K'], { K }],
+  doc: [['.WWWWW..', '.W...WW.', '.W.YY.W.', '.W....W.', '.W.YYYW.', '.W....W.', '.W.YY.W.', '.WWWWWW.'], { W, Y }],
   eye: [['........', '..WWWW..', '.W....W.', 'W..KK..W', 'W..KK..W', '.W....W.', '..WWWW..', '........'], { W, K }],
   service: [['.....YY.', '....Y..Y', '....Y.YY', '...YYY..', '..YYY...', '.YYY....', 'YYY.....', 'YY......'], { Y }],
   clinical: [['...MM...', '...MM...', '...MM...', 'MMMMMMMM', 'MMMMMMMM', '...MM...', '...MM...', '...MM...'], { M }],
@@ -206,22 +207,36 @@ export function createArcade({ root, reduced, onPicked }) {
     rules();
   }
 
-  // 3. how to play
+  // 3. the briefing: what this is, and the path through it. A product demo shows you
+  // features; this hands you the keys, and lets the week speak for itself.
   function rules() {
-    const item = (ic, head, text) => h('li', {}, icon(ic, 4), h('div', {}, h('b', {}, head), h('p', {}, text)));
     const go = () => { sfx.start(); setupBusiness(); };
+    const lines = h('div', { class: 'intro-lines' });
+    const stage = (n, ic, head, text, cls = '') => h('li', { class: 'stg ' + cls }, h('span', { class: 'stg-n' }, String(n)), h('span', { class: 'stg-ic' }, icon(ic, 4)), h('div', {}, h('b', {}, head), h('p', {}, text)));
+    const path = h('ol', { class: 'stg-path', hidden: true },
+      stage(1, 'pin', 'ROUND 1 · ON YOUR OWN', 'Your desk, your data, your call. Brief your team by 10:00 AM.', 'here'),
+      stage(2, 'wake', 'ROUND 2 · WITH WAKE', 'The same Monday again. Wake has already read all of it.'),
+      stage(3, 'table', 'THE MEETING AND THE WEEK', 'Run your meeting both ways, then watch both plans play out to Friday.'),
+      stage(4, 'doc', 'YOUR REPORT', 'The week side by side, in your company\'s own numbers. Yours to keep.'));
+    const foot = h('div', { class: 'a-row intro-foot', hidden: true }, h('span', { class: 'a-small' }, 'ABOUT 15 MINUTES · A GUIDE WALKS YOU THROUGH IT'), abtn('PRESS START', go, 'a-btn primary blink-soft'));
     screen('rules',
-      h('div', { class: 'panel-px' },
-        h('h1', {}, 'HOW TO PLAY'),
-        h('ul', { class: 'rule-list' },
-          item('job', 'THE JOB', 'Run a company for one Monday morning. Every game is a different company, with its own locations, people and numbers. You\'ll prepare for one meeting, twice.'),
-          item('pin', 'ROUND 1 · ON YOUR OWN', 'Your desk holds everything your team sent. Flag at least 3 figures that matter and decide what should happen with each.'),
-          item('clock', 'THE MEETING TIME', 'Your meeting starts at 10:00 AM. Have your briefing ready by then.'),
-          item('wake', 'ROUND 2 · WITH WAKE', 'Same desk, same data, same 7:48 AM. This time Wake is running underneath it.'),
-          item('table', 'THE MEETING', 'Run the meeting with each briefing. Your team will ask questions, and you answer with what you brought. Then both plans play out over the week.'),
-          item('eye', 'THE SCORE', 'No trick questions. A guide walks you through every step. The score is kept on Friday.')),
-        h('div', { class: 'a-row' }, h('span', { class: 'a-small' }, 'ABOUT 15 MINUTES'), abtn('PRESS START', go, 'a-btn primary blink-soft'))));
+      h('div', { class: 'panel-px intro' },
+        h('h1', {}, 'NO SLIDES. NO PITCH.'),
+        lines, path, foot));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    (async () => {
+      const said = ['You\'re about to run a company for one Monday morning.', 'Then you\'ll run the same morning again, with Wake underneath it.', 'Nobody will tell you what it\'s worth. You\'ll see it.'];
+      let fast = reduced;
+      lines.onclick = () => { fast = true; };
+      for (const line of said) {
+        const p = h('p', {}); lines.appendChild(p);
+        for (const ch of line) { if (fast) { p.textContent = line; break; } p.textContent += ch; if (ch !== ' ') sfx.type(); await wait(16); }
+        await wait(fast ? 0 : 260);
+      }
+      path.hidden = false;
+      for (const li of [...path.children]) { li.classList.add('in'); sfx.blip(); await wait(fast ? 0 : 220); }
+      foot.hidden = false;
+    })();
   }
 
   // 4. game setup, one choice per screen, joystick friendly

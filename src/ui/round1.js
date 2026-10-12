@@ -26,7 +26,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
 
   game.startRound1();
   let kind = null, docId = null, docStart = 0, shown = game.state.clock;
-  let history = [], hl = [], pop = null, calTab = 'this', tipShown = false, tipPending = false;
+  let history = [], hl = [], pop = null, calTab = 'this';
 
   const clockEl = h('b', { class: 'clock' }, fmtClock(shown));
   const pclock = h('b', { class: 'pclock' }, fmtClock(shown));
@@ -101,7 +101,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('div', { class: 'panel-body' + (single ? ' single' : '') }, listEl, reader));
     panel._list = listEl; panel._reader = reader; panel._body = panel.querySelector('.panel-body');
     drawList();
-    coach.emit('panel:' + k);
+    coach.emit('panel:' + k); coach.context(k);
     if (single) { if (k === 'location') renderLocation(); else openDoc(w.order[k][0]); }
   }
 
@@ -141,7 +141,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
 
   function closePanel() {
     closeDoc(); kind = null; docId = null; pop = null; history = []; panel.hidden = true; drawSpots(); drawTray(); sfx.back();
-    coach.emit('desk');
+    coach.emit('desk'); coach.context('desk');
   }
 
   // Go anywhere: used by toasts and by connected data.
@@ -172,13 +172,13 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     closeDoc();
     if (!keep) { history = []; hl = []; }
     const v = game.open(id); if (!v) return;
+    coach.emit('doc:location');
     docId = id; docStart = Date.now();
     renderDoc(v);
     panel._body.classList.add('reading');
     drawList(); drawSpots();
     sfx.blip();
     coach.emit('doc:' + v.kind);
-    if (SECONDARY.includes(v.kind)) firstSecondary();
   }
   function openThread(from, keep) {
     closeDoc();
@@ -189,7 +189,6 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     renderThread(from);
     panel._body.classList.add('reading');
     drawList(); drawSpots(); sfx.blip();
-    firstSecondary();
   }
   function renderCurrent() {
     if (!kind) return;
@@ -294,7 +293,6 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     R.replaceChildren(h('div', { class: 'notes-view' },
       h('div', { class: 'sticky' }, h('p', { class: 'n-from' }, 'From ' + w.characters.boss.name + ', ' + w.characters.boss.title), boss.body.map((x) => h('p', {}, x)), attachBtn({ key: 'note_role', source: 'note_role', label: 'Note from ' + w.characters.boss.name }, boss.attachedTo)),
       h('div', { class: 'pad' }, h('p', { class: 'n-from' }, 'Your notes · last week\'s 1:1s'), h('ul', {}, mine.list.map((x) => h('li', {}, x))), attachBtn({ key: 'note_mine', source: 'note_mine', label: 'Your notes from last week' }, mine.attachedTo))));
-    firstSecondary();
   }
 
   // ------------------------------------------------------------ calendar
@@ -425,43 +423,55 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
 
   // ------------------------------------------------------------ flagging: the composer
+  // Four short reads, each with the action beneath it; then the player's own words, an owner,
+  // and how sure they are. Each step has its own color so the card reads top to bottom.
   function compose({ signals, source, existing }) {
     if (!existing && game.state.flags.length >= game.MAX_FLAGS) { note('You can store up to ' + game.MAX_FLAGS + ' findings. Remove one in your findings to add another.'); return; }
     sfx.select();
     const sid = existing ? existing.signals[0] : signals[0];
     const s = w.signals[sid], src = w.sources[existing ? existing.source : source];
     const n = existing ? game.state.flags.indexOf(existing) + 1 : game.state.flags.length + 1;
-    let choice = existing ? existing.choice : null, owner = existing ? existing.owner : null;
+    let choice = existing ? existing.choice : null, owner = existing ? existing.owner : null, sure = existing ? existing.confidence : null;
     const answers = game.answers(sid);
-    const opts = h('div', { class: 'answers', role: 'radiogroup', 'aria-label': 'Common answers' });
-    const drawOpts = () => opts.replaceChildren(...answers.map((a) => h('button', { class: 'answer' + (choice === a.id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(choice === a.id), onclick: () => { choice = choice === a.id ? null : a.id; drawOpts(); sfx.blip(); } }, h('i', {}), a.text)));
-    drawOpts();
-    const ta = h('textarea', { id: 'wx-action', rows: '2', maxlength: '280', placeholder: 'Add your own read, or a different action. Optional.', 'aria-label': 'In your own words' });
+    const steps = h('ol', { class: 'cprog' });
+    const progress = () => steps.replaceChildren(...[['YOUR READ', !!choice || ta.value.trim().length >= 3], ['YOUR WORDS', ta.value.trim().length >= 3], ['OWNER', !!owner], ['HOW SURE', !!sure]].map(([t, done], i) => h('li', { class: 'cp' + i + (done ? ' done' : '') }, h('i', {}, done ? '✓' : String(i + 1)), t)));
+    const opts = h('div', { class: 'answers', role: 'radiogroup', 'aria-label': 'Your read' });
+    const drawOpts = () => opts.replaceChildren(...answers.map((a) => h('button', { class: 'answer' + (choice === a.id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(choice === a.id), onclick: () => { choice = choice === a.id ? null : a.id; drawOpts(); progress(); sfx.blip(); } },
+      h('i', {}), h('span', { class: 'a-read' }, a.read), h('span', { class: 'a-act' }, a.act))));
+    const ta = h('textarea', { id: 'wx-action', rows: '3', maxlength: '280', placeholder: 'What do you think is really going on? What would you do? Anything the options miss.', 'aria-label': 'In your own words' });
     if (existing) ta.value = existing.note || '';
+    const count = h('span', { class: 'wcount' });
+    const words = () => { const k = ta.value.trim().split(/\s+/).filter(Boolean).length; count.textContent = k ? k + (k === 1 ? ' word' : ' words') : ''; };
+    ta.addEventListener('input', () => { words(); progress(); });
     const ownersEl = h('div', { class: 'owner-pick' });
     const drawOwners = () => {
       const list = game.owners();
-      const grp = (g, title) => { const ps = list.filter((o) => o.group === g); return ps.length ? h('div', { class: 'og' }, h('span', { class: 'og-t' }, title), h('div', { class: 'og-list' }, ps.map((o) => h('button', { class: 'owner-chip' + (owner === o.key ? ' on' : ''), type: 'button', 'aria-pressed': String(owner === o.key), onclick: () => { owner = owner === o.key ? null : o.key; drawOwners(); sfx.blip(); } },
+      const grp = (g, title) => { const ps = list.filter((o) => o.group === g); return ps.length ? h('div', { class: 'og' }, h('span', { class: 'og-t' }, title), h('div', { class: 'og-list' }, ps.map((o) => h('button', { class: 'owner-chip' + (owner === o.key ? ' on' : ''), type: 'button', 'aria-pressed': String(owner === o.key), onclick: () => { owner = owner === o.key ? null : o.key; drawOwners(); progress(); sfx.blip(); } },
         o.key === 'me' ? av('me', 26) : av(o.key, 26), h('span', {}, h('strong', {}, o.key === 'me' ? 'You' : o.name), h('em', {}, o.group === 'manager' && M ? o.loc : o.title)))))) : null; };
       ownersEl.replaceChildren(grp('manager', M ? 'LOCATION MANAGERS' : 'ON SITE'), grp('central', 'CENTRAL TEAM'), grp('me', ''));
     };
     drawOwners();
+    const sureEl = h('div', { class: 'sure' });
+    const drawSure = () => sureEl.replaceChildren(...[['hunch', 'A hunch'], ['fair', 'Fairly sure'], ['certain', 'Certain']].map(([k, l]) => h('button', { class: 'sure-chip' + (sure === k ? ' on' : ''), type: 'button', 'aria-pressed': String(sure === k), onclick: () => { sure = sure === k ? null : k; drawSure(); progress(); sfx.blip(); } }, l)));
+    drawSure();
     const save = btn(existing ? 'SAVE ▶' : 'ADD TO FINDINGS ▶', () => {
-      if (!choice && ta.value.trim().length < 3) { opts.classList.add('shake'); setTimeout(() => opts.classList.remove('shake'), 400); note('Pick the answer closest to yours, or write your own.'); return; }
-      if (existing) game.editFlag(existing.id, { choice, note: ta.value, owner }); else game.flag({ signals, source, choice, note: ta.value, owner });
+      if (!choice && ta.value.trim().length < 3) { opts.classList.add('shake'); setTimeout(() => opts.classList.remove('shake'), 400); note('Pick the read closest to yours, or write your own.'); return; }
+      if (existing) game.editFlag(existing.id, { choice, note: ta.value, owner, confidence: sure }); else game.flag({ signals, source, choice, note: ta.value, owner, confidence: sure });
       closeCard(); sfx.coin(); drawTray(); renderCurrent();
-      coach.emit('flagged');
+      coach.emit('flagged'); coach.pop();
     }, 'btn primary');
+    const step = (k, title, help, ...body) => h('section', { class: 'cstep2 s' + k }, h('div', { class: 'cs-head' }, h('b', {}, String(k)), h('div', {}, h('p', { class: 'label' }, title), help ? h('p', { class: 'help' }, help) : null)), ...body);
     card('composer',
       h('p', { class: 'stamp' }, existing ? 'EDIT FINDING #' + n : 'NEW FINDING #' + n),
       h('blockquote', { class: 'flagged' }, h('span', { class: 'fl-src' }, (src ? src.title : '') + (w.system[src && src.id] ? ' · ' + w.system[src.id] : '')), h('strong', {}, s.label), h('span', { class: 'fl-v' }, [s.value, s.delta].filter(Boolean).join(' · '))),
-      h('div', { class: 'cstep' }, h('b', {}, '1'), h('div', {}, h('p', { class: 'label' }, 'WHAT\'S YOUR READ, AND WHAT SHOULD HAPPEN?'), h('p', { class: 'help' }, 'You\'re interpreting this number and deciding what your team does about it. Pick the answer closest to how you\'d handle it.'))),
-      opts,
-      h('label', { for: 'wx-action', class: 'label sub' }, 'IN YOUR OWN WORDS ', h('span', { class: 'quiet' }, 'Optional. Add detail, or write your own instead.')), ta,
-      h('div', { class: 'cstep' }, h('b', {}, '2'), h('div', {}, h('p', { class: 'label' }, 'WHO OWNS IT?'), h('p', { class: 'help' }, 'Optional. Who on your team should take this on?'))),
-      ownersEl,
-      h('div', { class: 'row' }, save, existing ? btn('Remove this finding', () => { game.removeFlag(existing.id); closeCard(); sfx.back(); drawTray(); renderCurrent(); }, 'link') : null, btn('Cancel', () => { closeCard(); sfx.back(); coach.emit('cancel'); }, 'link')));
-    coach.emit('compose');
+      steps,
+      step(1, 'WHAT\'S YOUR READ?', 'Pick the one closest to what you think is going on. The action underneath is what your team would do.', opts),
+      step(2, 'IN YOUR OWN WORDS', 'Optional, but it goes into the meeting with you. Explain your read, or write your own if none of the above fit.', ta, count),
+      step(3, 'WHO OWNS IT?', 'Optional. Who on your team should take this on?', ownersEl),
+      step(4, 'HOW SURE ARE YOU?', null, sureEl),
+      h('div', { class: 'row' }, save, existing ? btn('Remove this finding', () => { game.removeFlag(existing.id); closeCard(); sfx.back(); drawTray(); renderCurrent(); }, 'link') : null, btn('Cancel', () => { closeCard(); sfx.back(); coach.emit('cancel'); coach.pop(); }, 'link')));
+    drawOpts(); words(); progress();
+    coach.emit('compose'); coach.push('compose');
   }
 
   // ------------------------------------------------------------ attaching context
@@ -480,16 +490,6 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
           h('i', { class: 'fnum' }, String(f.n)), h('span', {}, h('strong', {}, f.what.label), h('em', {}, f.text)), h('b', {}, on ? '✓ ADDED' : '+ ADD'))); })),
       h('div', { class: 'row' }, btn('DONE', () => { closeCard(); sfx.back(); }, 'btn primary')));
     draw();
-  }
-
-  // The first time the player opens a secondary source, show how attaching works. Once.
-  function firstSecondary() {
-    if (tipShown) return;
-    if (coach.active()) { tipPending = true; return; }
-    tipShown = true; tipPending = false;
-    setTimeout(() => coach.run([
-      { text: 'Emails, texts, your calendar and your notes don\'t become findings on their own. When one adds context to a finding you\'ve stored, attach it with the blue button. It travels with that finding into the meeting.', target: '.panel .attach-btn', next: 'GOT IT ▶' },
-    ]), reduced ? 0 : 350);
   }
 
   // ------------------------------------------------------------ findings
@@ -540,16 +540,32 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
 
   drawScene(); drawSpots(); drawTray();
-  setTimeout(() => coach.run([
-    { text: 'This is your desk. Everything your team sent this morning is here: reports, your ' + (M ? V.units : V.unit) + ', inbox, phone, calendar, notes, and your team.', target: '.scene-wrap', next: 'NEXT ▶' },
-    { text: 'Start with the computer. It has this morning\'s reports.', target: '.spot[data-kind="report"]', wait: 'panel:report', hint: 'Click the computer' },
-    { text: 'Open any report.', target: '.panel .list', wait: 'doc:report', hint: 'Pick a report' },
-    { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button at the top to return. Try it any time.', target: '.panel .connected', next: 'NEXT ▶', skipIf: () => !document.querySelector('.panel .connected') },
-    { text: 'Reports are a page of figures. Every figure is a data point. When one looks off, click it to flag it.', target: '.panel .docp', wait: 'compose', hint: 'Click a figure', side: 'over' },
-    { text: 'You\'re interpreting the number you clicked and deciding what happens next. Pick the answer closest to how you\'d run it, or write your own. Naming an owner is optional. Then add it to your findings.', target: '.composer', inline: true, wait: 'flagged', back: 'cancel' },
-    { text: 'That\'s your first finding. Now head back to your desk.', target: '.panel .back-desk', wait: 'desk', hint: 'Click ◀ BACK TO DESK' },
-    { text: 'Your findings are stored down here. Open them any time to review, edit or reorder.', target: '.tray-open', wait: 'findings', hint: 'Open your findings' },
-    { text: 'This list is exactly what you\'ll hand your team. EDIT changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard },
-    { text: 'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have at least ' + game.MIN_FLAGS + ' findings ready by then. The rest is up to you.', target: '.bar .clock', next: 'LET\'S GO ▶', onDone: () => { if (tipPending) setTimeout(() => { if (kind && SECONDARY.includes(kind)) firstSecondary(); }, 300); } },
-  ]), reduced ? 0 : 500);
+  // The guide, in chapters. Each plays where it belongs; leave and it waits for you.
+  const flagged = () => game.state.flags.length >= 1;
+  setTimeout(() => coach.chapters({
+    desk: [
+      { text: 'This is your desk. Everything your team sent this morning is here: reports, your ' + (M ? V.units : V.unit) + ', inbox, phone, calendar, notes, and your team. Open anything. The guide follows you.', target: '.scene-wrap', next: 'NEXT ▶', once: true },
+      { text: 'A good place to start is the computer. It has this morning\'s reports.', target: '.spot[data-kind="report"]', wait: 'panel:report', hint: 'Click the computer', skipIf: () => coach.seen('panel:report') },
+      { text: 'Your findings are stored down here. Open them any time to review, edit or reorder.', target: '.tray-open', wait: 'findings', hint: 'Open your findings', when: flagged },
+      { text: 'This list is exactly what you\'ll hand your team. EDIT changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
+      { text: 'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have at least ' + game.MIN_FLAGS + ' findings ready by then. The rest is up to you.', target: '.bar .clock', next: 'LET\'S GO ▶', when: flagged },
+    ],
+    report: [
+      { text: 'Open any report.', target: '.panel .list', wait: 'doc:report', hint: 'Pick a report', skipIf: () => coach.seen('doc:report') },
+      { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button at the top to return.', target: '.panel .connected', next: 'NEXT ▶', skipIf: () => !document.querySelector('.panel .connected'), once: true },
+      { text: 'Reports are a page of figures. Every figure is a data point. When one looks off, click it to flag it.', target: '.panel .docp', wait: 'flagged', hint: 'Click a figure', side: 'over', skipIf: flagged },
+      { text: 'That\'s your first finding. Keep going here, or head back to your desk to see it stored.', target: '.panel .back-desk', next: 'GOT IT ▶', when: flagged, once: true },
+    ],
+    location: [
+      { text: 'Every ' + V.unit + ' has a weekly scorecard. Click one to open it.', target: '.cmap', wait: 'doc:location', hint: 'Click a ' + V.unit, skipIf: () => !M || coach.seen('doc:location') },
+      { text: 'Any figure on a scorecard can be flagged, the same as a report.', target: '.kpis', next: 'GOT IT ▶', once: true, skipIf: () => !document.querySelector('.kpis') },
+    ],
+    compose: [
+      { text: 'Pick the read closest to yours. Then, if you can, say it in your own words: it goes into the meeting with you. An owner and how sure you are help too. Then add it.', target: '.composer', inline: true, wait: 'flagged' },
+    ],
+    secondary: [
+      { text: 'Emails, texts, your calendar and your notes don\'t become findings on their own. When one adds context to a finding you\'ve stored, attach it with the blue button. It travels with that finding into the meeting.', target: '.panel .attach-btn', next: 'GOT IT ▶', once: true },
+    ],
+    _alias: { email: 'secondary', message: 'secondary', calendar: 'secondary', note: 'secondary' },
+  }, 'desk'), reduced ? 0 : 500);
 }

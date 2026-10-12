@@ -325,7 +325,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
       }
       const pos = 50 - ((wl - yl) / MEAS.length) * 44;
       tug.style.setProperty('--p', pos + '%');
-      tugLabel.textContent = wl > yl ? 'PLAYER 2 LEADS ' + wl + ' OF ' + MEAS.length + ' MEASURES' : yl > wl ? 'PLAYER 1 LEADS ' + yl + ' OF ' + MEAS.length + ' MEASURES' : 'EVEN';
+      tugLabel.textContent = wl > yl ? 'WITH WAKE · AHEAD ON ' + wl + ' OF ' + MEAS.length + ' MEASURES' : yl > wl ? 'ON YOUR OWN · AHEAD ON ' + yl + ' OF ' + MEAS.length : 'EVEN';
       tugLabel.className = 'fx-tug-l' + (wl > yl ? ' w' : yl > wl ? ' y' : '');
     };
     const count = async (el, from, to) => { const steps = fast ? 1 : 14; for (let i = 1; i <= steps; i++) { el.textContent = money(from + (to - from) * i / steps); await wait(26); } };
@@ -353,10 +353,15 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
       }
       if (!alive) return;
       const fy = WK.board.you[4], fw = WK.board.wake[4];
+      const DAYNAME = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const allBy = WK.board.wake.findIndex((x) => x.resolved === n);
       banner.hidden = false;
       banner.replaceChildren(h('p', { class: 'k' }, 'FRIDAY · THE WEEK IS IN'),
-        h('h2', {}, 'Resolved by Friday: ' + fy.resolved + ' of ' + n + ' on your own. ' + fw.resolved + ' of ' + n + ' with Wake.'),
-        h('p', {}, 'Your team spent ' + hrs(fy.hours) + ' on follow-up' + (fy.open ? ' and still has ' + fy.open + ' open' : '') + '. With Wake, ' + hrs(fw.hours) + '.'));
+        h('div', { class: 'fx-bn2' },
+          h('div', { class: 'y' }, h('span', {}, 'ON YOUR OWN'), h('b', {}, fy.resolved + ' of ' + n), h('em', {}, 'resolved by Friday')),
+          h('div', { class: 'w' }, h('span', {}, 'WITH WAKE'), h('b', {}, fw.resolved + ' of ' + n), h('em', {}, allBy >= 0 ? 'resolved by ' + DAYNAME[allBy] : 'resolved by Friday'))),
+        h('p', {}, (fy.profit > 0 ? 'A solid week on your own: ' + money(fy.profit) + ' in operating profit, and the business ran well. ' : 'The business ran well on its own. ') +
+          'With Wake, the same week reached ' + money(fw.profit) + (allBy >= 0 && allBy < 4 ? ', and from ' + DAYNAME[Math.min(4, allBy + 1)] + ' on, the time was yours.' : '.')));
       sfx.go(); ff.remove(); next.hidden = false; next.focus({ preventScroll: true });
       banner.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
     })();
@@ -372,28 +377,46 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
     const rest = h('div', { class: 'fs-rest', hidden: true });
     const status = h('span', { class: 'quiet', 'aria-live': 'polite' });
     const reportEl = h('div', { class: 'report-wrap', hidden: true });
+    const RT = S.rating, FY = S.final.you, FW = S.final.wake, n = S.n;
+    const stat = (big, label) => h('p', {}, h('b', {}, big), h('span', {}, label));
+    const card = (side, title, rating, stats) => h('div', { class: 'fs-card ' + side }, h('span', { class: 'fs-ck' }, title), h('strong', {}, rating.toUpperCase()), h('div', { class: 'fs-cs' }, stats));
+    // your week is the base; Wake's week is the same bar, carried further
+    const stack = (label, yv, wv, fmtv) => {
+      const top = Math.max(1, wv), yp = Math.max(0, Math.min(100, yv / top * 100));
+      return h('div', { class: 'fs-stack' }, h('p', { class: 'fs-sl' }, label),
+        h('div', { class: 'fs-sb' }, h('i', { class: 'y', style: { width: yp + '%' } }, h('span', {}, fmtv(yv))), h('i', { class: 'w', style: { width: (100 - yp) + '%' } }, h('span', {}, '+' + fmtv(wv - yv)))),
+        h('div', { class: 'fs-sk' }, h('span', { class: 'y' }, 'Your week'), h('span', { class: 'w' }, 'With Wake, on top of it')));
+    };
+    const pips = h('div', { class: 'fs-stack' }, h('p', { class: 'fs-sl' }, 'Problems resolved by Friday'),
+      h('div', { class: 'fs-pips' }, Array.from({ length: n }, (_, i) => h('i', { class: i < FY.resolved ? 'y' : i < FW.resolved ? 'w' : '' }))),
+      h('div', { class: 'fs-sk' }, h('span', { class: 'y' }, FY.resolved + ' on your own'), h('span', { class: 'w' }, (FW.resolved - FY.resolved > 0 ? '+' + (FW.resolved - FY.resolved) + ' with Wake' : '') + (S.by.wake ? ', all by ' + S.by.wake : ''))));
+    const cards = h('div', { class: 'fs-cards', hidden: true },
+      card('y', 'ON YOUR OWN', RT.you, [stat(money(FY.profit), 'operating profit'), stat(FY.resolved + ' of ' + n, 'resolved by Friday'), stat(kmoney(FY.runRate), 'run-rate added')]),
+      card('w', 'WITH WAKE', RT.wake, [stat(money(FW.profit), 'operating profit'), stat(FW.resolved + ' of ' + n, S.by.wake ? 'resolved by ' + S.by.wake : 'resolved by Friday'), stat(kmoney(FW.runRate), 'run-rate added')]));
+    const stacks = h('div', { class: 'fs-stacks', hidden: true }, stack('Operating profit this week', Math.max(0, FY.profit), FW.profit, kmoney), stack('Run-rate added, annualized', Math.max(0, FY.runRate), FW.runRate, kmoney), pips);
     show('wake', 'fx-final',
       h('p', { class: 'fs-k' }, 'GAME OVER'),
       h('h1', { class: 'fs-title' }, 'FINAL SCORE'),
       h('p', { class: 'fs-sub' }, 'Same company. Same data. Same Monday.'),
-      h('div', { class: 'fs-head' }, h('span', { class: 'y' }, 'PLAYER 1', h('b', {}, 'ON YOUR OWN')), h('span'), h('span', { class: 'w' }, 'PLAYER 2', h('b', {}, 'WITH WAKE'))),
+      cards, stacks,
+      h('div', { class: 'fs-head' }, h('span', {}, ''), h('span', { class: 'y' }, 'ON YOUR OWN'), h('span', { class: 'w' }, 'WITH WAKE'), h('span', { class: 'a' }, 'AHEAD BY')),
       rows, verdict, rest, reportEl);
     own();
     (async () => {
       await wait(500);
+      cards.hidden = false; sfx.blip(); await wait(900);
+      stacks.hidden = false; sfx.coin(); await wait(900);
       for (const r of S.rows) {
         if (!alive) return;
-        const wk = !r.youWins && !r.tie;
-        rows.appendChild(h('div', { class: 'fs-row' + (wk ? ' ww' : r.youWins ? ' yw' : ' tie') },
-          h('div', { class: 'fs-y' }, r.youWins ? h('i', { class: 'star' }, '★') : null, h('b', {}, r.you)),
+        rows.appendChild(h('div', { class: 'fs-row' + (r.ahead ? ' up' : '') },
           h('div', { class: 'fs-l' }, r.label),
-          h('div', { class: 'fs-w' }, h('b', {}, r.wake), wk ? h('i', { class: 'star' }, '★') : null)));
-        sfx[wk ? 'coin' : 'blip'](); await wait(430);
+          h('div', { class: 'fs-y' }, h('b', {}, r.you)),
+          h('div', { class: 'fs-w' }, h('b', {}, r.wake)),
+          h('div', { class: 'fs-a' + (r.youWins ? ' yours' : '') }, r.ahead ? h('b', {}, r.ahead) : h('span', {}, r.youWins ? 'Yours this time' : 'Even'))));
+        sfx[r.ahead ? 'coin' : 'blip'](); await wait(330);
       }
       verdict.hidden = false;
-      verdict.replaceChildren(
-        h('p', { class: 'fs-wins' }, h('span', { class: 'y' }, String(S.youAhead)), h('b', {}, S.wakeAhead > S.youAhead ? 'PLAYER 2 WINS' : S.youAhead > S.wakeAhead ? 'PLAYER 1 WINS' : 'DRAW'), h('span', { class: 'w' }, String(S.wakeAhead))),
-        h('p', { class: 'fs-v' }, R.verdict), R.credit ? h('p', { class: 'fs-credit' }, R.credit) : null);
+      verdict.replaceChildren(h('p', { class: 'fs-v' }, R.verdict), R.credit ? h('p', { class: 'fs-credit' }, R.credit) : null);
       sfx.start(); await wait(800);
       rest.hidden = false; renderRest();
     })();
