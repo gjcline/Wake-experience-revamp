@@ -17,6 +17,7 @@ export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const round1 = (x) => Math.round(x * 10) / 10;
+const round2 = (x) => Math.round(x * 100) / 100;
 const OPENING = 3, PRESENT = 2, WAKE_ITEM = 2;
 const NEXT_WEEK = 9;
 const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
@@ -94,24 +95,34 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const act = plan.mode === 'aligned' || plan.mode === 'alert' ? { start: plan.s, e: plan.mult }
       : plan.mode === 'partial' ? { start: plan.s + 2, e: 0.9 * plan.mult, look: plan.s }
         : plan.mode === 'unclear' ? { start: plan.s, e: 0.4 * plan.mult }
-          : plan.mode === 'counter' ? { start: plan.s, e: -0.25 } : { start: NEXT_WEEK, e: 0 };
+          : plan.mode === 'counter' ? { start: plan.s, e: fid === 'F4' || fid === 'F5' ? -0.01 : -0.15 } : { start: NEXT_WEEK, e: 0 };
     // agreed in the room ahead of the numbers: the first step starts Tuesday at part strength
     if (plan.pre && act.e > 0 && plan.pre.start < act.start) act.pre = { start: plan.pre.start, e: plan.pre.e };
-    const sq = fid === teamFix() ? { ...Mo.sq, e: 0.9, s: 1, team: true } : Mo.sq;
+    const sq = fid === teamFix() ? { ...Mo.sq, e: 0.9, s: 1, team: true, text: teamText(fid, Mo) } : Mo.sq;
     return { act, sq, p: DAYS.map((_, d) => {
       const a = Math.max(at(act.start, act.e, d), act.pre ? at(act.pre.start, act.pre.e, d) : 0);
-      return act.e < 0 ? at(act.start, act.e, d) : Math.max(a, sq.e ? at(sq.s, sq.e, d) : 0);
+      // a move against the grain sets things back, but the people on site still do part of what they can see
+      const own = sq.e ? at(sq.s, sq.e, d) : 0;
+      return act.e < 0 ? round2(at(act.start, act.e, d) + own * 0.7) : Math.max(a, own);
     }) };
   }
   // A good company fixes some things without being told. The most visible problem on site gets
   // handled by the people who see it every day, so on your own something is always resolved.
-  let team;
+  // It is never one the room just sent the wrong way: the team can't fix what leadership redirected.
+  let team, teamKey;
   function teamFix() {
-    if (team !== undefined) return team;
-    const can = ['F2', 'F1', 'F5'].filter((f) => model[f] && model[f].sq && model[f].sq.e > 0);
-    team = can.length ? can[hash(world.seed + 'team') % can.length] : null;
+    const key = Object.keys((state.meet && state.meet.answers) || {}).length;
+    if (team !== undefined && teamKey === key) return team;
+    const off = new Set(yours().items.filter((x) => x.kind === 'finding' && x.handling === 'counter').map((x) => x.fid));
+    const order = ['F2', 'F1', 'F5', 'F3'].filter((f) => model[f] && model[f].sq && model[f].sq.e > 0);
+    const first3 = order.filter((f) => f !== 'F3'), pool = first3.filter((f) => !off.has(f));
+    const can = pool.length ? pool : order.filter((f) => !off.has(f));
+    // the most visible is the one that costs the most where people can see it
+    const worth = (f) => (f === 'F2' ? model.F2.weekly * fin.cm : f === 'F5' ? model.F5.perExit : model[f].weekly) * (1 + (hash(world.seed + f) % 10) / 100);
+    team = can.length ? can.slice().sort((x, y) => worth(y) - worth(x))[0] : null; teamKey = key;
     return team;
   }
+  const teamText = (fid, Mo) => (fid === 'F3' ? t('The front desk' + (placeOf(fid) ? ' at ' + placeOf(fid) : '') + ' restarts the {followup} on its own.') : Mo.sq.text);
   const fmtM = (Mo, v) => { const u = Mo.metric.unit; return u === '$' ? money(v) : u === 'count' ? (v === 1 ? '1 exit' : v + ' exits') : u === '%' ? v + '%' : u === 'hrs' && v === 1 ? '1 hr' : v + ' ' + u; };
   const okAt = (Mo, m, p) => { const o = Mo.metric.ok; return p > 0 && (o.op === 'le' ? m <= o.v : o.op === 'ge' ? m >= o.v : p >= o.v); };
 
@@ -142,7 +153,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       if (plan.mode !== 'none' && plan.mode !== 'alert' && d === act.start) lines.push({ t: plan.mode === 'counter' ? (Mo.act.counter[plan.key] || Mo.act.unclear)
         : plan.mode === 'partial' ? 'Findings back. ' + Mo.act.aligned
           : plan.waited ? (act.pre ? 'Numbers are back. Full plan under way.' : 'Numbers are back. Decided: ' + lc(Mo.act[plan.mode])) : Mo.act[plan.mode], k: plan.mode === 'counter' ? 'bad' : 'act' });
-      if (sq.e && d === sq.s && act.e >= 0 && sq.e > (act.start <= d ? act.e : 0)) lines.push({ t: sq.text, k: 'info' });
+      if (sq.e && d === sq.s && (act.e < 0 || sq.e > (act.start <= d ? act.e : 0))) lines.push({ t: sq.text, k: 'info' });
       if (fid === 'F2' && d === 3) lines.push(pd >= 0.5 ? { t: Mo.fail.held, k: 'good' } : { t: Mo.fail.lost, k: 'bad' });
       if (fid === 'F4' && cr) lines.push({ t: Mo.creditText, k: 'good' });
       if (fid === 'F5' && d === 4) lines.push(m === 0 ? { t: Mo.exit.held, k: 'good' } : { t: Mo.exit.lost, k: 'bad' });
@@ -154,7 +165,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const run = Math.round(Mo.run * (pf < 0 ? pf / 2 : pf) / 100) * 100;
     const pending = plan.mode !== 'none' && act.start > 4 && !act.pre;
     return { side, mode: plan.mode, key: plan.key, start: act.start, first: act.pre ? act.pre.start : act.look !== undefined ? act.look : act.start, e: act.e, plan, days, profit: sum('profit'), revenue: sum('revenue'), cost: sum('cost'), credit, run,
-      status: pending ? 'waiting' : days[4].status, from: fmtM(Mo, met.path ? 0 : met.start), to: days[4].shown, series: [met.path ? 0 : met.start].concat(days.map((x) => x.m)) };
+      sq: sq.e || 0, status: pending ? 'waiting' : days[4].status, from: fmtM(Mo, met.path ? 0 : met.start), to: days[4].shown, series: [met.path ? 0 : met.start].concat(days.map((x) => x.m)) };
   }
 
   function plans() {
@@ -164,7 +175,8 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const first1 = (x) => Math.min(x.s, x.pre ? x.pre.start : 9);
     for (const it of Y.items) if (it.kind === 'finding' && it.decision !== 'dropped') {
       const mode = it.handling === 'aligned' ? 'aligned' : it.handling === 'counter' ? 'counter' : it.handling === 'partial' ? 'partial' : 'unclear';
-      const plan = { mode, key: it.key, s: it.s, mult: it.mult, item: it.n, pilot: it.pilot, waited: ['parked', 'next', 'agreed'].includes(it.decision) && it.s > 1, pre: it.pre };
+      // on your own the owner works from the meeting notes, not the numbers: the first fix lands a little less precisely
+      const plan = { mode, key: it.key, s: it.s, mult: Math.min(0.85, it.mult), item: it.n, pilot: it.pilot, waited: ['parked', 'next', 'agreed'].includes(it.decision) && it.s > 1, pre: it.pre };
       const prev = youPlan[it.fid];
       if (!prev || rank[mode] > rank[prev.mode] || (rank[mode] === rank[prev.mode] && first1(plan) < first1(prev))) youPlan[it.fid] = plan;
       // two items on one problem: whatever the room settled first still starts on time
@@ -174,7 +186,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     // With Wake, what you handed off starts Monday. Everything else Wake found is still on its
     // watch: the owner gets the alert with the numbers attached at 7:48 Tuesday and acts on it.
     const wakePlan = {};
-    for (const f of world.findings) wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: 1, fast: 1 } : { mode: 'alert', key: 'aligned', s: 1, mult: 1 };
+    for (const f of world.findings) wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: 1, fast: 1 } : { mode: 'alert', key: 'aligned', s: 1, mult: 1, fast: 1 };
     return { Y, youPlan, wakePlan };
   }
 
@@ -310,12 +322,11 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const share = (side, r, k) => {
       const L = r[side];
       if (side === 'wake') return 1;
-      const e = L.e;
-      if (L.mode === 'counter') return k <= 3 ? -0.25 : k === 4 ? 0 : 0.6;
-      if (L.mode === 'unclear') return k === 2 ? 0.4 : 0.7;
-      if (L.mode !== 'none') return k === 2 && L.start > 4 ? e * 0.5 : e;
+      const e = L.e, sq = L.sq || 0;
+      if (L.mode === 'counter') return k <= 3 ? sq * 0.7 - 0.25 : k === 4 ? sq : Math.max(sq, 0.6);
+      if (L.mode === 'unclear') return Math.max(sq, k === 2 ? 0.4 : 0.7);
+      if (L.mode !== 'none') return Math.max(sq, k === 2 && L.start > 4 ? e * 0.5 : e);
       const [wk, eLate] = late[r.id] || [99, 0];
-      const sq = model[r.id].sq.e || 0;
       return k >= wk ? Math.max(sq, eLate) : sq;
     };
     const catchRate = { you: 0.2 + 0.3 * found / n, wake: 1 };

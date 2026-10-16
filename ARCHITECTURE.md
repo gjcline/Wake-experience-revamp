@@ -101,6 +101,13 @@ room. Every outcome, reaction and week line is predetermined content.
 - Every false alarm has an explanation the player could have found.
 - The clock never passes 10:00, opening things never costs time, flags are capped at 5.
 - No tokens, internal labels or em dashes reach the screen or the report.
+- On your own is a thriving business having a steady week, never a losing one: the people on
+  site handle part of every problem they can see, the team fully fixes the costliest visible
+  problem the room didn't redirect, a move against the grain costs ground on that problem but
+  never more than the team makes back, and the owner works from meeting notes (85% precision).
+  The audit checks that the week, run-rate and quarter are always positive on your own, that
+  Wake is always ahead, and how far: on your own lands around a third of the week with Wake for
+  a typical player and about half for a sharp one.
 
 ## What the sales team gets
 
