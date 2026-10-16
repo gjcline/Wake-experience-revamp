@@ -148,7 +148,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       const line = f.kind === 'email' ? 'New email from ' + (p ? p.name : '') + '. ' + (f.links.length ? 'Wake read it: insight #' + f.links.join(', #') + '.' : 'Wake read it. Nothing new.')
         : (p ? p.name : 'New text') + ' texted you.' + (f.sharpen ? ' You can send it to Wake.' : '');
       const el = h('button', { class: 'toast' + (f.kind === 'email' ? ' cy' : ''), type: 'button', onclick: () => { el.remove(); openPanel(f.kind === 'email' ? 'email' : 'message'); if (f.kind === 'email') openDoc(f.source); else openThread(f.from); } }, f.from ? av(f.from, 30) : null, h('span', {}, line));
-      toasts.appendChild(el); sfx.credit();
+      toasts.appendChild(el); sfx.alert();
       setTimeout(() => el.remove(), 8000);
     }
   }

@@ -77,7 +77,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     for (const f of fired) {
       const src = w.sources[f.source];
       const el = h('button', { class: 'toast', type: 'button', onclick: () => { el.remove(); go(f.source); } }, src.from ? av(src.from, 30) : null, h('span', {}, f.toast));
-      toasts.appendChild(el); sfx.credit();
+      toasts.appendChild(el); sfx.alert();
       setTimeout(() => el.remove(), 8000);
     }
   }
