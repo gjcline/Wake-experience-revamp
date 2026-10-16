@@ -52,6 +52,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   let ticker = null;
   const ghost = { stop: () => {} };
   setCleanup(() => { clearInterval(steam); clearInterval(ticker); ghost.stop(); coach.stop(); });
+  sfx.ambience(1);
   drawScene();
 
   // ------------------------------------------------------------ Wake loads into the computer

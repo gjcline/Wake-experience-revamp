@@ -78,6 +78,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
   // ------------------------------------------------------------ meeting 1: on your own
   // The engine directs the room one beat at a time; this screen plays each beat as it comes.
   function meeting() {
+    sfx.ambience(0.6);
     const S = stage('you');
     let owed = 0, decided = 0, lastItem = -1;
     const choose = (b) => new Promise((resolve) => {
@@ -152,6 +153,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
 
   // ------------------------------------------------------------ meeting 2: with Wake
   function meetingWake() {
+    sfx.ambience(0.6);
     const K = game.meetingWake();
     const S = stage('wake');
     let fast = reduced, skipped = false, answered = 0, decided = 0;
@@ -232,6 +234,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
 
   // ============================================================ THE WEEK
   function week() {
+    sfx.ambience(0);
     const W = w(), WK = game.week();
     const rows = WK.rows, n = rows.length;
     const pins = W.pins.slice(), hq = hqPin(pins);

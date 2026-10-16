@@ -153,7 +153,7 @@ const arcade = createArcade({
     arcade.arrival(game, () => round1());
   },
 });
-const restart = () => { coach.stop(); game = null; arcade.start(); };
+const restart = () => { coach.stop(); sfx.ambience(0); game = null; arcade.start(); };
 
 // ------------------------------------------------------------------ ROUND 1: on your own
 function round1() {

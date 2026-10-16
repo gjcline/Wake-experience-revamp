@@ -62,6 +62,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     }
   }, reduced ? 600 : CLOCK_MS);
   setCleanup(() => { clearInterval(steam); clearInterval(ticker); coach.stop(); });
+  sfx.ambience(1);
 
   // ------------------------------------------------------------ the desk
   function drawSpots() {
