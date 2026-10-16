@@ -43,13 +43,8 @@ const DOWN = ['..HHH..', '.HHHHH.', '.HSSSH.', '..SSS..', '.CCCCC.', 'SCCCCCS', 
 const playerSprite = (role, px = 6) => h('span', { class: 'icon', html: pix(DOWN, personPal({ hair: '#2A1C14', skin: '#D9A07A' }, ROLE_COLOR[role]), px) });
 
 // ------------------------------------------------------------------ shared bits
-// One sound switch for the whole game, mounted outside the screens so it never moves.
-export function ensureMute() { if (!document.querySelector('.a-mute')) document.body.appendChild(muteBtn()); }
-function muteBtn() {
-  const b = h('button', { class: 'a-mute', type: 'button', 'aria-pressed': String(!sfx.isMuted()) }, sfx.isMuted() ? 'SOUND OFF' : 'SOUND ON');
-  b.addEventListener('click', (e) => { e.stopPropagation(); sfx.setMuted(!sfx.isMuted()); b.textContent = sfx.isMuted() ? 'SOUND OFF' : 'SOUND ON'; b.setAttribute('aria-pressed', String(!sfx.isMuted())); if (!sfx.isMuted()) sfx.blip(); });
-  return b;
-}
+// The game is silent, so there is no sound switch to mount.
+export function ensureMute() {}
 const abtn = (label, onclick, cls = 'a-btn') => h('button', { class: cls, type: 'button', onclick: (e) => { sfx.select(); onclick(e); } }, label);
 
 function logo() {
