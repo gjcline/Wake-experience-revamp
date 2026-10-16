@@ -413,7 +413,7 @@ export function createFinale({ game, show, root, reduced, setCleanup, onWalkBack
           h('div', { class: 'fs-y' }, h('b', {}, r.you)),
           h('div', { class: 'fs-w' }, h('b', {}, r.wake)),
           h('div', { class: 'fs-a' + (r.youWins ? ' yours' : '') }, r.ahead ? h('b', {}, r.ahead) : h('span', {}, r.youWins ? 'Yours this time' : 'Even'))));
-        sfx[r.ahead ? 'coin' : 'blip'](); await wait(330);
+        await wait(330);
       }
       verdict.hidden = false;
       verdict.replaceChildren(h('p', { class: 'fs-v' }, R.verdict), R.credit ? h('p', { class: 'fs-credit' }, R.credit) : null);
