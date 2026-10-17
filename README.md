@@ -1,19 +1,51 @@
 # The Wake Experience
 
-A playable business simulation. One static page, no backend.
+A playable business simulation that replaces the traditional product demo. The player runs one
+Monday morning at a generated company on their own, then runs the same morning again with Wake,
+then watches both meetings and both weeks play out side by side, and ends with a report.
 
-## Deploy to Vercel
+One static page. Vanilla JavaScript (ES modules), bundled with esbuild. No backend, no framework.
 
-    tar -xzf wake-experience.tar.gz
-    cd wake-experience
+## Getting started
+
     npm install
-    npm test          # 16 path and credibility tests
-    npx vercel --prod
+    npm test              # path and fairness tests (node --test)
+    npm run build         # writes dist/index.html (web) and dist/artifact.html
+    npx serve dist        # or open dist/index.html directly
 
-Vercel runs `npm run build` and serves `dist/`. A prebuilt `dist/index.html` is included,
-so you can also open that file directly or drop it on any static host.
+Add `?seed=123` to the URL to replay the same company.
 
-## Change the content
+## Where things live
 
-Everything a visitor reads lives in `src/content/`. Edit, then `npm test && npm run build`.
-See ARCHITECTURE.md for how the pieces fit.
+    src/content/   the company generator and all the words a player reads
+                   scenario.js  one seed decides the company, its people, every figure and every problem
+                   exec.js      the Round 2 executive library (statements, reports, scorecards)
+                   shells.js, roles.js, business.js, rounds.js   vocabulary and fixed rules
+    src/engine/    pure logic, no DOM: the game, Wake's analysis, the meeting director,
+                   the week model, the final score and the report
+    src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
+                   the live guide (app.js) and the arcade front end (arcade/)
+    test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)
+    dist/          built output, committed so the page can be opened or hosted without a build
+
+ARCHITECTURE.md explains how the pieces fit, the balance rules, and what the sales team gets.
+
+## Before you push
+
+    npm test                     # must pass
+    node test/audit.mjs 1500     # should list only the known edge cases, nothing new
+    npm run build                # commit the rebuilt dist/
+
+The audit plays random games and reports any game where the numbers stop telling one story
+(for example, the player's own week going negative, or Wake not being ahead).
+
+## Deploy
+
+Vercel: `vercel.json` runs `npm run build` and serves `dist/`. Any static host works with `dist/index.html`.
+
+## Notes
+
+- Everything a player sees is generated from a seed, so the data always agrees with itself.
+  Avoid adding new random draws to the generator: use the hash helpers so existing seeds stay stable.
+- Sound: the game is silent except for a soft alert when a message arrives (src/ui/arcade/sound.js).
+- `window.WakeExperience.session()` returns the full event log and summary for each session.
