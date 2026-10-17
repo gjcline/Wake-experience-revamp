@@ -8,12 +8,19 @@ and narrates the player through it with a live guide.
 
 1. Arcade front end: attract screen, coin, how to play, choose business and role, countdown,
    bird's-eye arrival at the office.
-2. Round 1, on your own. The desk holds every report, email, text and location file. The
+2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
+   window holding the apps a team actually uses. QuickBooks has the finance reports (weekly flash,
+   labor, purchasing); Google Drive has the exports from every other system as Sheets, the location
+   scorecards (one tab per location) and the notes as Docs; Gmail, Messages, Google Calendar and
+   Google Contacts hold the inbox, texts, calendar and team. The
    clock runs 7:48 to 10:00 by itself (one minute every two seconds). Nothing costs time.
    The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
    pick one of four reads (with the action beneath it), say it in their own words, name an
    owner, say how sure they are. Words and confidence are kept for the sales team.
-3. Rewind to 7:48. Round 2, with Wake. Wake reads every system, then hands over five ranked
+3. Rewind to 7:48. Round 2, with Wake. Same computer, with Wake added to the dock. Gmail is
+   labeled by insight, QuickBooks carries statements current to the morning, Drive carries the
+   executive briefs and the drafted Thursday brief, the calendar carries Wake's holds, and texts
+   can be sent to Wake from Messages. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
 4. The meeting, twice. The room asks what any leadership team asks: what is driving it, what
@@ -68,19 +75,23 @@ and narrates the player through it with a live guide.
                                     afternoon after, the week model (per-problem measure, weekly value from the
                                     company's own numbers, what happens when nobody is assigned), the score
                    recap.js         the verdict, the moment, and the one-page report (screen + download)
-    src/ui/        round1.js        the desk: reports, location map and scorecards, inbox, phone, calendar,
-                                    notes, team, connected data, the composer, attaching context, the guide steps
-                   round2.js        the Wake desk: the load-in, insights on the computer (5 to 8, pick 3 to 5),
-                                    source trace pop-ups back to the Round 1 originals, exec briefs, the drafted
-                                    Thursday brief, inbox tagged by insight, phone with send to Wake, the annotated
-                                    calendar, team assignments, and the guided tour
+    src/ui/        os/              the computer both desks run on: shell.js (menu bar, dock, browser window,
+                                    notifications, the game strip), apps.js (Gmail, QuickBooks, Drive, Sheets,
+                                    Docs, Google Calendar, Messages, Contacts as plain builders), icons.js, os.css
+                   round1.js        the desk: reports in QuickBooks and Sheets, scorecards as a Sheet with a tab per
+                                    location, Gmail, Messages, Calendar, notes as Docs, Contacts, connected data,
+                                    the composer, attaching context, the guide steps
+                   round2.js        the Wake desk: Wake connecting, the Wake app (5 to 8 insights, pick 3 to 5),
+                                    the trace drawer back to the Round 1 originals, statements in QuickBooks, briefs
+                                    and the drafted Thursday brief in Drive, Gmail labeled by insight, Messages with
+                                    send to Wake, Wake's calendar holds, Contacts with assignments, the guided tour
                    finale.js        the meeting room (questions, answers, follow-ups), Wake's meeting, the result,
                                     the week as a two-player match on the city map, the final score and the report
                    app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   arcade/          attract screen, coin, setup, map and walking avatar, pixel desk, sound
+                   arcade/          attract screen, coin, setup, map and walking avatar, sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
                    audit.mjs        thousands of random games: flags the moment any number stops telling one story
 

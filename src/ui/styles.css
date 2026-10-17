@@ -23,8 +23,8 @@ body { margin: 0; background: #07060F; }
 .wx :focus-visible { outline: 3px solid var(--a-cyan); outline-offset: 3px; }
 
 /* type */
-.screen h1 { font: 400 clamp(17px, 2.2vw, 24px)/1.45 var(--px); color: var(--acc); text-wrap: balance; letter-spacing: .01em; }
-.screen h2 { font: 400 clamp(13px, 1.5vw, 16px)/1.5 var(--px); color: var(--a-ink); text-wrap: balance; }
+.screen:not(.os-screen) h1 { font: 400 clamp(17px, 2.2vw, 24px)/1.45 var(--px); color: var(--acc); text-wrap: balance; letter-spacing: .01em; }
+.screen:not(.os-screen) h2 { font: 400 clamp(13px, 1.5vw, 16px)/1.5 var(--px); color: var(--a-ink); text-wrap: balance; }
 .lede { font-size: 20px; line-height: 1.5; color: var(--a-ink); max-width: 38em; }
 .quiet { color: var(--a-dim); font-size: 16px; }
 .stamp { font: 400 11px/1.6 var(--px); color: var(--a-dim); letter-spacing: .06em; }

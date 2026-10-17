@@ -25,6 +25,8 @@ Add `?seed=123` to the URL to replay the same company.
                    the week model, the final score and the report
     src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
                    the live guide (app.js) and the arcade front end (arcade/)
+    src/ui/os/     the computer both desks run on, and look-alike Gmail, QuickBooks, Drive,
+                   Sheets, Docs, Google Calendar, Messages and Contacts
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)
     dist/          built output, committed so the page can be opened or hosted without a build
 
