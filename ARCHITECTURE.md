@@ -92,14 +92,15 @@ and narrates the player through it with a live guide.
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   scenes.js        the art scenes: the arcade home and setup on its screen, the arrival
-                                    (building, office walk, desk) and the step card every scene uses
-                                    ("what you're doing", "why it matters", one button). Images are 2560x1440;
-                                    a camera pans and zooms across them and live UI is pinned at image pixels.
-                   desk.js          the desk photo with the live computer mounted in the monitor and a phone
-                                    that buzzes for texts and opens Messages when picked up. Under 820px wide
-                                    the desk steps aside and the computer fills the window.
-                   scenes.css       styles for the scenes, the step card, the desk and the phone
+                   scenes.js        the arcade home, the stage select (business) and character select (role) with
+                                    stat bars, Player 1 ready, and the office scenes. Every step opens with one
+                                    card: "what you're doing", "why it matters", one button.
+                   pixel/office.js  the building in three-quarter top-down pixel art: street, lobby, operations
+                                    floor, hallway, meeting room, break room, your office. People walk fixed
+                                    routes (arrival, to the meeting, back); Friday is the same map after dark.
+                   pixel/sprites.js storefronts for the stage select and stand-in role portraits, used until
+                                    art/roles/<gm|coo|owner|partner|regional>.webp exist
+                   scenes.css       styles for the arcade, the select screens, the office scenes and the step card
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks

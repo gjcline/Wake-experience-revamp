@@ -11,7 +11,6 @@ import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { fmtClock } from '../engine/config.js';
 import { createComputer, gameStrip, face, addressOf, glyph, icon } from './os/shell.js';
-import { createDesk } from './desk.js';
 import { gmail, gmailRow, gmailMessage, mailDate, qbo, qboReportList, qboReport, dataTable, drive, docs, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
 
 const CLOCK_MS = 2000;
@@ -40,22 +39,18 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     { id: 'qbo', name: 'QuickBooks', icon: 'qbo', title: 'Reports | QuickBooks', url: 'qbo.intuit.com/app/reportlist' },
     { id: 'drive', name: 'Google Drive', icon: 'drive', title: 'Executive briefs - Google Drive', url: 'drive.google.com/drive/folders/wake-briefs' },
     { id: 'calendar', name: 'Google Calendar', icon: 'calendar', title: 'Google Calendar - Week', url: 'calendar.google.com/calendar/u/0/r/week' },
+    { id: 'messages', name: 'Messages', icon: 'messages', title: 'Messages', chrome: 'native' },
     { id: 'contacts', name: 'Contacts', icon: 'contacts', title: 'Directory - Google Contacts', url: 'contacts.google.com/directory' },
   ];
   const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { app = null; badges(); sfx.back(); coach.emit('desk'); coach.context('desk'); } });
   const overlay = h('div', { class: 'overlay os-ov', hidden: true });
   const strip = gameStrip({ round: 'Step 3 of 6 · With Wake', tone: 'wake', task: 'Decide what matters. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights to hand your team before your ' + w.role.meetingName + ' at 10:00 AM.', onRules: rulesCard });
-  // the same desk, tidier: Wake has done the reading
-  const desk = createDesk({ tidy: true, computer: pc.el, onPhone: (up) => {
-    if (up) { renderMessages(); sfx.blip(); coach.emit('phone'); coach.context('messages'); }
-    else { thread = null; sfx.back(); coach.context(app || 'desk'); }
-  } });
-  show('wake', 'os-screen round2 at-desk', strip.el, desk.el, overlay);
+  show('wake', 'os-screen round2', strip.el, pc.el, overlay);
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
   pc.setClock(clockLabel());
 
   let ticker = null;
-  setCleanup(() => { clearInterval(ticker); coach.stop(); desk.destroy(); });
+  setCleanup(() => { clearInterval(ticker); coach.stop(); });
   sfx.ambience(1);
 
   // ------------------------------------------------------------ Wake connects, then the morning runs
@@ -74,7 +69,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     ticker = setInterval(() => {
       const r = game.tickWake();
       shown = r.clock; pc.setClock(clockLabel());
-      if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (desk.phone.isOpen) renderMessages(); }
+      if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (app === 'messages') renderMessages(); }
       if (app === 'calendar') { const nl = document.querySelector('.gc-now'); if (nl) nl.style.top = ((shown - 7 * 60) / 60 * 48) + 'px'; }
       if (r.atTen && strip.alert.hidden) { strip.alert.hidden = false; strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, ' Your meeting is starting. Lock in your briefing when you\'re ready.')); }
     }, reduced ? 600 : CLOCK_MS);
@@ -84,7 +79,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   function badges() {
     pc.badge('wake', live ? game.insights().length : 0);
     pc.badge('gmail', game.unreadR2('email'));
-    desk.phone.setBadge(game.unreadR2('message'));
+    pc.badge('messages', game.unreadR2('message'));
     pc.badge('qbo', statements.filter((id) => !seenDoc[id]).length);
     pc.badge('drive', groups.flatMap((g) => g[1]).filter((id) => w.sources[id] && !STATEMENTS.includes(id) && !seenDoc[id]).length);
   }
@@ -97,7 +92,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         setTimeout(() => { const nn = pc.notify({ app: 'wake', title: 'Wake read it', text: f.links.length ? 'It feeds insight #' + f.links.join(', #') + '.' : 'Nothing new. No action needed.', onclick: () => pc.open('wake') }); nn.classList.add('wkn'); }, reduced ? 0 : 900);
       } else {
         const src = w.sources[f.source] || {};
-        desk.phone.buzz({ title: p ? p.name : 'New message', text: (src.body || [''])[0] });
+        pc.notify({ app: 'messages', title: p ? p.name : 'New message', text: (src.body || [''])[0] + (f.sharpen ? '  ·  You can send it to Wake.' : ''), onclick: () => { thread = f.from; pc.open('messages'); } });
       }
     }
   }
@@ -113,6 +108,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     else if (app === 'qbo') renderQbo();
     else if (app === 'drive') renderDrive();
     else if (app === 'calendar') renderCalendar();
+    else if (app === 'messages') renderMessages();
     else if (app === 'contacts') renderContacts();
   }
   const fill = (...kids) => pc.body.replaceChildren(...kids.flat().filter(Boolean));
@@ -342,10 +338,10 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const ts = threads();
     const t = thread ? ts.find((x) => x.from === thread) : null;
     if (t) for (const s of t.list) game.openR2(s.id);
-    desk.phone.body.replaceChildren(messages({
+    fill(messages({
       threads: ts.map((x) => { const last = x.list[x.list.length - 1]; return imThread({ name: person(x.from).name, preview: last.body[last.body.length - 1], when: mailDate(last.when, w.shell.monday), unread: x.unread && x.from !== thread, on: x.from === thread, tag: x.sendable ? h('em', { class: 'im-wk' }, icon('wake', 'ico im-wk-ico'), 'Can send to Wake') : null, onclick: () => { thread = x.from; sfx.blip(); renderMessages(); coach.emit('thread'); } }); }),
       current: !!t,
-      header: t ? [h('button', { class: 'im-back', type: 'button', onclick: () => { thread = null; sfx.back(); renderMessages(); } }, '‹ Messages'), h('span', { class: 'im-to' }, h('b', {}, person(t.from).name)), h('span', { class: 'im-sub' }, person(t.from).title)] : null,
+      header: t ? [h('span', { class: 'im-to' }, 'To: ', h('b', {}, person(t.from).name)), h('span', { class: 'im-sub' }, person(t.from).title)] : null,
       bubbles: t ? t.list.map((s) => h('div', { class: 'im-group', id: 'mg-' + s.id },
         h('p', { class: 'im-time' }, s.when || ''), s.body.map((line) => h('p', { class: 'im-b in' }, line)),
         s.sent ? h('span', { class: 'im-sent' }, icon('wake', 'ico im-wk-ico'), 'Sent to Wake' + (w.sharpen[s.id].finding ? ' · insight #' + game.insight(w.sharpen[s.id].finding).rank : '')) :
@@ -428,7 +424,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       desk: [
         { text: 'Same computer, same Monday, same 7:48 AM, same data. This time Wake is connected to all of it, and it read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
         { text: 'Open Wake. Everything you dug through in Round 1 is already read, connected and ranked there.', target: '.dock-app[data-app="wake"]', wait: 'app:wake', hint: 'Open Wake', skipIf: () => coach.seen('app:wake') },
-        step('A quick tour of the rest of your desk. Texts still come to your phone, and they aren\'t in any system. Pick it up and send one to Wake: it goes straight to the insight it belongs to.', document.querySelector('.dk-phone') ? '.dk-phone' : '.dk-fab'),
+        step('A quick tour of the rest of your dock. Texts still land in Messages, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.dock-app[data-app="messages"]'),
         step('QuickBooks now has statements current to this morning, not month end: income statement, cash flow and balance sheet.', '.dock-app[data-app="qbo"]'),
         step('Drive holds your executive briefs, and Thursday\'s brief for ' + boss + ' is already drafted. You review it. You don\'t write it.', '.dock-app[data-app="drive"]'),
         step('Gmail is connected. Wake has read every email, and each one is labeled with the insight it feeds.', '.dock-app[data-app="gmail"]'),

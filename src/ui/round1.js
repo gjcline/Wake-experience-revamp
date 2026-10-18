@@ -10,7 +10,6 @@ import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { fmtClock } from '../engine/config.js';
 import { createComputer, gameStrip, face, addressOf, glyph, icon } from './os/shell.js';
-import { createDesk } from './desk.js';
 import { gmail, gmailRow, gmailMessage, mailDate, qbo, qboReportList, qboReport, dataTable, drive, sheets, docs, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
 
 const CLOCK_MS = 2000; // one minute of the morning every two seconds
@@ -42,26 +41,21 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     { id: 'qbo', name: 'QuickBooks', icon: 'qbo', title: 'Reports | QuickBooks', url: 'qbo.intuit.com/app/reportlist' },
     { id: 'drive', name: 'Google Drive', icon: 'drive', title: 'Shared with me - Google Drive', url: 'drive.google.com/drive/shared-with-me' },
     { id: 'calendar', name: 'Google Calendar', icon: 'calendar', title: 'Google Calendar - Week', url: 'calendar.google.com/calendar/u/0/r/week' },
+    { id: 'messages', name: 'Messages', icon: 'messages', title: 'Messages', chrome: 'native' },
     { id: 'contacts', name: 'Contacts', icon: 'contacts', title: 'Directory - Google Contacts', url: 'contacts.google.com/directory' },
   ];
   const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { closeDoc(); app = null; docId = null; history = []; badges(); sfx.back(); coach.emit('desk'); coach.context('desk'); } });
   const overlay = h('div', { class: 'overlay os-ov', hidden: true });
   const strip = gameStrip({ round: 'Step 2 of 6 · On your own', task: 'Find what matters. Flag ' + game.MIN_FLAGS + ' to ' + game.MAX_FLAGS + ' figures and decide what happens with each. Your ' + w.role.meetingName + ' is at 10:00 AM.', onRules: rulesCard });
 
-  // the computer sits on your desk; texts come to the phone next to it
-  const desk = createDesk({ tidy: false, computer: pc.el, onPhone: (up) => {
-    if (up) { renderMessages(); sfx.blip(); coach.emit('phone'); coach.context('messages'); }
-    else { closeDoc(); docId = null; thread = null; sfx.back(); coach.context(app || 'desk'); }
-  } });
-  show('day', 'os-screen round1 at-desk', strip.el, desk.el, overlay);
+  show('day', 'os-screen round1', strip.el, pc.el, overlay);
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
   pc.setClock(clockLabel());
 
   const ticker = setInterval(() => {
     const r = game.tickClock();
     shown = r.clock; pc.setClock(clockLabel());
-    desk.phone.setTime(fmtClock(shown));
-    if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (desk.phone.isOpen) renderMessages(); }
+    if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (app === 'messages') renderMessages(); }
     if (app === 'calendar') { const now = document.querySelector('.gc-now'); if (now) now.style.top = ((shown - 7 * 60) / 60 * 48) + 'px'; }
     if (r.atTen && strip.alert.hidden) {
       strip.alert.hidden = false;
@@ -69,14 +63,14 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       sfx.credit();
     }
   }, reduced ? 600 : CLOCK_MS);
-  setCleanup(() => { clearInterval(ticker); coach.stop(); desk.destroy(); });
+  setCleanup(() => { clearInterval(ticker); coach.stop(); });
   sfx.ambience(1);
 
   // ------------------------------------------------------------ the dock
   function badges() {
     const unreadOf = (ids) => ids.filter((id) => game.state.sources[id] && !game.state.sources[id].opened).length;
     pc.badge('gmail', game.unread('email'));
-    desk.phone.setBadge(game.unread('message'));
+    pc.badge('messages', game.unread('message'));
     pc.badge('qbo', unreadOf(qboIds));
     pc.badge('drive', unreadOf(driveIds) + (locIds.some((id) => !game.state.sources[id].opened) ? 1 : 0) + unreadOf(['note_role', 'note_mine']));
   }
@@ -85,8 +79,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       const src = w.sources[f.source];
       const p = src.from ? person(src.from) : null;
       sfx.alert();
-      if (src.kind === 'message') desk.phone.buzz({ title: p ? p.name : 'New message', text: src.body[0] });
-      else pc.notify({ app: 'gmail', title: p ? p.name : '', text: src.title, onclick: () => go(f.source) });
+      pc.notify({ app: src.kind === 'message' ? 'messages' : 'gmail', title: p ? p.name : '', text: src.kind === 'message' ? src.body[0] : src.title, onclick: () => go(f.source) });
     }
   }
 
@@ -105,6 +98,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     else if (app === 'qbo') renderQbo();
     else if (app === 'drive') renderDrive();
     else if (app === 'calendar') renderCalendar();
+    else if (app === 'messages') renderMessages();
     else if (app === 'contacts') renderContacts();
   }
   const fill = (...kids) => { pc.body.replaceChildren(...kids.flat().filter(Boolean)); };
@@ -115,8 +109,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     if (from) history.push(from);
     const k = src.kind;
     if (k === 'email') { mailId = id; return show2('gmail', () => openMail(id)); }
-    if (k === 'message') { thread = src.from; if (desk.phone.isOpen) renderMessages(); else desk.phone.open(); return; }
-    if (desk.phone.isOpen) desk.phone.close();
+    if (k === 'message') { thread = src.from; return show2('messages'); }
     if (k === 'report') { if (QBO_IDS.includes(id)) { qboDoc = id; return show2('qbo', () => openQbo(id)); } driveFile = id; return show2('drive', () => openFile(id)); }
     if (k === 'location') { driveFile = SCORE_FILE; sheetTab = id; return show2('drive', () => openScorecards(id)); }
     if (k === 'note') { driveFile = id; return show2('drive', () => openFile(id)); }
@@ -129,7 +122,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     if (then) then(); else render();
   }
   const here = () => {
-    if (desk.phone.isOpen) { const t = threads().find((x) => x.from === thread); return { id: t ? t.list[0].id : null, title: thread ? person(thread).name : 'Messages' }; }
+    if (app === 'messages') { const t = threads().find((x) => x.from === thread); return { id: t ? t.list[0].id : null, title: thread ? person(thread).name : 'Messages' }; }
     if (app === 'drive' && driveFile === SCORE_FILE) return { id: sheetTab, title: sheetTab === 'loc_all' ? 'All locations' : w.sources[sheetTab].title + (M ? ' scorecard' : '') };
     return { id: docId, title: docId && w.sources[docId] ? w.sources[docId].title : 'where you were' };
   };
@@ -342,10 +335,10 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const t = thread ? ts.find((x) => x.from === thread) : null;
     if (t) { for (const s of t.list) if (!game.state.sources[s.id].opened) { game.open(s.id); } if (docId !== 'th:' + thread) { startDoc(t.list[0].id); docId = 'th:' + thread; } }
     const rel = []; if (t) for (const s of t.list) for (const r of game.view(s.id).related) if (!rel.some((x) => x.id === r.id)) rel.push(r);
-    desk.phone.body.replaceChildren(messages({
+    fill(messages({
       threads: ts.map((x) => { const last = x.list[x.list.length - 1]; return imThread({ name: person(x.from).name, preview: last.body[last.body.length - 1], when: mailDate(last.when, w.shell.monday), unread: x.unread && x.from !== thread, on: x.from === thread, onclick: () => { thread = x.from; history = []; hl = []; sfx.blip(); renderMessages(); coach.emit('doc:message'); } }); }),
       current: !!t,
-      header: t ? [h('button', { class: 'im-back', type: 'button', onclick: () => { closeDoc(); docId = null; thread = null; sfx.back(); renderMessages(); } }, '‹ Messages'), h('span', { class: 'im-to' }, h('b', {}, person(t.from).name)), h('span', { class: 'im-sub' }, person(t.from).title)] : null,
+      header: t ? [h('span', { class: 'im-to' }, 'To: ', h('b', {}, person(t.from).name)), h('span', { class: 'im-sub' }, person(t.from).title)] : null,
       bubbles: t ? [crumbs(), connected(rel.slice(0, 3)), t.list.map((s) => { const v = game.view(s.id); return h('div', { class: 'im-group' },
         h('p', { class: 'im-time' }, s.when || ''), s.body.map((line) => h('p', { class: 'im-b in' }, line)),
         attachBtn({ key: s.id, source: s.id, label: 'Text from ' + first(person(t.from).name) + ': "' + s.body[0].slice(0, 60) + (s.body[0].length > 60 ? '…' : '') + '"' }, v.attachedTo)); })] : null,
@@ -497,8 +490,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const flagged = () => game.state.flags.length >= 1;
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. Everything your team sent this morning is in the apps you already use: QuickBooks, Drive, Gmail, Calendar and your directory. Open anything. The guide follows you.', target: '.os-dock', next: 'NEXT ▶', once: true },
-      { text: 'Your phone is on the desk. It buzzes when someone texts you. Click it any time to pick it up and read.', target: '.dk-phone', next: 'NEXT ▶', once: true, skipIf: () => !document.querySelector('.dk-phone') },
+      { text: 'This is your computer. Everything your team sent this morning is in the apps you already use: QuickBooks, Drive, Gmail, Messages, Calendar and your directory. Open anything. The guide follows you.', target: '.os-dock', next: 'NEXT ▶', once: true },
       { text: 'A good place to start is QuickBooks. This morning\'s flash and the other finance reports are there.', target: '.dock-app[data-app="qbo"]', wait: 'app:qbo', hint: 'Open QuickBooks', skipIf: () => coach.seen('app:qbo') },
       { text: 'Your findings are stored up here. Open them any time to review, edit or reorder.', target: '.gs-findings', wait: 'findings', hint: 'Open your findings', when: flagged },
       { text: 'This list is exactly what you\'ll hand your team. Edit changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },

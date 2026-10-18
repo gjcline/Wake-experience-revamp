@@ -7,7 +7,7 @@ import { createGame } from '../engine/game.js';
 import { fmtClock } from '../engine/config.js';
 import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
-import { createScenes, ART, SHOT } from './scenes.js';
+import { createScenes } from './scenes.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
 import { createFinale } from './finale.js';
@@ -165,12 +165,13 @@ function roundOneDone() {
   const opened = Object.entries(s.sources).filter(([id, x]) => x.opened && !['team', 'exec'].includes(w.sources[id].kind)).length;
   const total = Object.entries(s.sources).filter(([id, x]) => x.available && !['team', 'exec'].includes(w.sources[id].kind) && id !== 'loc_all').length;
   const stat = (big, small) => h('div', { class: 'mc-stat' }, h('b', {}, big), h('span', {}, small));
-  world.place({ art: ART.desk, from: SHOT.desk, to: SHOT.all, ms: 2600, cover: false, delay: 500,
+  world.office(game, { day: w.shell.mondayLong, time: fmtClock(s.submittedAt), preset: 'office', at: 'office', z: 2.1,
     card: { step: 3, kicker: 'Round 1 complete · briefing locked at ' + fmtClock(s.submittedAt), title: 'That\'s how most Mondays go.',
       body: h('div', { class: 'mc-stats' }, stat(String(s.flags.length), 'findings for your team'), stat(opened + ' of ' + total, 'sources opened'), stat(fmtClock(s.submittedAt), 'briefing ready')),
       what: 'Next you\'ll run the exact same morning again: same company, same data, same 7:48 AM. This time with Wake.',
       why: 'Everything stays the same except Wake, so any difference you see comes from Wake, not from luck.',
-      cta: 'Rewind the morning' } }, resetDay);
+      cta: 'Rewind the morning' },
+    done: resetDay });
   sfx.credit();
 }
 
@@ -178,11 +179,12 @@ function roundOneDone() {
 async function resetDay() {
   const s = game.state, D = game.world.day;
   const clock = h('b', { class: 'mc-clock' }, fmtClock(s.submittedAt));
-  const { layer } = await world.scene({ art: ART.deskTidy, from: SHOT.all, to: SHOT.desk, ms: 2400, cover: false, delay: 300,
+  const { layer } = await world.office(game, { day: game.world.shell.mondayLong, time: fmtClock(D.start), preset: 'office', at: 'office', z: 2.1,
     card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Same Monday. Same 7:48 AM.', body: clock,
       what: 'Wake has already read every report, email and text from this morning. It hands you what matters, ranked, with the evidence and an owner for each. You pick what goes to your team.',
       why: 'Deciding is the part only you can do. Wake takes the digging off your plate, so you walk into ten o\'clock ready.',
-      cta: 'Sit back down', onGo: () => { world.clear(); game.startRound2(); round2(); } } });
+      cta: 'Sit back down' },
+    done: () => { game.startRound2(); round2(); } });
   const go = layer.querySelector('.mc-go .ab'); if (go) go.disabled = true;
   sfx.zoom();
   const step = Math.max(1, Math.round((s.submittedAt - D.start) / 24));
@@ -198,33 +200,33 @@ function round2() {
 // ------------------------------------------------------------------ the meeting
 async function walkToMeeting() {
   leave();
-  const { el } = await world.scene({ art: ART.office, from: SHOT.ownerOffice, to: SHOT.meetingRoom, ms: 3000, dim: false });
-  el.appendChild(h('p', { class: 'sc-cap' }, '10:00 AM. Your team is heading to the meeting room.'));
-  await wait(3000);
-  world.place({ art: ART.meeting, from: SHOT.all, to: [200, 60, 2100, 1181], ms: 6000, delay: 600,
+  world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
       what: 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
       why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
-      cta: 'Join the call' } }, () => finale().meeting());
+      cta: 'Join the call' },
+    done: () => finale().meeting() });
 }
 
 function walkBack() {
   leave();
-  world.place({ art: ART.office, from: SHOT.meetingRoom, to: SHOT.all, ms: 5000, delay: 600,
+  world.office(game, { day: 'Monday', time: '10:52 AM', preset: 'office', at: 'meeting', z: 2, route: 'toOffice', end: 'sit', endView: [192, 120, 1],
     card: { step: 5, kicker: 'Monday · 11:00 AM', title: 'Both plans go to work.',
       what: 'The rest of the week plays out twice, side by side: the plan that left your meeting, and the plan that left Wake\'s.',
       why: 'Decisions only matter once they move the numbers. This is where you see how far each plan gets by Friday.',
-      cta: 'Play out the week' } }, () => finale().week());
+      cta: 'Play out the week' },
+    done: () => finale().week() });
 }
 
 // Friday evening, then the final score.
 function friday(then) {
   leave();
-  world.place({ art: ART.evening, from: SHOT.all, to: [400, 150, 1800, 1012], ms: 7000, delay: 700,
+  world.office(game, { day: 'Friday', time: '6:10 PM', preset: 'night', night: true, view: [192, 120, 1],
     card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in.',
       what: 'Your final score: both weeks side by side, in your company\'s own numbers, and a report to keep.',
       why: 'Same company, same data, same Monday. The only difference was how the morning was run.',
-      cta: 'See your score' } }, then);
+      cta: 'See your score' },
+    done: then });
 }
 
 // The finale: meeting, week, final score. Built per game so it reads the current one.
