@@ -17,8 +17,9 @@ const DECISION = { decided: 'Decided', guess: 'Decided on your word', pilot: 'De
 const STATUS = { open: 'Open', waiting: 'Waiting', working: 'In progress', fixed: 'Resolved', worse: 'Worse' };
 const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' });
 
-export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST }) {
+export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onBook }) {
   const w = () => game.world;
+  const YOU = () => (game.quick() ? 'The usual way' : YOU());
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const btn = (label, onclick, cls = 'cb') => h('button', { class: cls, type: 'button', onclick }, label);
   const nameOf = (k) => (k === 'me' ? 'You' : (w().characters[k] || { name: '' }).name);
@@ -51,7 +52,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const el = show(side === 'wake' ? 'wake' : 'day', 'cl-screen mt ' + side,
       h('div', { class: 'mt-main' },
         h('div', { class: 'mt-stage' },
-          h('div', { class: 'mt-head' }, h('span', { class: 'mt-tag ' + side }, side === 'wake' ? 'With Wake' : 'On your own'), h('div', { class: 'mt-agenda' }, h('span', {}, 'Agenda'), pips), C.hrs.el, C.owed.el, C.dec.el),
+          h('div', { class: 'mt-head' }, h('span', { class: 'mt-tag ' + side }, side === 'wake' ? 'With Wake' : YOU()), h('div', { class: 'mt-agenda' }, h('span', {}, 'Agenda'), pips), C.hrs.el, C.owed.el, C.dec.el),
           h('div', { class: 'mt-view' }, screen, h('div', { class: 'mt-tiles' }, tile('me'), room.map(tile)))),
         h('aside', { class: 'mt-panel' },
           h('div', { class: 'mt-ph' }, h('b', {}, 'In-call messages'), h('span', {}, 'Captions are on')),
@@ -158,6 +159,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     })();
   }
 
+  // Quick mode: the usual meeting plays out instantly, then you run it with Wake.
+  function quickMeeting() { game.autopilotMeeting(); meetingWake(); }
+
   // ------------------------------------------------------------ meeting 2: with Wake
   function meetingWake() {
     sfx.ambience(0.6);
@@ -221,12 +225,12 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         h('p', { class: 'rs-k' }, 'The meeting · result · ' + w().shell.company),
         h('h1', {}, 'Same call. Two meetings.'),
         h('section', { class: 'rs-card' },
-          h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk y' }, 'On your own', h('b', {}, Y.minutes + ' min')), yBar),
+          h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk y' }, YOU(), h('b', {}, Y.minutes + ' min')), yBar),
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk w' }, 'With Wake', h('b', {}, K.minutes + ' min')), kBar),
           h('div', { class: 'rs-tlrow' }, h('span'), axis),
           h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on your word'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
         h('section', { class: 'rs-card' }, h('table', { class: 'rs-duel' },
-          h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'))),
+          h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, YOU()), h('th', { class: 'w' }, 'With Wake'))),
           h('tbody', {},
             duel(['Prep before the meeting', '7:48 AM to briefing locked'], dur(P.you), dur(P.wake), P.you <= P.wake, P.wake <= P.you),
             duel(['Leadership hours in the room', Y.attendees + ' people × meeting length'], Y.hours.toFixed(1) + ' hrs', K.hours.toFixed(1) + ' hrs', Y.hours <= K.hours, K.hours <= Y.hours),
@@ -297,8 +301,8 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           h('div', { class: 'wd-kpi w' }, h('span', {}, 'With Wake · operating profit impact'), prof.w, recov.w)),
         lead,
         h('div', { class: 'wd-slacks' }, SY.el, SW.el),
-        h('section', { class: 'rs-card' }, h('h2', {}, 'Scoreboard'), h('table', { class: 'wd-board' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'))), h('tbody', {}, brow.map((b) => b.el)))),
-        h('section', { class: 'rs-card' }, h('h2', {}, 'Problem by problem'), h('table', { class: 'wd-probs' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'))), h('tbody', {}, prow.map((p) => p.el)))),
+        h('section', { class: 'rs-card' }, h('h2', {}, 'Scoreboard'), h('table', { class: 'wd-board' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, YOU()), h('th', { class: 'w' }, 'With Wake'))), h('tbody', {}, brow.map((b) => b.el)))),
+        h('section', { class: 'rs-card' }, h('h2', {}, 'Problem by problem'), h('table', { class: 'wd-probs' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, YOU()), h('th', { class: 'w' }, 'With Wake'))), h('tbody', {}, prow.map((p) => p.el)))),
         routine, banner,
         h('p', { class: 'wd-note' }, 'Dollar figures are estimates from this company\'s own numbers: payroll, revenue, invoices and tickets. Profit impact is operating profit against doing nothing; one-time recoveries are shown on their own. Run-rate is the yearly value of the fixes in place by Friday.'),
         h('div', { class: 'rs-next' }, next)));
@@ -351,7 +355,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
       banner.hidden = false;
       banner.replaceChildren(h('p', { class: 'rs-k' }, 'Friday · the week is in'),
         h('div', { class: 'wd-bn2' },
-          h('div', { class: 'y' }, h('span', {}, 'On your own'), h('b', {}, fy.resolved + ' of ' + n), h('em', {}, 'resolved by Friday')),
+          h('div', { class: 'y' }, h('span', {}, YOU()), h('b', {}, fy.resolved + ' of ' + n), h('em', {}, 'resolved by Friday')),
           h('div', { class: 'w' }, h('span', {}, 'With Wake'), h('b', {}, fw.resolved + ' of ' + n), h('em', {}, allBy >= 0 ? 'resolved by ' + DAYNAME[allBy] : 'resolved by Friday'))),
         h('p', {}, (fy.profit > 0 ? 'A solid week on your own: ' + money(fy.profit) + ' in operating profit, and the business ran well. ' : 'The business ran well on its own. ') +
           'With Wake, the same week reached ' + money(fw.profit) + (allBy >= 0 && allBy < 4 ? ', and from ' + DAYNAME[Math.min(4, allBy + 1)] + ' on, the time was yours.' : '.')));
@@ -371,6 +375,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const status = h('span', { class: 'cl-muted', 'aria-live': 'polite' });
     const reportEl = h('div', { class: 'report-wrap', hidden: true });
     const RT = S.rating, FY = S.final.you, FW = S.final.wake, n = S.n;
+    if (onFinished) onFinished({ profitYou: FY.profit, profitWake: FW.profit, resolvedYou: FY.resolved, resolvedWake: FW.resolved, problems: n });
     const stat = (big, label) => h('p', {}, h('b', {}, big), h('span', {}, label));
     const card = (side, title, rating, stats) => h('div', { class: 'fs2-card ' + side }, h('span', { class: 'fs2-ck' }, title), h('strong', {}, rating[0].toUpperCase() + rating.slice(1)), h('div', { class: 'fs2-cs' }, stats));
     // your week is the base; Wake's week is the same bar, carried further
@@ -384,10 +389,10 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
       h('div', { class: 'fs2-pips' }, Array.from({ length: n }, (_, i) => h('i', { class: i < FY.resolved ? 'y' : i < FW.resolved ? 'w' : '' }))),
       h('div', { class: 'fs2-sk' }, h('span', { class: 'y' }, FY.resolved + ' on your own'), h('span', { class: 'w' }, (FW.resolved - FY.resolved > 0 ? '+' + (FW.resolved - FY.resolved) + ' with Wake' : '') + (S.by.wake ? ', all by ' + S.by.wake : ''))));
     const cards = h('div', { class: 'fs2-cards', hidden: true },
-      card('y', 'On your own', RT.you, [stat(money(FY.profit), 'operating profit'), stat(FY.resolved + ' of ' + n, 'resolved by Friday'), stat(kmoney(FY.runRate), 'run-rate added')]),
+      card('y', YOU(), RT.you, [stat(money(FY.profit), 'operating profit'), stat(FY.resolved + ' of ' + n, 'resolved by Friday'), stat(kmoney(FY.runRate), 'run-rate added')]),
       card('w', 'With Wake', RT.wake, [stat(money(FW.profit), 'operating profit'), stat(FW.resolved + ' of ' + n, S.by.wake ? 'resolved by ' + S.by.wake : 'resolved by Friday'), stat(kmoney(FW.runRate), 'run-rate added')]));
     const stacks = h('section', { class: 'rs-card fs2-stacks', hidden: true }, stack('Operating profit this week', Math.max(0, FY.profit), FW.profit, kmoney), stack('Run-rate added, annualized', Math.max(0, FY.runRate), FW.runRate, kmoney), pips);
-    const table = h('section', { class: 'rs-card', hidden: true }, h('table', { class: 'fs2-table' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'), h('th', { class: 'a' }, 'Ahead by'))), rows));
+    const table = h('section', { class: 'rs-card', hidden: true }, h('table', { class: 'fs2-table' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, YOU()), h('th', { class: 'w' }, 'With Wake'), h('th', { class: 'a' }, 'Ahead by'))), rows));
     show('wake', 'cl-screen fs2',
       h('div', { class: 'rs-page' },
         h('p', { class: 'rs-k' }, 'Final score · ' + w().shell.company),
@@ -448,11 +453,31 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         h('section', { class: 'rs-card' }, h('h2', {}, 'The moment that mattered'),
           seen && meant ? h('div', { class: 'mo2-grid' }, seen, h('div', { class: 'mo2-arrow' }, '→'), meant) : h('div', { class: 'mo2-card meant' }, h('h3', {}, m.title), m.lines.map((l) => h('p', {}, l)))),
         h('p', { class: 'fs2-closer' }, R.closer),
+        nextStep(),
         h('div', { class: 'fs2-actions' }, view, actions, status),
         h('div', { class: 'fs2-end' }, btn('Play again', onRestart, 'cb ghost'), h('a', { class: 'cl-link', href: 'https://wakepe.com', target: '_blank', rel: 'noopener' }, 'wakepe.com')));
       rest.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
     }
+
+    // What to do next: a call about their own numbers, or the report by email.
+    function nextStep() {
+      if (!onEmail && !onBook) return null;
+      const note = h('p', { class: 'fs2-nnote', 'aria-live': 'polite' });
+      const input = h('input', { class: 'fs2-in', type: 'email', placeholder: 'you@company.com', autocomplete: 'email', 'aria-label': 'Your email' });
+      const saveEmail = (e) => {
+        e.preventDefault();
+        const v = input.value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { note.textContent = 'That email doesn\'t look right.'; return; }
+        onEmail(v); input.disabled = true; note.textContent = 'Thanks. The Wake team will send your report to ' + v + '.';
+      };
+      return h('section', { class: 'rs-card fs2-next' },
+        h('div', {}, h('h2', {}, 'See this on your own numbers'), h('p', { class: 'rs-sub' }, 'A 30-minute call: we connect Wake to a week of your real data and walk you through what it finds.')),
+        h('div', { class: 'fs2-nact' },
+          onBook ? btn('Book a call', () => onBook(input.value.trim()), 'cb wake') : null,
+          onEmail ? h('form', { class: 'fs2-form', onsubmit: saveEmail }, input, h('button', { class: 'cb ghost', type: 'submit' }, 'Send me the report')) : null,
+          note));
+    }
   }
 
-  return { meeting, week, ending, setCleanup };
+  return { meeting, quickMeeting, week, ending, setCleanup };
 }

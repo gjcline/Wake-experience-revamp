@@ -8,6 +8,7 @@ import { fmtClock } from '../engine/config.js';
 import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { createScenes } from './scenes.js';
+import { createTracker } from './track.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
 import { createFinale } from './finale.js';
@@ -142,19 +143,26 @@ function createCoach() {
 const coach = createCoach();
 
 // ------------------------------------------------------------------ opening
+// one record per run, for the team's dashboard (see track.js and api/)
+const track = createTracker({ host: HOST });
+const CFG = window.WAKE_CONFIG || {};
+
 const world = createScenes({
-  root, reduced,
-  onPicked(shellId, roleId, seed) {
+  root, reduced, onStep: (name) => track.step(name),
+  onPicked(shellId, roleId, seed, mode) {
     game = createGame({ shellId, roleId, seed });
-    window.WakeExperience = { session: () => game.session(), state: () => game.state };
-    world.arrival(game, () => round1());
+    window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
+    track.step('arrive', { mode: mode === 'quick' ? 'quick' : 'full', shell: shellId, role: roleId, company: game.world.shell.company });
+    if (mode === 'quick') { game.autopilotRound1(); world.arrival(game, resetDay, usualMorning()); }
+    else world.arrival(game, () => round1());
   },
 });
-const restart = () => { coach.stop(); sfx.ambience(0); game = null; world.start(); };
+const restart = () => { coach.stop(); sfx.ambience(0); game = null; track.begin(); world.start(); };
 const meetingName = () => { const m = game.world.role.meetingName; return m[0].toUpperCase() + m.slice(1); };
 
 // ------------------------------------------------------------------ ROUND 1: on your own
 function round1() {
+  track.step('round1');
   runRound1({ game, show, coach, reduced, onSubmit: () => { leave(); roundOneDone(); }, setCleanup: (fn) => { cleanup = fn; } });
 }
 
@@ -173,6 +181,19 @@ function roundOneDone() {
       cta: 'Rewind the morning' },
     done: resetDay });
   sfx.credit();
+}
+
+// Quick mode: the usual morning, already played, shown when you sit down.
+function usualMorning() {
+  const s = game.state, D = game.world.day, sum = game.session().summary;
+  const prep = s.submittedAt - D.start;
+  const stat = (big, small) => h('div', { class: 'mc-stat' }, h('b', {}, big), h('span', {}, small));
+  const loud = sum.flags.filter((f) => f.obvious).length;
+  return { kicker: 'Round 1 · the usual way · locked at ' + fmtClock(s.submittedAt), title: 'Here\'s how most owners spend this morning.',
+    body: h('div', { class: 'mc-stats' }, stat(Math.floor(prep / 60) + ' hr ' + (prep % 60) + ' min', 'digging through reports'), stat(String(sum.flags.length), 'findings, ' + loud + ' of them the loudest numbers'), stat('0', 'owners named')),
+    what: 'We played Round 1 for you the usual way: open every report, chase the numbers that jump out, lock a briefing just before ten. That\'s the baseline.',
+    why: 'Next you run the same morning with Wake. Every result from here compares the two, so the difference is Wake, not luck.',
+    cta: 'Run it with Wake' };
 }
 
 // The day resets: same Monday, same data, with Wake underneath it this time.
@@ -194,21 +215,25 @@ async function resetDay() {
 }
 
 function round2() {
+  track.step('round2');
   runRound2({ game, show, coach, reduced, onLock: () => walkToMeeting(), setCleanup: (fn) => { cleanup = fn; } });
 }
 
 // ------------------------------------------------------------------ the meeting
 async function walkToMeeting() {
+  track.step('meeting');
   leave();
   world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
-      what: 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
+      what: game.quick() ? 'Your team is in the room and the managers are on video. The meeting runs twice: first with the usual briefing, played for you in seconds, then with the one you built with Wake.'
+        : 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
       why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
       cta: 'Join the call' },
-    done: () => finale().meeting() });
+    done: () => (game.quick() ? finale().quickMeeting() : finale().meeting()) });
 }
 
 function walkBack() {
+  track.step('week');
   leave();
   world.office(game, { day: 'Monday', time: '10:52 AM', preset: 'office', at: 'meeting', z: 2, route: 'toOffice', end: 'sit', endView: [192, 120, 1],
     card: { step: 5, kicker: 'Monday · 11:00 AM', title: 'Both plans go to work.',
@@ -231,7 +256,10 @@ function friday(then) {
 
 // The finale: meeting, week, final score. Built per game so it reads the current one.
 function finale() {
-  return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST });
+  return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
+    onFinished: (result) => track.step('score', { finished: true, result }),
+    onEmail: (email) => track.set({ email }),
+    onBook: CFG.bookUrl ? book : null });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.
@@ -241,4 +269,14 @@ function post() {
   try { navigator.sendBeacon(cfg.logEndpoint, new Blob([JSON.stringify(game.session())], { type: 'application/json' })); } catch (e) { /* never block the experience */ }
 }
 
+// Book a call: the booking page gets the run id (and email, if given) so the booking matches the run.
+function book(email) {
+  track.set({ bookClicked: true, ...(email && /@/.test(email) ? { email } : {}) });
+  const u = new URL(CFG.bookUrl, window.location.href);
+  if (track.id) u.searchParams.set('metadata[runId]', track.id);
+  if (email && /@/.test(email)) u.searchParams.set('email', email);
+  window.open(u.toString(), '_blank', 'noopener');
+}
+
+track.begin();
 world.start();

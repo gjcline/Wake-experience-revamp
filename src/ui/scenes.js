@@ -50,7 +50,7 @@ const THU = { gm: 'Lender review', coo: 'Board call', owner: 'Bank covenant chec
 const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
-export function createScenes({ root, reduced, onPicked }) {
+export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
   let teardown = [];
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const clear = () => { teardown.forEach((f) => f()); teardown = []; };
@@ -160,6 +160,7 @@ export function createScenes({ root, reduced, onPicked }) {
   }
 
   function setup() {
+    onStep('select');
     select({ step: '1 / 2', title: 'Select your stage',
       items: SHELL_ORDER.map((id) => {
         const s = SHELLS[id];
@@ -183,9 +184,11 @@ export function createScenes({ root, reduced, onPicked }) {
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
   function ready() {
+    onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
-    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed); };
+    const go = (mode) => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, mode); };
+    const mode = (id, name, time, line, cls) => h('button', { class: 'cs-mode ' + cls, type: 'button', onclick: () => go(id) }, h('span', { class: 'cs-mt' }, h('b', {}, name), h('em', {}, time)), h('span', { class: 'cs-ml' }, line));
     const hero = h('div', { class: 'cs-hero' }, portrait(pick.role), h('span', { class: 'cs-floor' }));
     hero.style.setProperty('--tone', ROLE_COLOR[pick.role]);
     screen('cs cs-ready',
@@ -196,8 +199,12 @@ export function createScenes({ root, reduced, onPicked }) {
           h('h2', { class: 'cs-name' }, pv.company),
           h('p', { class: 'cs-line' }, 'You are the ' + r.label + '. New company, new people, new numbers: nobody has played this one before.'),
           h('dl', { class: 'cs-facts' }, [['Business', s.label], ['Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ' · ' + pv.headcount + ' people'], ['Today', pv.monday + ', 7:48 AM'], ['10:00 AM', cap(r.meetingName)], ['Thursday', THU[pick.role]]].flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-          h('div', { class: 'cs-go' }, btn('Start the morning ▶', go, 'ab primary big'), btn('A different company', () => { pick.seed = randomSeed(); sfx.blip(); ready(); }, 'ab ghost')))));
-    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
+          h('p', { class: 'cs-kick' }, 'Select mode'),
+          h('div', { class: 'cs-modes' },
+            mode('quick', 'Quick run ▶', '5 min', 'We play the usual morning for you. You run it with Wake and see the score.', 'quick'),
+            mode('full', 'Full picture', '15 min', 'Run the morning yourself first, then again with Wake. The whole comparison.', 'full')),
+          h('div', { class: 'cs-go' }, btn('A different company', () => { pick.seed = randomSeed(); sfx.blip(); ready(); }, 'ab ghost small')))));
+    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go('quick'); } else if (e.key === 'Escape') setupRole(); });
   }
 
   // ------------------------------------------------------------ 3. the pixel office
@@ -253,7 +260,8 @@ export function createScenes({ root, reduced, onPicked }) {
     return { el, layer, map };
   }
 
-  async function arrival(sim, done) {
+  // `atDesk` replaces the card you get when you sit down (quick mode shows the usual morning).
+  async function arrival(sim, done, atDesk) {
     const w = sim.world, meeting = w.role.meetingName;
     await office(sim, { day: w.shell.mondayLong, time: '7:42 AM', preset: 'office', arrive: true,
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
@@ -263,7 +271,7 @@ export function createScenes({ root, reduced, onPicked }) {
       card: { step: 2, kicker: 'Round 1 · on your own · 7:48 AM', title: 'Get ready for ten o\'clock.',
         what: 'Your computer has everything your team sent: QuickBooks, Drive, Gmail, Calendar and Messages. Find the numbers that matter, flag 3 to 5 of them, and decide who handles each.',
         why: 'This is how most owners prep today: clicking through every app, hoping nothing important is buried. Remember how it feels.',
-        cta: 'Sit down' },
+        cta: 'Sit down', ...(atDesk || {}) },
       done });
   }
 

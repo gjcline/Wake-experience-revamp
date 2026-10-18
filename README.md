@@ -28,7 +28,9 @@ Add `?seed=123` to the URL to replay the same company.
     src/ui/pixel/  the pixel office the walks happen in (office.js), storefronts and stand-in portraits
     src/ui/os/     the computer both desks run on, and look-alike Gmail, QuickBooks, Drive,
                    Sheets, Docs, Google Calendar, Messages and Contacts
-    art/           the arcade photo and, once added, the role portraits (art/roles/<role>.webp); copied into dist/art
+    art/           the arcade photo and the role portraits (art/roles/<role>.webp); copied into dist/art
+    src/dashboard.html  the team's runs dashboard, served at /dashboard
+    api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings)
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)
     dist/          built output, committed so the page can be opened or hosted without a build
 
@@ -45,7 +47,10 @@ The audit plays random games and reports any game where the numbers stop telling
 
 ## Deploy
 
-Vercel: `vercel.json` runs `npm run build` and serves `dist/`. Any static host works with `dist/index.html`.
+Vercel: `vercel.json` runs `npm run build`, serves `dist/` and the functions in `api/`. Pushing to
+`main` deploys experience.wakepe.com. Environment variables: `BLOB_READ_WRITE_TOKEN`,
+`DASHBOARD_KEY`, `WAKE_BOOK_URL`, and optionally `CAL_WEBHOOK_SECRET` (see ARCHITECTURE.md).
+Any static host can serve `dist/index.html`; tracking needs the functions.
 
 ## Notes
 

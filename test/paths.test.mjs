@@ -334,3 +334,21 @@ test('round 2: picks, trace, arrivals, and the inbox Wake already read', () => {
   assert.ok(g.lockRound2());
   assert.equal(g.meetingWake().items.length, 4);
 });
+
+test('quick mode: the autopilot plays a typical morning and meeting, then the Wake round runs as usual', () => {
+  for (const shellId of SHELL_ORDER) for (const roleId of ROLE_ORDER) {
+    const g = mk(11, shellId, roleId);
+    assert.ok(g.autopilotRound1(), shellId + '/' + roleId + ' submits');
+    assert.equal(g.state.flags.length, g.MIN_FLAGS);
+    g.startRound2();
+    for (let i = 0; i < 30; i++) g.tickWake();
+    for (const x of g.insights().slice(0, Math.min(5, g.world.findings.length))) g.pick(x.id);
+    assert.ok(g.lockRound2());
+    const Y = g.autopilotMeeting();
+    assert.ok(g.meetingStep().done && Y.items.length >= 1);
+    const K = g.meetingWake(); g.presented('wake');
+    assert.ok(K.decided >= Y.items.filter((x) => x.decision === 'decided').length);
+    g.week(); g.recap(); g.complete();
+    assert.equal(g.session().mode, 'quick');
+  }
+});

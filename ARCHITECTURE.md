@@ -6,8 +6,12 @@ and narrates the player through it with a live guide.
 
 ## The flow
 
-1. Intro: a landing page, one setup page (business, role, a preview of the company), then the
-   laptop's lock screen at 7:48 AM with the morning's notifications.
+1. Intro: the arcade cabinet, then a stage select (the business) and a character select (the
+   role), then Player 1 ready with the company and the mode: Quick run (about 5 minutes) or
+   Full picture (about 15). Then the pixel office: the car pulls up and you walk to your desk.
+   Quick mode plays Round 1 and your own meeting for you the way most owners do it
+   (game.autopilotRound1 and autopilotMeeting: the loudest numbers, the first read, no owners),
+   shows that baseline, and goes straight to Round 2. Everything after compares the two as usual.
 2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
    window holding the apps a team actually uses. QuickBooks has the finance reports (weekly flash,
    labor, purchasing); Google Drive has the exports from every other system as Sheets, the location
@@ -131,6 +135,26 @@ room. Every outcome, reaction and week line is predetermined content.
   Wake is always ahead, and how far: on your own lands around a third of the week with Wake for
   a typical player and about half for a sharp one.
 
+## Tracking and the runs dashboard
+
+Every visit is a run (src/ui/track.js). The page sends the run to `/api/track` at each step
+(home, select, ready, arrive, round1, round2, meeting, week, score), every 30 seconds while the
+player is active, and when the tab is hidden: mode, business, role, company, furthest step,
+active seconds, finished, email (if given on the final score), Book a call clicked, UTM source,
+referrer, device and country, plus the headline result. Each run is one private JSON file in
+Vercel Blob (`runs/<id>.json`).
+
+- `api/track.js` stores a run. `api/runs.js` returns all runs and bookings for the dashboard.
+- `api/cal.js` is the Cal.com webhook: Book a call opens `WAKE_BOOK_URL` with
+  `metadata[runId]=<run id>` (and the email if given), so each booking lands next to its run.
+- `/dashboard` (src/dashboard.html) is the team's view: visits, played, finished, median time,
+  emails, bookings, how far people get, quick vs full, every run, CSV export.
+
+Vercel environment variables: `BLOB_READ_WRITE_TOKEN` (the store), `DASHBOARD_KEY` (opens the
+dashboard), `WAKE_BOOK_URL` (the booking page; the button is hidden until it is set),
+`CAL_WEBHOOK_SECRET` (optional, checks the Cal.com signature). Tracking is off when opened
+from a file or as an artifact, or when `WAKE_CONFIG.track` is false.
+
 ## What the sales team gets
 
 `window.WakeExperience.session()` returns the full event log and a summary: sources opened,
@@ -141,5 +165,5 @@ time, texts put through Wake, and reorders. Set `window.WAKE_CONFIG.logEndpoint`
 
 ## Not built yet
 
-Server-side collection of sessions. Emailing the report as an attachment. Editorial tuning of
+Emailing the report as an attachment. Editorial tuning of
 the four non-reference shells. Sound beyond simple effects.

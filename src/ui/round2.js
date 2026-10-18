@@ -420,7 +420,20 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     // screen until it's done; then each app explains itself.
     const boss = w.characters.boss.name.split(' ')[0];
     const step = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: () => coach.seen('app:wake') });
-    coach.chapters({
+    // Quick mode keeps only what you need to act: open Wake, read one insight, pick, lock in.
+    const quick = game.quick();
+    const quickBook = {
+      desk: [
+        { text: 'This is your computer: QuickBooks, Drive, Gmail, Calendar, Messages. Wake is connected to all of it and read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
+        { text: 'Open Wake. This morning\'s reports, emails and texts are already read, connected and ranked there.', target: '.dock-app[data-app="wake"]', wait: 'app:wake', hint: 'Open Wake', skipIf: () => coach.seen('app:wake') },
+      ],
+      wake: [
+        { text: 'These are your insights, ranked. Each one shows the lines from this morning\'s data behind it. Click any source to see exactly what it said.', target: '.wi', next: 'NEXT ▶' },
+        { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', skipIf: () => coach.seen('pick') },
+        { text: 'When you have ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ', lock in your briefing. Your meeting is at 10:00 AM.', target: '.wake-tray', next: 'GOT IT ▶', when: () => coach.seen('pick') },
+      ],
+    };
+    coach.chapters(quick ? quickBook : {
       desk: [
         { text: 'Same computer, same Monday, same 7:48 AM, same data. This time Wake is connected to all of it, and it read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
         { text: 'Open Wake. Everything you dug through in Round 1 is already read, connected and ranked there.', target: '.dock-app[data-app="wake"]', wait: 'app:wake', hint: 'Open Wake', skipIf: () => coach.seen('app:wake') },

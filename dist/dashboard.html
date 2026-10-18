@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Wake Experience Runs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #F6F7F9; --card: #fff; --ink: #0F172A; --dim: #64748B; --line: #E2E8F0; --q: #0891B2; --f: #6366F1; --ok: #059669; --warn: #B45309; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 'Inter', system-ui, sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 28px 16px 60px; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+h2 { margin: 0 0 12px; font-size: 15px; }
+.sub { color: var(--dim); font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+select, input, button { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+button { cursor: pointer; font-weight: 600; }
+button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--dim); font-size: 12.5px; }
+.grid2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; }
+.funnel { display: flex; flex-direction: column; gap: 7px; }
+.frow { display: grid; grid-template-columns: 110px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
+.fbar { height: 14px; border-radius: 4px; background: #EEF2F7; overflow: hidden; display: flex; }
+.fbar i { display: block; height: 100%; }
+.fbar .q { background: var(--q); } .fbar .f { background: var(--f); } .fbar .u { background: #94A3B8; }
+.frow em { font-style: normal; color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--dim); margin-top: 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 600; color: var(--dim); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill.quick { background: #CFFAFE; color: #155E75; } .pill.full { background: #E0E7FF; color: #3730A3; }
+.yes { color: var(--ok); font-weight: 600; } .no { color: #CBD5E1; }
+.clicked { color: var(--warn); font-weight: 600; }
+.gate { max-width: 380px; margin: 12vh auto; display: flex; flex-direction: column; gap: 10px; }
+.err { color: #B91C1C; font-size: 13px; }
+.muted { color: var(--dim); }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const STEPS = ['home', 'select', 'ready', 'arrive', 'round1', 'round2', 'meeting', 'week', 'score'];
+const LABEL = { home: 'Home screen', select: 'Picked a business', ready: 'Ready screen', arrive: 'Started', round1: 'Round 1', round2: 'Round 2 (Wake)', meeting: 'Meeting', week: 'The week', score: 'Final score' };
+const app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mins = (s) => (s == null ? '' : s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + String(s % 60).padStart(2, '0') + 's');
+const median = (a) => { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); const m = Math.floor(b.length / 2); return b.length % 2 ? b[m] : Math.round((b[m - 1] + b[m]) / 2); };
+const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '–');
+let key = ''; try { key = localStorage.getItem('wx-dash-key') || ''; } catch (e) { /* fine */ }
+let data = null, range = '30', mode = 'all';
+
+function gate(msg) {
+  app.innerHTML = `<form class="card gate" id="g"><h1>Wake Experience runs</h1><p class="sub">Enter the dashboard key.</p><input id="k" type="password" placeholder="Dashboard key" autocomplete="current-password" required>${msg ? `<p class="err">${esc(msg)}</p>` : ''}<button class="primary">Open</button></form>`;
+  document.getElementById('g').onsubmit = (e) => { e.preventDefault(); key = document.getElementById('k').value.trim(); try { localStorage.setItem('wx-dash-key', key); } catch (er) { /* fine */ } load(); };
+}
+
+async function load() {
+  if (!key) return gate();
+  app.innerHTML = '<p class="sub">Loading runs…</p>';
+  try {
+    const r = await fetch('/api/runs', { headers: { 'x-dashboard-key': key } });
+    if (r.status === 401) { try { localStorage.removeItem('wx-dash-key'); } catch (e) { /* fine */ } key = ''; return gate('That key didn\'t work.'); }
+    data = await r.json();
+    render();
+  } catch (e) { app.innerHTML = '<p class="err">Couldn\'t load the runs. Try again in a moment.</p>'; }
+}
+
+function render() {
+  const since = range === 'all' ? 0 : Date.now() - Number(range) * 864e5;
+  const byRun = {}, byEmail = {};
+  for (const b of data.bookings || []) { if (b.event && /CANCEL/i.test(b.event)) continue; if (b.runId) byRun[b.runId] = b; if (b.email) byEmail[b.email.toLowerCase()] = b; }
+  const runs = (data.runs || []).filter((r) => new Date(r.startedAt || r.lastAt).getTime() >= since && (mode === 'all' || r.mode === mode))
+    .map((r) => ({ ...r, booking: byRun[r.id] || (r.email && byEmail[r.email.toLowerCase()]) || null }))
+    .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+  const played = runs.filter((r) => r.step >= 3), done = runs.filter((r) => r.finished), booked = runs.filter((r) => r.booking);
+  const kpi = (big, label) => `<div class="card kpi"><b>${big}</b><span>${label}</span></div>`;
+  const reach = (list, i) => list.filter((r) => (r.step || 0) >= i).length;
+  const top = Math.max(1, runs.length);
+  const funnel = STEPS.map((s, i) => {
+    const q = reach(runs.filter((r) => r.mode === 'quick'), i), f = reach(runs.filter((r) => r.mode === 'full'), i), u = reach(runs.filter((r) => !r.mode), i);
+    return `<div class="frow"><span>${LABEL[s]}</span><div class="fbar"><i class="q" style="width:${q / top * 100}%"></i><i class="f" style="width:${f / top * 100}%"></i><i class="u" style="width:${u / top * 100}%"></i></div><em>${q + f + u} · ${pct(q + f + u, runs.length)}</em></div>`;
+  }).join('');
+  const modeRow = (m, label) => {
+    const p = played.filter((r) => r.mode === m), d = p.filter((r) => r.finished), b = p.filter((r) => r.booking);
+    return `<tr><td><span class="pill ${m}">${label}</span></td><td>${p.length}</td><td>${d.length} (${pct(d.length, p.length)})</td><td>${mins(median(p.map((r) => r.activeSeconds || 0)))}</td><td>${mins(median(d.map((r) => r.activeSeconds || 0)))}</td><td>${p.filter((r) => r.email).length}</td><td>${b.length} (${pct(b.length, p.length)})</td></tr>`;
+  };
+  const rows = runs.slice(0, 500).map((r) => `<tr>
+    <td>${new Date(r.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+    <td>${r.mode ? `<span class="pill ${r.mode}">${r.mode}</span>` : '<span class="muted">–</span>'}</td>
+    <td>${esc(r.company || '')}<div class="sub">${esc([r.role, r.shell].filter(Boolean).join(' · '))}</div></td>
+    <td>${esc(LABEL[r.stepName] || r.stepName || '')}</td>
+    <td>${mins(r.activeSeconds)}</td>
+    <td>${r.finished ? '<span class="yes">Yes</span>' : '<span class="no">No</span>'}</td>
+    <td>${esc(r.email || '')}</td>
+    <td>${r.booking ? `<span class="yes">Booked</span><div class="sub">${r.booking.startTime ? new Date(r.booking.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</div>` : r.bookClicked ? '<span class="clicked">Clicked</span>' : '<span class="no">–</span>'}</td>
+    <td>${esc((r.utm && (r.utm.source || r.utm.ref)) || r.referrer || 'direct')}<div class="sub">${esc([r.device, r.country].filter(Boolean).join(' · '))}</div></td>
+  </tr>`).join('');
+  const unmatched = (data.bookings || []).filter((b) => !(b.event && /CANCEL/i.test(b.event)) && !runs.some((r) => r.booking === b)).length;
+  app.innerHTML = `
+    <header><div><h1>Wake Experience runs</h1><p class="sub">Every visit is a run. "Played" means they picked a company and started. Time is active time on the page.</p></div>
+      <div class="filters">
+        <select id="range"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">All time</option></select>
+        <select id="mode"><option value="all">Quick and full</option><option value="quick">Quick only</option><option value="full">Full only</option></select>
+        <button id="csv">Export CSV</button><button id="refresh">Refresh</button></div></header>
+    <section class="kpis">
+      ${kpi(runs.length, 'visits')}${kpi(played.length, 'played (' + pct(played.length, runs.length) + ' of visits)')}
+      ${kpi(done.length, 'finished (' + pct(done.length, played.length) + ' of played)')}${kpi(mins(median(played.map((r) => r.activeSeconds || 0))) || '–', 'median time, played')}
+      ${kpi(played.filter((r) => r.email).length, 'left an email')}${kpi(booked.length, 'booked a call (' + pct(booked.length, played.length) + ')')}
+    </section>
+    <div class="grid2">
+      <section class="card"><h2>How far people get</h2><div class="funnel">${funnel}</div>
+        <div class="legend"><span><i style="background:var(--q)"></i>Quick</span><span><i style="background:var(--f)"></i>Full</span><span><i style="background:#94A3B8"></i>No mode yet</span></div></section>
+      <section class="card"><h2>Quick vs full</h2><div class="scroll"><table><thead><tr><th>Mode</th><th>Played</th><th>Finished</th><th>Median time</th><th>Time to finish</th><th>Emails</th><th>Booked</th></tr></thead>
+        <tbody>${modeRow('quick', 'Quick')}${modeRow('full', 'Full')}</tbody></table></div>
+        <p class="sub" style="margin-top:12px">Bookings match a run by the run ID in the booking link, or by email.${unmatched ? ' ' + unmatched + ' booking(s) in this period didn\'t match a run.' : ''}</p></section>
+    </div>
+    <section class="card"><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Started</th><th>Mode</th><th>Company</th><th>Got to</th><th>Time</th><th>Finished</th><th>Email</th><th>Call</th><th>Source</th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">No runs in this period yet.</td></tr>'}</tbody></table></div></section>`;
+  const R = document.getElementById('range'), M = document.getElementById('mode');
+  R.value = range; M.value = mode;
+  R.onchange = () => { range = R.value; render(); };
+  M.onchange = () => { mode = M.value; render(); };
+  document.getElementById('refresh').onclick = load;
+  document.getElementById('csv').onclick = () => {
+    const cols = ['startedAt', 'mode', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'email', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
+    const line = (r) => [r.startedAt, r.mode, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.email, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([cols.join(',') + '\n' + runs.map(line).join('\n')], { type: 'text/csv' }));
+    a.download = 'wake-experience-runs.csv'; a.click();
+  };
+}
+load();
+</script>
+</body>
+</html>
