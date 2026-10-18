@@ -1,14 +1,14 @@
 // INTERFACE
 // Renders what the engines return and narrates the player through it. No business logic.
-//   arcade front end → Round 1 (on your own) → rewind → Round 2 (with Wake)
+//   intro → Round 1 (on your own) → rewind → Round 2 (with Wake)
 //   → walk to the meeting → present yours, present Wake's → walk back → the week → the ending
 
 import { createGame } from '../engine/game.js';
 import { fmtClock } from '../engine/config.js';
-import { h, avatar } from './art.js';
+import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
-import { createField } from './field.js';
-import { createArcade } from './arcade/screens.js';
+import { createIntro } from './intro.js';
+import { ICONS } from './os/icons.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
 import { createFinale } from './finale.js';
@@ -21,12 +21,10 @@ let cleanup = null;
 
 const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
 const btn = (label, onclick, cls = 'btn') => h('button', { class: cls, type: 'button', onclick }, label);
-const av = (key, size) => avatar(key === 'me' ? { skin: '#D9A07A', hair: '#2A1C14', style: 'short', shirt: '#FFD23F' } : game.world.characters[key] && game.world.characters[key].av, size);
-const first = (name) => String(name).split(' ')[0];
 
 function show(world, cls, ...kids) {
   if (cleanup) { cleanup(); cleanup = null; }
-  root.className = 'wx arcade ' + world;
+  root.className = 'wx cl-root ' + world;
   const el = h('main', { class: 'screen ' + cls }, ...kids);
   root.replaceChildren(el);
   window.scrollTo(0, 0);
@@ -145,15 +143,16 @@ function createCoach() {
 const coach = createCoach();
 
 // ------------------------------------------------------------------ opening
-const arcade = createArcade({
+const intro = createIntro({
   root, reduced,
   onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
     window.WakeExperience = { session: () => game.session(), state: () => game.state };
-    arcade.arrival(game, () => round1());
+    intro.arrival(game, () => round1());
   },
 });
-const restart = () => { coach.stop(); sfx.ambience(0); game = null; arcade.start(); };
+const restart = () => { coach.stop(); sfx.ambience(0); game = null; intro.start(); };
+const wakeMark = (size) => h('span', { class: 'cl-mark', style: { width: size + 'px', height: size + 'px' }, html: ICONS.wake });
 
 // ------------------------------------------------------------------ ROUND 1: on your own
 function round1() {
@@ -166,15 +165,15 @@ function roundOneDone() {
   const s = game.state, w = game.world;
   const opened = Object.entries(s.sources).filter(([id, x]) => x.opened && !['team', 'exec'].includes(w.sources[id].kind)).length;
   const total = Object.entries(s.sources).filter(([id, x]) => x.available && !['team', 'exec'].includes(w.sources[id].kind) && id !== 'loc_all').length;
-  const stat = (big, small) => h('div', { class: 'cstat' }, h('b', {}, big), h('span', {}, small));
-  const go = btn('TRY IT WITH WAKE ▶', resetDay, 'btn primary big');
-  show('day', 'stage-done',
-    h('div', { class: 'center-card' },
-      h('p', { class: 'stage-k' }, 'ROUND 1'),
-      h('h1', { class: 'stage-h' }, 'COMPLETE'),
-      h('p', { class: 'lede' }, 'You prepared for your ' + w.role.meetingName + ' on your own. Your briefing is locked in.'),
-      h('div', { class: 'cstats' }, stat(fmtClock(s.submittedAt), 'briefing ready'), stat(String(s.flags.length), 'findings'), stat(opened + ' of ' + total, 'sources opened')),
-      h('p', { class: 'lede dim' }, 'Next: the same morning, prepared with Wake.'),
+  const stat = (big, small) => h('div', { class: 'ct-stat' }, h('b', {}, big), h('span', {}, small));
+  const go = btn('Try it with Wake', resetDay, 'cb primary big');
+  show('day', 'cl-screen cl-trans',
+    h('div', { class: 'ci-card' },
+      h('p', { class: 'ci-k y' }, 'Round 1 complete'),
+      h('h1', {}, 'Your briefing is locked in.'),
+      h('p', { class: 'ci-l' }, 'You prepared for your ' + w.role.meetingName + ' on your own.'),
+      h('div', { class: 'ct-stats' }, stat(fmtClock(s.submittedAt), 'briefing ready'), stat(String(s.flags.length), 'findings'), stat(opened + ' of ' + total, 'sources opened')),
+      h('p', { class: 'ci-l dim' }, 'Next: the same morning, prepared with Wake.'),
       go));
   sfx.credit();
   setTimeout(() => go.focus({ preventScroll: true }), 100);
@@ -182,18 +181,18 @@ function roundOneDone() {
 
 // The day resets: same Monday, same data, with Wake underneath it this time.
 function resetDay() {
-  const s = game.state, D = game.world.day, w = game.world;
+  const s = game.state, D = game.world.day;
   sfx.select();
-  const clock = h('b', { class: 'big-clock' }, fmtClock(s.submittedAt));
-  const lines = h('div', { class: 'typed center' });
-  const go = btn('START ROUND 2 ▶', scan, 'btn primary big'); go.hidden = true;
-  const el = show('wake', 'stage-done reset', h('div', { class: 'center-card' }, h('p', { class: 'stage-k cy' }, 'ROUND 2 · WITH WAKE'), clock, lines, go));
+  const clock = h('b', { class: 'ct-clock' }, fmtClock(s.submittedAt));
+  const lines = h('div', { class: 'ct-lines' });
+  const go = btn('Start Round 2', scan, 'cb wake big'); go.hidden = true;
+  const el = show('wake', 'cl-screen cl-trans rewind', h('div', { class: 'ci-card' }, h('p', { class: 'ci-k w' }, 'Round 2 · With Wake'), clock, lines, go));
   let fast = reduced; el.addEventListener('click', (e) => { if (e.target !== go) fast = true; });
   (async () => {
-    el.classList.add('vhs'); sfx.zoom();
+    el.classList.add('rewinding'); sfx.zoom();
     const step = Math.max(1, Math.round((s.submittedAt - D.start) / 24));
     for (let m = s.submittedAt; m > D.start; m -= step) { clock.textContent = fmtClock(m); await wait(fast ? 0 : 40); }
-    clock.textContent = fmtClock(D.start); el.classList.remove('vhs'); sfx.credit();
+    clock.textContent = fmtClock(D.start); el.classList.remove('rewinding'); sfx.credit();
     const text = [
       'Same Monday. Same 7:48 AM.',
       'Same company, same people, same numbers. Every report, email and text is exactly what you just worked through.',
@@ -201,32 +200,36 @@ function resetDay() {
       'Your job is the part only you can do: decide.',
     ];
     for (const [i, line] of text.entries()) {
-      const p = h('p', { class: i === 0 ? 'stamp-px' : '' }); lines.appendChild(p);
-      for (const ch of line) { if (fast) { p.textContent = line; break; } p.textContent += ch; if (ch !== ' ') sfx.type(); await wait(18); }
-      await wait(fast ? 0 : 260);
+      const p = h('p', { class: i === 0 ? 'ct-first' : 'ci-l' }, line); lines.appendChild(p);
+      await wait(fast ? 0 : 520);
     }
     go.hidden = false; go.focus({ preventScroll: true });
   })();
 }
 
 // ------------------------------------------------------------------ ROUND 2: with Wake
-// Wake reads everything first, in front of the player. Then it loads into the desk.
+// Wake reads everything first, in front of the player. Then it loads onto the computer.
 function scan() {
   const B = game.startRound2();
   const n = (x) => x.toLocaleString('en-US');
-  const canvas = h('canvas', { class: 'field', 'aria-hidden': 'true' });
-  const sys = h('ul', { class: 'syslist' }, B.systems.map((x) => h('li', {}, h('span', {}, x.name), h('b', {}, n(x.n)))));
-  const cap = h('p', { class: 'cap' }, h('b', {}, n(B.funnel.records)), ' records across every system this morning. Yellow is what you looked at in Round 1.');
+  const sys = h('ul', { class: 'sc-sys' }, B.systems.map((x) => h('li', {}, h('span', {}, x.name), h('b', {}, n(x.n) + ' records'))));
+  const funnel = h('div', { class: 'sc-funnel' });
+  const stage = (big, label) => h('div', { class: 'sc-f' }, h('b', {}, big), h('span', {}, label));
   let alive = true;
   const done = () => { if (!alive) return; alive = false; leave(); round2(); };
-  const skip = btn('SKIP ▶', done, 'btn');
-  show('wake', 'scan', h('h1', {}, 'WAKE IS READING YOUR MORNING'), h('div', { class: 'scan-grid' }, h('div', { class: 'field-wrap' }, canvas), sys), cap, h('div', { class: 'row' }, skip));
-  const field = createField(canvas, { ...B, findings: B.findings }, reduced);
-  cleanup = () => { alive = false; field.destroy(); };
+  const skip = btn('Skip', done, 'cb ghost');
+  show('wake', 'cl-screen cl-trans scan2',
+    h('div', { class: 'ci-card wide' },
+      h('p', { class: 'ci-k w' }, wakeMark(20), 'Wake is reading your morning'),
+      h('h1', {}, n(B.funnel.records) + ' records across ' + B.systems.length + ' systems'),
+      h('div', { class: 'sc-grid' }, sys, funnel),
+      h('div', { class: 'row' }, skip)));
+  cleanup = () => { alive = false; };
   (async () => {
     for (const li of [...sys.children]) { if (!alive) return; li.classList.add('on'); sfx.type(); await wait(160); }
-    const steps = [[3, n(B.funnel.moved), ' moved outside their normal range.'], [4, n(B.funnel.material), ' connect to something real. ' + B.funnel.dismissed + ' false alarms cleared.'], [6, String(B.cards.length), ' insights, ranked. Loading to your desk.']];
-    for (const [st, big, text] of steps) { if (!alive) return; field.setStage(st); cap.replaceChildren(h('b', {}, big), text); sfx.blip(); await wait(1500); }
+    const steps = [[n(B.funnel.records), 'records read'], [n(B.funnel.moved), 'moved outside their normal range'], [n(B.funnel.material), 'connect to something real · ' + B.funnel.dismissed + ' false alarms cleared'], [String(B.cards.length), 'insights, ranked and ready']];
+    for (const [big, label] of steps) { if (!alive) return; funnel.appendChild(stage(big, label)); sfx.blip(); await wait(1100); }
+    await wait(500);
     done();
   })();
 }
@@ -238,24 +241,26 @@ function round2() {
 // ------------------------------------------------------------------ the meeting
 function walkToMeeting() {
   leave();
-  arcade.walkScene(game, { day: 'MONDAY', time: '10:00 AM', people: 'meeting', route: 'toMeeting', from: { x: 284, y: 180 }, view: [144, 168, 2.6],
-    lines: ['MONDAY  10:00 AM', 'Your team is in the room. They will act on exactly what you hand them, and they will have questions.', 'You\'ll run this meeting twice. First with the briefing you built on your own, then with the one you built with Wake.'],
-    cta: 'START PRESENTING ▶' }, () => finale().meeting());
+  const W = game.world;
+  const people = W.central.concat(W.locations.map((l) => l.manager)).map((k) => game.person(k));
+  intro.interlude({ meet: true, company: W.shell.company, people, title: (W.role.meetingName[0].toUpperCase() + W.role.meetingName.slice(1)) + ' · 10:00 AM',
+    lines: ['Your team is in the call. They will act on exactly what you hand them, and they will have questions.', 'You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.'],
+    cta: 'Join now' }, () => finale().meeting());
 }
 
 function walkBack() {
   leave();
-  arcade.walkScene(game, { day: 'MONDAY', time: '10:52 AM', people: 'office', route: 'toOffice', from: { x: 110, y: 178 }, view: [272, 170, 3],
-    lines: ['MONDAY  11:00 AM', 'Both plans go to work now.', 'Player 1 is the plan that left your meeting. Player 2 is the plan that left Wake\'s.', 'Same company, same people, same week. Watch them play out side by side, Monday to Friday.'],
-    cta: 'PLAY OUT THE WEEK ▶' }, () => finale().week());
+  intro.interlude({ day: 'Monday', time: '11:00 AM', title: 'Both plans go to work.',
+    lines: ['On the left, the plan that left your meeting. On the right, the plan that left Wake\'s.', 'Same company, same people, same week. Watch them play out side by side, Monday to Friday.'],
+    cta: 'Play out the week' }, () => finale().week());
 }
 
-// Friday evening: the office empties out, then the final score.
+// Friday evening, then the final score.
 function friday(then) {
   leave();
-  arcade.walkScene(game, { day: 'FRIDAY', time: '6:10 PM', people: 'night', route: null, from: { x: 284, y: 180 }, view: [204, 150, 2.2], night: true,
-    lines: ['FRIDAY  6:10 PM', 'The week is in. Both plans had the same five days.', 'Time to count it up.'],
-    cta: 'SEE THE FINAL SCORE ▶' }, then);
+  intro.interlude({ day: 'Friday', time: '6:10 PM', night: true, title: 'The week is in.',
+    lines: ['Both plans had the same five days.', 'Time to count it up.'],
+    cta: 'See the final score' }, then);
 }
 
 // The finale: meeting, week, final score. Built per game so it reads the current one.
@@ -270,4 +275,4 @@ function post() {
   try { navigator.sendBeacon(cfg.logEndpoint, new Blob([JSON.stringify(game.session())], { type: 'application/json' })); } catch (e) { /* never block the experience */ }
 }
 
-arcade.start();
+intro.start();

@@ -6,8 +6,8 @@ and narrates the player through it with a live guide.
 
 ## The flow
 
-1. Arcade front end: attract screen, coin, how to play, choose business and role, countdown,
-   bird's-eye arrival at the office.
+1. Intro: a landing page, one setup page (business, role, a preview of the company), then the
+   laptop's lock screen at 7:48 AM with the morning's notifications.
 2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
    window holding the apps a team actually uses. QuickBooks has the finance reports (weekly flash,
    labor, purchasing); Google Drive has the exports from every other system as Sheets, the location
@@ -31,7 +31,8 @@ and narrates the player through it with a live guide.
    history, the data, "what are we doing?"): topics rotate through the meeting, every option set
    rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
-5. The week. Walk back. Both plans run Monday afternoon to Friday on the city map, with a
+5. The week. Both plans run Monday afternoon to Friday on a dashboard, each with its own Slack
+   channel of daily updates, and a
    six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,
    team hours, open follow-ups) and each problem's own measure. On your own, the team on site
    handles the most visible problem by itself and every day logs something, so a decent week
@@ -85,13 +86,16 @@ and narrates the player through it with a live guide.
                                     the trace drawer back to the Round 1 originals, statements in QuickBooks, briefs
                                     and the drafted Thursday brief in Drive, Gmail labeled by insight, Messages with
                                     send to Wake, Wake's calendar holds, Contacts with assignments, the guided tour
-                   finale.js        the meeting room (questions, answers, follow-ups), Wake's meeting, the result,
-                                    the week as a two-player match on the city map, the final score and the report
+                   finale.js        the meeting as a Google Meet call (questions, answers, follow-ups), Wake's meeting,
+                                    the result, the week as a dashboard with two Slack channels, the final score and the report
                    app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   arcade/          attract screen, coin, setup, map and walking avatar, sound
+                   intro.js         the landing page, setup, lock screen and the cards between scenes (Meet's
+                                    "ready to join", Monday 11:00 AM, Friday evening)
+                   clean.css        styles for every screen outside the two desks
+                   arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
                    audit.mjs        thousands of random games: flags the moment any number stops telling one story
 
