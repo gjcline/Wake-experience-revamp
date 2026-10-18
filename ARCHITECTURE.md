@@ -92,8 +92,14 @@ and narrates the player through it with a live guide.
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   intro.js         the landing page, setup, lock screen and the cards between scenes (Meet's
-                                    "ready to join", Monday 11:00 AM, Friday evening)
+                   scenes.js        the art scenes: the arcade home and setup on its screen, the arrival
+                                    (building, office walk, desk) and the step card every scene uses
+                                    ("what you're doing", "why it matters", one button). Images are 2560x1440;
+                                    a camera pans and zooms across them and live UI is pinned at image pixels.
+                   desk.js          the desk photo with the live computer mounted in the monitor and a phone
+                                    that buzzes for texts and opens Messages when picked up. Under 820px wide
+                                    the desk steps aside and the computer fills the window.
+                   scenes.css       styles for the scenes, the step card, the desk and the phone
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks

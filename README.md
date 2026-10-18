@@ -24,9 +24,11 @@ Add `?seed=123` to the URL to replay the same company.
     src/engine/    pure logic, no DOM: the game, Wake's analysis, the meeting director,
                    the week model, the final score and the report
     src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
-                   the live guide (app.js) and the intro (intro.js)
+                   the live guide (app.js), the arcade, arrival and walks between rooms (scenes.js)
+                   and the desk with its monitor and phone (desk.js)
     src/ui/os/     the computer both desks run on, and look-alike Gmail, QuickBooks, Drive,
                    Sheets, Docs, Google Calendar, Messages and Contacts
+    art/           the scene images (arcade, building, office, desks, meeting room), copied into dist/art
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)
     dist/          built output, committed so the page can be opened or hosted without a build
 
