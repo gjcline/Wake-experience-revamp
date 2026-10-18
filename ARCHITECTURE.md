@@ -6,9 +6,9 @@ and narrates the player through it with a live guide.
 
 ## The flow
 
-1. Intro: the arcade cabinet, then a stage select (the business) and a character select (the
-   role), then Player 1 ready with the company and the mode: Quick run (about 5 minutes) or
-   Full picture (about 15). Then the pixel office: the car pulls up and you walk to your desk.
+1. Intro: the arcade cabinet, then three short questions, one per screen: the kind of business,
+   your role, and your company with the mode, Quick run (about 5 minutes, the default) or Full
+   run (about 15). Then the pixel office: the car pulls up and you walk to your desk.
    Quick mode plays Round 1 and your own meeting for you the way most owners do it
    (game.autopilotRound1 and autopilotMeeting: the loudest numbers, the first read, no owners),
    shows that baseline, and goes straight to Round 2. Everything after compares the two as usual.
@@ -96,14 +96,13 @@ and narrates the player through it with a live guide.
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   scenes.js        the arcade home, the stage select (business) and character select (role) with
-                                    stat bars, Player 1 ready, and the office scenes. Every step opens with one
+                   scenes.js        the arcade home, the three setup questions (business, role, your company
+                                    and mode), and the office scenes. Every step opens with one
                                     card: "what you're doing", "why it matters", one button.
                    pixel/office.js  the building in three-quarter top-down pixel art: street, lobby, operations
                                     floor, hallway, meeting room, break room, your office. People walk fixed
                                     routes (arrival, to the meeting, back); Friday is the same map after dark.
-                   pixel/sprites.js storefronts for the stage select and a pixel emblem for each role
-                   scenes.css       styles for the arcade, the select screens, the office scenes and the step card
+                   scenes.css       styles for the arcade, the setup questions, the office scenes and the step card
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks

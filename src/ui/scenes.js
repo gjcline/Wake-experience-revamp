@@ -7,11 +7,10 @@
 import { h } from './art.js';
 import { SHELLS, SHELL_ORDER } from '../content/shells.js';
 import { ROLES, ROLE_ORDER } from '../content/roles.js';
-import { makeResolver, randomSeed } from '../engine/config.js';
+import { randomSeed } from '../engine/config.js';
 import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
-import { createOffice, SEAT } from './pixel/office.js';
-import { storefront, emblem, ROLE_COLOR } from './pixel/sprites.js';
+import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 
 // The arcade photo is 2560 x 1440; rectangles are [x, y, width, height] in image pixels.
 export const IW = 2560, IH = 1440;
@@ -45,8 +44,6 @@ export function createView(art, { cover = true, cls = '' } = {}) {
   };
 }
 
-const LENS = [['operations', 'Operations'], ['labor', 'Labor'], ['finance', 'Money'], ['customer', 'Customers'], ['people', 'People']];
-const THU = { gm: 'Lender review', coo: 'Board call', owner: 'Bank covenant check', partner: 'Quarterly review', regional: 'Labor review' };
 const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
@@ -111,100 +108,63 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     }
   }
 
-  // ------------------------------------------------------------ 2. stage select and character select
-  const pick = { shell: null, role: null, seed: 0 };
+  // ------------------------------------------------------------ 2. setup: three short questions
+  // One question per screen, a plain list of answers, one click to move on.
+  const pick = { shell: null, role: null, seed: 0, mode: 'quick' };
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
-  // a role's emblem on a lit badge
-  function portrait(roleId, cls) {
-    const box = h('div', { class: 'cs-pic emblem ' + (cls || '') }, emblem(roleId));
-    box.style.setProperty('--tone', ROLE_COLOR[roleId]);
-    return box;
-  }
+  const TOTAL = 3;
+  const head = (n, onBack) => h('header', { class: 'su-top' },
+    h('b', { class: 'su-brand' }, 'Wake'),
+    h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
+    onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '← Back') : h('span'));
 
-  // One select screen: a big hero on the left, what it means on the right, the roster below.
-  function select({ step, title, items, onPick, onBack }) {
-    let at = 0;
-    const hero = h('div', { class: 'cs-hero' });
-    const info = h('div', { class: 'cs-info' });
-    const tiles = items.map((it, i) => h('button', { class: 'cs-tile', type: 'button', onmouseenter: () => focus(i), onfocus: () => focus(i, true), onclick: () => { if (at !== i) focus(i); else choose(); } },
-      h('span', { class: 'cs-thumb' }, it.thumb()), h('b', {}, it.short || it.name)));
-    const choose = () => { sfx.select(); onPick(items[at].id); };
-    function focus(i, quiet) {
-      at = (i + items.length) % items.length;
-      tiles.forEach((t, j) => t.classList.toggle('on', j === at));
-      if (document.activeElement && document.activeElement.classList.contains('cs-tile') && document.activeElement !== tiles[at]) tiles[at].focus({ preventScroll: true });
-      const it = items[at];
-      hero.replaceChildren(it.hero(), h('span', { class: 'cs-floor' }));
-      hero.style.setProperty('--tone', it.tone || '#22D3EE');
-      info.replaceChildren(...[
-        h('p', { class: 'cs-kick' }, it.kicker),
-        h('h2', { class: 'cs-name' }, it.name),
-        h('p', { class: 'cs-line' }, it.line),
-        it.stats ? h('div', { class: 'cs-stats' }, h('p', { class: 'cs-kick' }, it.statsTitle), it.stats.map(([label, n]) => h('div', { class: 'cs-bar' }, h('span', {}, label), h('i', {}, Array.from({ length: 7 }, (_, k) => h('em', { class: k < n ? 'on' : '' })))))) : null,
-        h('dl', { class: 'cs-facts' }, it.facts.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-        h('div', { class: 'cs-go' }, btn(it.cta, choose, 'ab primary big'))].filter(Boolean));
-      if (!quiet) sfx.blip();
-    }
-    screen('cs',
-      h('header', { class: 'cs-top' }, h('span', { class: 'cs-p1' }, 'P1'), h('h1', {}, title), h('span', { class: 'cs-step' }, step), onBack ? btn('◀ Back', onBack, 'ab ghost small') : h('span')),
-      h('div', { class: 'cs-stage' }, hero, info),
-      h('div', { class: 'cs-roster' }, tiles),
-      h('p', { class: 'cs-keys' }, h('span', {}, '◀ ▶'), ' move  ', h('span', {}, 'Enter'), ' select'));
-    focus(0, true); tiles[0].focus({ preventScroll: true });
+  function select({ n, title, sub, items, onPick, onBack }) {
+    const rows = items.map((it) => h('button', { class: 'su-row', type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
+      h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
+    screen('su', head(n, onBack),
+      h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, rows)));
+    rows[0].focus({ preventScroll: true });
     keys((e) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); focus(at + 1); }
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); focus(at - 1); }
-      else if (e.key === 'Enter') { e.preventDefault(); choose(); }
+      const i = rows.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); rows[(i + 1) % rows.length].focus(); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); rows[(i - 1 + rows.length) % rows.length].focus(); }
       else if (e.key === 'Escape' && onBack) onBack();
     });
   }
 
   function setup() {
     onStep('select');
-    select({ step: '1 / 2', title: 'Select your stage',
-      items: SHELL_ORDER.map((id) => {
-        const s = SHELLS[id];
-        return { id, name: s.label, short: s.label.replace(' Business', ''), kicker: 'The business', line: s.blurb, tone: '#FFD23F', cta: 'Run this business ▶',
-          thumb: () => storefront(id), hero: () => h('div', { class: 'cs-pic stage' }, storefront(id)),
-          facts: [['Known for', TAGS[id]], ['On the floor', cap(s.vocab.frontlines)], ['You serve', cap(s.vocab.customers)], ['The company', 'New every game']] };
-      }),
+    select({ n: 1, title: 'What kind of business do you run?', sub: 'Pick the closest fit. You\'ll get a made-up company of that kind, with its own people and numbers.',
+      items: SHELL_ORDER.map((id) => ({ id, name: SHELLS[id].label, line: TAGS[id] })),
       onPick: (id) => { pick.shell = id; pick.seed = urlSeed() || randomSeed(); setupRole(); }, onBack: home });
   }
   function setupRole() {
-    const t = makeResolver(SHELLS[pick.shell].vocab);
-    select({ step: '2 / 2', title: 'Select your seat',
-      items: ROLE_ORDER.map((id) => {
-        const r = ROLES[id];
-        return { id, name: r.label, short: r.label.replace(' / Operations', ''), kicker: 'Your role', line: t(r.seat), tone: ROLE_COLOR[id], cta: 'Take this seat ▶',
-          thumb: () => portrait(id, 'mini'), hero: () => portrait(id),
-          statsTitle: 'What lands on your desk first',
-          stats: LENS.map(([k, label]) => [label, 7 - r.lens.indexOf(k)]),
-          facts: [['10:00 AM', cap(r.meetingName)], ['Thursday', THU[id]]] };
-      }),
+    select({ n: 2, title: 'What\'s your role?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
+      items: ROLE_ORDER.map((id) => ({ id, name: ROLES[id].label, line: ROLES[id].blurb })),
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
   function ready() {
     onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
-    const go = (mode) => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, mode); };
-    const mode = (id, name, time, line, cls) => h('button', { class: 'cs-mode ' + cls, type: 'button', onclick: () => go(id) }, h('span', { class: 'cs-mt' }, h('b', {}, name), h('em', {}, time)), h('span', { class: 'cs-ml' }, line));
-    const hero = h('div', { class: 'cs-hero' }, portrait(pick.role), h('span', { class: 'cs-floor' }));
-    hero.style.setProperty('--tone', ROLE_COLOR[pick.role]);
-    screen('cs cs-ready',
-      h('header', { class: 'cs-top' }, h('span', { class: 'cs-p1' }, 'P1'), h('h1', {}, 'Player 1 ready'), h('span', { class: 'cs-step' }, ''), btn('◀ Back', setupRole, 'ab ghost small')),
-      h('div', { class: 'cs-stage' }, hero,
-        h('div', { class: 'cs-info' },
-          h('p', { class: 'cs-kick' }, 'Your company'),
-          h('h2', { class: 'cs-name' }, pv.company),
-          h('p', { class: 'cs-line' }, 'You are the ' + r.label + '. New company, new people, new numbers: nobody has played this one before.'),
-          h('dl', { class: 'cs-facts' }, [['Business', s.label], ['Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ' · ' + pv.headcount + ' people'], ['Today', pv.monday + ', 7:48 AM'], ['10:00 AM', cap(r.meetingName)], ['Thursday', THU[pick.role]]].flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
-          h('p', { class: 'cs-kick' }, 'Select mode'),
-          h('div', { class: 'cs-modes' },
-            mode('quick', 'Quick run ▶', '5 min', 'We play the usual morning for you. You run it with Wake and see the score.', 'quick'),
-            mode('full', 'Full picture', '15 min', 'Run the morning yourself first, then again with Wake. The whole comparison.', 'full')),
-          h('div', { class: 'cs-go' }, btn('A different company', () => { pick.seed = randomSeed(); sfx.blip(); ready(); }, 'ab ghost small')))));
-    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go('quick'); } else if (e.key === 'Escape') setupRole(); });
+    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, pick.mode); };
+    const modes = [['quick', 'Quick run', '5 min', 'We play the usual morning for you. Then you run it with Wake and see the difference.', 'Recommended'],
+      ['full', 'Full run', '15 min', 'You run the morning yourself first, then again with Wake.', '']];
+    const opts = modes.map(([id, name, time, line, tag]) => h('button', { class: 'su-row su-mode' + (pick.mode === id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(pick.mode === id),
+      onclick: () => { pick.mode = id; sfx.blip(); opts.forEach((o, i) => { const on = modes[i][0] === id; o.classList.toggle('on', on); o.setAttribute('aria-checked', String(on)); }); } },
+      h('i', { class: 'su-dot', 'aria-hidden': 'true' }), h('span', { class: 'su-rt' }, h('b', {}, name, tag ? h('small', {}, tag) : null), h('span', {}, line)), h('em', {}, time)));
+    const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
+    screen('su', head(3, setupRole),
+      h('div', { class: 'su-body' },
+        h('h1', {}, 'Here\'s your company'),
+        h('p', { class: 'su-sub' }, 'It\'s Monday morning. Your ' + r.meetingName + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
+        h('section', { class: 'su-card' },
+          h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),
+          h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('10:00 AM', cap(r.meetingName)))),
+        h('p', { class: 'su-q' }, 'How much time do you have?'),
+        h('div', { class: 'su-list', role: 'radiogroup' }, opts),
+        h('div', { class: 'su-go' }, btn('Start the morning', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
+    keys((e) => { if (e.key === 'Enter' && !(document.activeElement && document.activeElement.classList.contains('su-mode'))) { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
 
   // ------------------------------------------------------------ 3. the pixel office

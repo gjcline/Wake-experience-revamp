@@ -7,6 +7,9 @@
 
 import { sfx } from '../arcade/sound.js';
 
+// each role's shirt color on the map
+export const ROLE_COLOR = { gm: '#FF4F8B', coo: '#22D3EE', owner: '#FFD23F', partner: '#A98BFF', regional: '#5BD66B' };
+
 const S = 4;                 // offscreen canvas pixels per map pixel
 export const MW = 384, MH = 240;
 
