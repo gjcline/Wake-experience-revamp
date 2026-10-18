@@ -1,7 +1,7 @@
 # Role portraits for the character select
 
 Five portraits, one per role. The character select shows them big on the left and small in the
-roster. Until they exist, the game shows its own pixel stand-ins.
+roster. They are in `art/roles/`. If one is missing, the game shows its own pixel stand-in.
 
 ## Where they go
 
