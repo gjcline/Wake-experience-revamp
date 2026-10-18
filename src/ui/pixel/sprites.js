@@ -1,9 +1,6 @@
 // PIXEL PIECES FOR THE SELECT SCREENS
-// The storefront for each business (the "stage" you pick) and a stand-in portrait for each role,
-// used until the role portraits in art/roles/ are added. Both are drawn on small canvases and
-// scaled up with crisp pixels.
-
-import { personPal } from './office.js';
+// The storefront for each business (the "stage" you pick) and an emblem for each role. Both are
+// drawn on small canvases and scaled up with crisp pixels.
 
 export const ROLE_COLOR = { gm: '#FF4F8B', coo: '#22D3EE', owner: '#FFD23F', partner: '#A98BFF', regional: '#5BD66B' };
 
@@ -45,16 +42,23 @@ export function storefront(id) {
   return c;
 }
 
-// A stand-in portrait: the role's character, head and shoulders, on a lit backdrop.
-const BUST = [
-  '....HHHHHH....', '...HHHHHHHH...', '..HHHHHHHHHH..', '..HHSSSSSSHH..', '..HSSSSSSSSH..', '..SSESSSSESS..', '..SSSSSSSSSS..',
-  '...SSSSSSSS...', '....SSSSSS....', '.....SSSS.....', '..CCCWWWWCCC..', '.CCCCCWWCCCCC.', 'CCCCCCWWCCCCCC', 'CCCCCCCCCCCCCC', 'cccccccccccccc',
-];
-export function bust(roleId) {
-  const pal = personPal({ hair: '#2A1C14', skin: '#D9A07A' }, ROLE_COLOR[roleId]);
-  pal.W = '#F4F1EA';
-  const [c, r] = canvas(20, 20);
-  BUST.forEach((row, y) => [...row].forEach((k, x) => { if (k === '.') return; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { const n = (BUST[y + dy] || '')[x + dx]; if (!n || n === '.') r(3 + x + dx, 5 + y + dy, 1, 1, '#15131F'); } }));
-  BUST.forEach((row, y) => [...row].forEach((k, x) => { if (k !== '.') r(3 + x, 5 + y, 1, 1, pal[k]); }));
+// Each role's emblem: a pixel badge in the role's color, used on the character select.
+// X role color, D a darker shade, W white.
+const EMBLEM = {
+  gm: ['....DDDD....', '..XXDWWDXX..', '..XWWWWWWX..', '..XWDDDDWX..', '..XWWWWWWX..', '..XWDDDWWX..', '..XWWWWWWX..', '..XWDDDDWX..', '..XWWWWWWX..', '..XWDDWWWX..', '..XXXXXXXX..', '............'],
+  coo: ['............', '.........XX.', '.........XX.', '......XX.XX.', '......XX.XX.', '...XX.XX.XX.', '...XX.XX.XX.', 'XX.XX.XX.XX.', 'XX.XX.XX.XX.', 'XX.XX.XX.XX.', 'WWWWWWWWWWWW', '............'],
+  owner: ['.....XX.....', '....XXXX....', '...XXXXXX...', '..XXXXXXXX..', '.XXXXXXXXXX.', 'XXXXXXXXXXXX', '.XWWXXXXWWX.', '.XWWXDDXWWX.', '.XXXXDDXXXX.', '.XXXXDDXXXX.', '.XXXXDDXXXX.', '............'],
+  partner: ['............', '....DDDD....', '....D..D....', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.DDDDWWDDDD.', '.XXXXWWXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '............'],
+  regional: ['...XXXXXX...', '..XXXXXXXX..', '.XXXWWWWXXX.', '.XXWWDDWWXX.', '.XXWWDDWWXX.', '.XXXWWWWXXX.', '..XXXXXXXX..', '...XXXXXX...', '....XXXX....', '.....XX.....', '.....XX.....', '............'],
+};
+export function emblem(roleId) {
+  const rows = EMBLEM[roleId] || EMBLEM.gm;
+  const col = ROLE_COLOR[roleId] || ROLE_COLOR.gm;
+  const pal = { X: col, D: shade(col, 0.62), W: '#F4F1EA' };
+  const [c, r] = canvas(16, 16);
+  const at = (x, y) => (rows[y] || '')[x];
+  rows.forEach((row, y) => [...row].forEach((k, x) => { if (k === '.') return; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { const n = at(x + dx, y + dy); if (!n || n === '.') r(2 + x + dx, 2 + y + dy, 1, 1, '#15131F'); } }));
+  rows.forEach((row, y) => [...row].forEach((k, x) => { if (k !== '.') r(2 + x, 2 + y, 1, 1, pal[k]); }));
   return c;
 }
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.round(v * k); return 'rgb(' + f(n >> 16) + ',' + f((n >> 8) & 255) + ',' + f(n & 255) + ')'; }

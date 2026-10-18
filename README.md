@@ -25,10 +25,10 @@ Add `?seed=123` to the URL to replay the same company.
                    the week model, the final score and the report
     src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
                    the live guide (app.js), the arcade and the stage and character select (scenes.js)
-    src/ui/pixel/  the pixel office the walks happen in (office.js), storefronts and stand-in portraits
+    src/ui/pixel/  the pixel office the walks happen in (office.js), storefronts and role emblems (sprites.js)
     src/ui/os/     the computer both desks run on, and look-alike Gmail, QuickBooks, Drive,
                    Sheets, Docs, Google Calendar, Messages and Contacts
-    art/           the arcade photo and the role portraits (art/roles/<role>.webp); copied into dist/art
+    art/           the arcade photo; copied into dist/art
     src/dashboard.html  the team's runs dashboard, served at /dashboard
     api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings)
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)

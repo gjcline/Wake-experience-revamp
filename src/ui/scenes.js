@@ -11,7 +11,7 @@ import { makeResolver, randomSeed } from '../engine/config.js';
 import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT } from './pixel/office.js';
-import { storefront, bust, ROLE_COLOR } from './pixel/sprites.js';
+import { storefront, emblem, ROLE_COLOR } from './pixel/sprites.js';
 
 // The arcade photo is 2560 x 1440; rectangles are [x, y, width, height] in image pixels.
 export const IW = 2560, IH = 1440;
@@ -114,10 +114,10 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
   // ------------------------------------------------------------ 2. stage select and character select
   const pick = { shell: null, role: null, seed: 0 };
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
-  // a role's portrait: the art pack's image when it exists, the pixel character until then
+  // a role's emblem on a lit badge
   function portrait(roleId, cls) {
-    const box = h('div', { class: 'cs-pic ' + (cls || '') }, bust(roleId));
-    const img = h('img', { src: 'art/roles/' + roleId + '.webp', alt: '', draggable: 'false', onload: () => box.replaceChildren(img), onerror: () => {} });
+    const box = h('div', { class: 'cs-pic emblem ' + (cls || '') }, emblem(roleId));
+    box.style.setProperty('--tone', ROLE_COLOR[roleId]);
     return box;
   }
 

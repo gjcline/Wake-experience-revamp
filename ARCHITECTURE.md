@@ -102,8 +102,7 @@ and narrates the player through it with a live guide.
                    pixel/office.js  the building in three-quarter top-down pixel art: street, lobby, operations
                                     floor, hallway, meeting room, break room, your office. People walk fixed
                                     routes (arrival, to the meeting, back); Friday is the same map after dark.
-                   pixel/sprites.js storefronts for the stage select and stand-in role portraits, used until
-                                    art/roles/<gm|coo|owner|partner|regional>.webp exist
+                   pixel/sprites.js storefronts for the stage select and a pixel emblem for each role
                    scenes.css       styles for the arcade, the select screens, the office scenes and the step card
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
