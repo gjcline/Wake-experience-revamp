@@ -747,3 +747,13 @@ body:has(.os-screen) .coach-inline p { font-size: 14.5px; }
 .wx .os-screen .owner-chip, .wx .os-screen .answer, .wx .os-screen .att-f, .wx .os-screen .chip { color: #1F1F1F; }
 .wx .os-screen .owner-chip:hover, .wx .os-screen .att-f:hover { background: var(--g-hover); box-shadow: none; }
 .wx .os-screen .owner-chip > .face { display: inline-grid; place-items: center; flex-direction: row; }
+
+/* the selected read stays readable: dark text on the light blue, a plain blue radio */
+.wx .os-screen .cstep2 .answer.on .a-read, .wx .os-screen .cstep2 .answer.on .a-act { color: #1F1F1F; }
+.wx .os-screen .cstep2 .answer.on i { background: #fff; box-shadow: none; border: 5px solid var(--g-blue); }
+
+/* the "not part of this demo" note */
+.demo-note { position: fixed; left: 50%; bottom: 28px; z-index: 9999; transform: translate(-50%, 12px); max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 10px; background: #202124; color: #fff;
+  font: 500 14px/1.4 'Inter', 'Roboto', system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
+.demo-note.on { opacity: 1; transform: translate(-50%, 0); }
+.wx .gm-compose, .wx .gm-tabs span, .wx .gm-rb, .wx .gm-ni, .wx .qb-new, .wx .qb-run, .wx .qb-cust, .wx .qb-save, .wx .qb-rtabs span, .wx .ed-menus span, .wx .ed-share, .wx .mt-b { cursor: pointer; }

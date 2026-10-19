@@ -370,8 +370,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
 
   // ------------------------------------------------------------ flagging: the composer
-  // Four short reads, each with the action beneath it; then the player's own words, an owner,
-  // and how sure they are.
+  // Four short reads, each with the action beneath it; then an owner and how sure they are.
   function compose({ signals, source, existing }) {
     if (!existing && game.state.flags.length >= game.MAX_FLAGS) { note('You can store up to ' + game.MAX_FLAGS + ' findings. Remove one in your findings to add another.'); return; }
     sfx.select();
@@ -381,15 +380,11 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     let choice = existing ? existing.choice : null, owner = existing ? existing.owner : null, sure = existing ? existing.confidence : null;
     const answers = game.answers(sid);
     const steps = h('ol', { class: 'cprog' });
-    const progress = () => steps.replaceChildren(...[['Your read', !!choice || ta.value.trim().length >= 3], ['Your words', ta.value.trim().length >= 3], ['Owner', !!owner], ['How sure', !!sure]].map(([t, done], i) => h('li', { class: 'cp' + i + (done ? ' done' : '') }, h('i', {}, done ? '✓' : String(i + 1)), t)));
+    const progress = () => steps.replaceChildren(...[['Your read', !!choice], ['Owner', !!owner], ['How sure', !!sure]].map(([t, done], i) => h('li', { class: 'cp' + i + (done ? ' done' : '') }, h('i', {}, done ? '✓' : String(i + 1)), t)));
     const opts = h('div', { class: 'answers', role: 'radiogroup', 'aria-label': 'Your read' });
     const drawOpts = () => opts.replaceChildren(...answers.map((a) => h('button', { class: 'answer' + (choice === a.id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(choice === a.id), onclick: () => { choice = choice === a.id ? null : a.id; drawOpts(); progress(); sfx.blip(); } },
       h('i', {}), h('span', { class: 'a-read' }, a.read), h('span', { class: 'a-act' }, a.act))));
-    const ta = h('textarea', { id: 'wx-action', rows: '3', maxlength: '280', placeholder: 'What do you think is really going on? What would you do? Anything the options miss.', 'aria-label': 'In your own words' });
-    if (existing) ta.value = existing.note || '';
-    const count = h('span', { class: 'wcount' });
-    const words = () => { const k = ta.value.trim().split(/\s+/).filter(Boolean).length; count.textContent = k ? k + (k === 1 ? ' word' : ' words') : ''; };
-    ta.addEventListener('input', () => { words(); progress(); });
+    const noteText = existing ? existing.note || '' : '';
     const ownersEl = h('div', { class: 'owner-pick' });
     const drawOwners = () => {
       const list = game.owners();
@@ -402,8 +397,8 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const drawSure = () => sureEl.replaceChildren(...[['hunch', 'A hunch'], ['fair', 'Fairly sure'], ['certain', 'Certain']].map(([k, l]) => h('button', { class: 'sure-chip' + (sure === k ? ' on' : ''), type: 'button', 'aria-pressed': String(sure === k), onclick: () => { sure = sure === k ? null : k; drawSure(); progress(); sfx.blip(); } }, l)));
     drawSure();
     const save = btn(existing ? 'Save' : 'Add to findings', () => {
-      if (!choice && ta.value.trim().length < 3) { opts.classList.add('shake'); setTimeout(() => opts.classList.remove('shake'), 400); note('Pick the read closest to yours, or write your own.'); return; }
-      if (existing) game.editFlag(existing.id, { choice, note: ta.value, owner, confidence: sure }); else game.flag({ signals, source, choice, note: ta.value, owner, confidence: sure });
+      if (!choice && noteText.trim().length < 3) { opts.classList.add('shake'); setTimeout(() => opts.classList.remove('shake'), 400); note('Pick the read closest to yours.'); return; }
+      if (existing) game.editFlag(existing.id, { choice, note: noteText, owner, confidence: sure }); else game.flag({ signals, source, choice, owner, confidence: sure });
       closeCard(); sfx.coin(); drawTray(); render();
       coach.emit('flagged'); coach.pop();
     }, 'ob primary');
@@ -413,11 +408,10 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('blockquote', { class: 'flagged' }, h('span', { class: 'fl-src' }, (src ? src.title : '') + (w.system[src && src.id] ? ' · ' + w.system[src.id] : '')), h('strong', {}, s.label), h('span', { class: 'fl-v' }, [s.value, s.delta].filter(Boolean).join(' · '))),
       steps,
       step(1, 'What\'s your read?', 'Pick the one closest to what you think is going on. The action underneath is what your team would do.', opts),
-      step(2, 'In your own words', 'Optional, but it goes into the meeting with you. Explain your read, or write your own if none of the above fit.', ta, count),
-      step(3, 'Who owns it?', 'Optional. Who on your team should take this on?', ownersEl),
-      step(4, 'How sure are you?', null, sureEl),
+      step(2, 'Who owns it?', 'Optional. Who on your team should take this on?', ownersEl),
+      step(3, 'How sure are you?', null, sureEl),
       h('div', { class: 'row' }, save, existing ? btn('Remove this finding', () => { game.removeFlag(existing.id); closeCard(); sfx.back(); drawTray(); render(); }, 'link') : null, btn('Cancel', () => { closeCard(); sfx.back(); coach.emit('cancel'); coach.pop(); }, 'link')));
-    drawOpts(); words(); progress();
+    drawOpts(); progress();
     coach.emit('compose'); coach.push('compose');
   }
 
@@ -507,7 +501,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       { text: 'Any figure in a sheet can be flagged, the same as in QuickBooks.', target: '.gs-grid', next: 'GOT IT ▶', once: true, skipIf: () => !document.querySelector('.gs-grid .figbtn') },
     ],
     compose: [
-      { text: 'Pick the read closest to yours. Then, if you can, say it in your own words: it goes into the meeting with you. An owner and how sure you are help too. Then add it.', target: '.composer', inline: true, wait: 'flagged' },
+      { text: 'Pick the read closest to yours. An owner and how sure you are help too. Then add it.', target: '.composer', inline: true, wait: 'flagged' },
     ],
     secondary: [
       { text: 'Emails, texts, your calendar and your notes don\'t become findings on their own. When one adds context to a finding you\'ve stored, attach it with Add to a finding. It travels with that finding into the meeting.', target: '.attach-btn', next: 'GOT IT ▶', once: true },

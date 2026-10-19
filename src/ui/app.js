@@ -9,6 +9,7 @@ import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { createScenes } from './scenes.js';
 import { createTracker } from './track.js';
+import { installDemoNote } from './demo-note.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
 import { createFinale } from './finale.js';
@@ -278,5 +279,6 @@ function book(email) {
   window.open(u.toString(), '_blank', 'noopener');
 }
 
+installDemoNote(root);
 track.begin();
 world.start();
