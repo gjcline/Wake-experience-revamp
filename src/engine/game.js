@@ -197,37 +197,6 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     return true;
   }
 
-  // ------------------------------------------------------------ quick mode
-  // Plays the morning the way most owners do, so quick mode can go straight to the Wake round:
-  // open the reports, flag the loudest numbers with the first read that comes to mind, name no
-  // owners, and lock the briefing a few minutes before ten.
-  function autopilotRound1(until = D.meetingAt - 14) {
-    state.quick = true;
-    startRound1();
-    const where = (id) => (world.signals[id] ? world.signals[id].sources.find((s) => ['report', 'location'].includes(world.sources[s].kind)) : null);
-    for (const id of world.order.report) open(id);
-    while (state.clock < until) tickClock();
-    const loud = world.obvious.filter((id) => where(id) && state.sources[where(id)].available);
-    const rest = Object.keys(world.signals).filter((id) => !loud.includes(id) && where(id) && state.sources[where(id)].available && answers(id).length);
-    for (const id of loud.concat(rest)) {
-      if (state.flags.length >= MIN_FLAGS) break;
-      const a = answers(id)[0];
-      if (a) flag({ signals: [id], source: where(id), choice: a.id, owner: null });
-    }
-    return submitRound1();
-  }
-  // The same owner's meeting: take each question as it comes with the strongest answer on hand.
-  function autopilotMeeting() {
-    for (let i = 0; i < 400; i++) {
-      const st = meetingStep(); if (st.done) break;
-      const b = st.beat;
-      if (b.type === 'stamp' || b.type === 'present') { answerQ(b.id, 'ok'); continue; }
-      answerQ(b.id, (b.auto ? b.opts[0] : b.opts.find((x) => x.effect === 'answer') || b.opts[0]).id);
-    }
-    presented('yours');
-    return meetingYours();
-  }
-
   // ------------------------------------------------------------ round 2
   // Same morning, same data. Wake has already read every source; the player decides which
   // of its ranked insights to hand to the team (at least 3, at most 5). Texts still arrive
@@ -408,7 +377,7 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     const styles = {};
     for (const j of judged) if (j.style) styles[j.style] = (styles[j.style] || 0) + 1;
     return {
-      sessionId: state.sessionId, mode: state.quick ? 'quick' : 'full', shell: shellId, role: roleId, seed, company: world.shell.company, size: world.shell.size, events: tracker.log,
+      sessionId: state.sessionId, shell: shellId, role: roleId, seed, company: world.shell.company, size: world.shell.size, events: tracker.log,
       summary: {
         sourcesOpened: Object.values(state.sources).filter((s) => s.opened).length,
         categoriesOpened: [...new Set(Object.entries(state.sources).filter(([, s]) => s.opened).map(([id]) => world.sources[id].cat))],
@@ -432,7 +401,6 @@ export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), 
     startRound2, briefing, assign, moveWake, putThrough, lockRound2,
     tickWake, listR2, unreadR2, openR2, insights, insight, trace, pick, assignments, r2Ready, MIN_PICKS, MAX_PICKS,
     traced: (id) => rec('trace_opened', { signal: id }),
-    autopilotRound1, autopilotMeeting, quick: () => !!state.quick,
     meetingStep, answerQ, meetingPrep, meetingAgenda, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,
     clockLabel: () => fmtClock(state.clock),
   };

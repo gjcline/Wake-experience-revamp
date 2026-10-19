@@ -59,7 +59,7 @@ const mins = (s) => (s == null ? '' : s < 60 ? s + 's' : Math.floor(s / 60) + 'm
 const median = (a) => { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); const m = Math.floor(b.length / 2); return b.length % 2 ? b[m] : Math.round((b[m - 1] + b[m]) / 2); };
 const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '–');
 let key = ''; try { key = localStorage.getItem('wx-dash-key') || ''; } catch (e) { /* fine */ }
-let data = null, range = '30', mode = 'all';
+let data = null, range = '30';
 
 function gate(msg) {
   app.innerHTML = `<form class="card gate" id="g"><h1>Wake Experience runs</h1><p class="sub">Enter the dashboard key.</p><input id="k" type="password" placeholder="Dashboard key" autocomplete="current-password" required>${msg ? `<p class="err">${esc(msg)}</p>` : ''}<button class="primary">Open</button></form>`;
@@ -81,7 +81,7 @@ function render() {
   const since = range === 'all' ? 0 : Date.now() - Number(range) * 864e5;
   const byRun = {}, byEmail = {};
   for (const b of data.bookings || []) { if (b.event && /CANCEL/i.test(b.event)) continue; if (b.runId) byRun[b.runId] = b; if (b.email) byEmail[b.email.toLowerCase()] = b; }
-  const runs = (data.runs || []).filter((r) => new Date(r.startedAt || r.lastAt).getTime() >= since && (mode === 'all' || r.mode === mode))
+  const runs = (data.runs || []).filter((r) => new Date(r.startedAt || r.lastAt).getTime() >= since )
     .map((r) => ({ ...r, booking: byRun[r.id] || (r.email && byEmail[r.email.toLowerCase()]) || null }))
     .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
   const played = runs.filter((r) => r.step >= 3), done = runs.filter((r) => r.finished), booked = runs.filter((r) => r.booking);
@@ -89,16 +89,16 @@ function render() {
   const reach = (list, i) => list.filter((r) => (r.step || 0) >= i).length;
   const top = Math.max(1, runs.length);
   const funnel = STEPS.map((s, i) => {
-    const q = reach(runs.filter((r) => r.mode === 'quick'), i), f = reach(runs.filter((r) => r.mode === 'full'), i), u = reach(runs.filter((r) => !r.mode), i);
-    return `<div class="frow"><span>${LABEL[s]}</span><div class="fbar"><i class="q" style="width:${q / top * 100}%"></i><i class="f" style="width:${f / top * 100}%"></i><i class="u" style="width:${u / top * 100}%"></i></div><em>${q + f + u} · ${pct(q + f + u, runs.length)}</em></div>`;
+    const n = reach(runs, i);
+    return `<div class="frow"><span>${LABEL[s]}</span><div class="fbar"><i class="f" style="width:${n / top * 100}%"></i></div><em>${n} · ${pct(n, runs.length)}</em></div>`;
   }).join('');
-  const modeRow = (m, label) => {
-    const p = played.filter((r) => r.mode === m), d = p.filter((r) => r.finished), b = p.filter((r) => r.booking);
-    return `<tr><td><span class="pill ${m}">${label}</span></td><td>${p.length}</td><td>${d.length} (${pct(d.length, p.length)})</td><td>${mins(median(p.map((r) => r.activeSeconds || 0)))}</td><td>${mins(median(d.map((r) => r.activeSeconds || 0)))}</td><td>${p.filter((r) => r.email).length}</td><td>${b.length} (${pct(b.length, p.length)})</td></tr>`;
+  const ROLE = { gm: 'General Manager', coo: 'COO', owner: 'Owner', partner: 'Executive Partner', regional: 'Regional Manager' };
+  const roleRow = (k) => {
+    const p = played.filter((r) => r.role === k), d = p.filter((r) => r.finished), b = p.filter((r) => r.booking);
+    return `<tr><td>${ROLE[k]}</td><td>${p.length}</td><td>${d.length} (${pct(d.length, p.length)})</td><td>${mins(median(p.map((r) => r.activeSeconds || 0)))}</td><td>${mins(median(d.map((r) => r.activeSeconds || 0)))}</td><td>${p.filter((r) => r.email).length}</td><td>${b.length} (${pct(b.length, p.length)})</td></tr>`;
   };
   const rows = runs.slice(0, 500).map((r) => `<tr>
     <td>${new Date(r.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-    <td>${r.mode ? `<span class="pill ${r.mode}">${r.mode}</span>` : '<span class="muted">–</span>'}</td>
     <td>${esc(r.company || '')}<div class="sub">${esc([r.role, r.shell].filter(Boolean).join(' · '))}</div></td>
     <td>${esc(LABEL[r.stepName] || r.stepName || '')}</td>
     <td>${mins(r.activeSeconds)}</td>
@@ -112,7 +112,6 @@ function render() {
     <header><div><h1>Wake Experience runs</h1><p class="sub">Every visit is a run. "Played" means they picked a company and started. Time is active time on the page.</p></div>
       <div class="filters">
         <select id="range"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">All time</option></select>
-        <select id="mode"><option value="all">Quick and full</option><option value="quick">Quick only</option><option value="full">Full only</option></select>
         <button id="csv">Export CSV</button><button id="refresh">Refresh</button></div></header>
     <section class="kpis">
       ${kpi(runs.length, 'visits')}${kpi(played.length, 'played (' + pct(played.length, runs.length) + ' of visits)')}
@@ -121,20 +120,19 @@ function render() {
     </section>
     <div class="grid2">
       <section class="card"><h2>How far people get</h2><div class="funnel">${funnel}</div>
-        <div class="legend"><span><i style="background:var(--q)"></i>Quick</span><span><i style="background:var(--f)"></i>Full</span><span><i style="background:#94A3B8"></i>No mode yet</span></div></section>
-      <section class="card"><h2>Quick vs full</h2><div class="scroll"><table><thead><tr><th>Mode</th><th>Played</th><th>Finished</th><th>Median time</th><th>Time to finish</th><th>Emails</th><th>Booked</th></tr></thead>
-        <tbody>${modeRow('quick', 'Quick')}${modeRow('full', 'Full')}</tbody></table></div>
+</section>
+      <section class="card"><h2>By role</h2><div class="scroll"><table><thead><tr><th>Role</th><th>Played</th><th>Finished</th><th>Median time</th><th>Time to finish</th><th>Emails</th><th>Booked</th></tr></thead>
+        <tbody>${Object.keys(ROLE).map(roleRow).join('')}</tbody></table></div>
         <p class="sub" style="margin-top:12px">Bookings match a run by the run ID in the booking link, or by email.${unmatched ? ' ' + unmatched + ' booking(s) in this period didn\'t match a run.' : ''}</p></section>
     </div>
-    <section class="card"><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Started</th><th>Mode</th><th>Company</th><th>Got to</th><th>Time</th><th>Finished</th><th>Email</th><th>Call</th><th>Source</th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">No runs in this period yet.</td></tr>'}</tbody></table></div></section>`;
-  const R = document.getElementById('range'), M = document.getElementById('mode');
-  R.value = range; M.value = mode;
+    <section class="card"><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Started</th><th>Company</th><th>Got to</th><th>Time</th><th>Finished</th><th>Email</th><th>Call</th><th>Source</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="muted">No runs in this period yet.</td></tr>'}</tbody></table></div></section>`;
+  const R = document.getElementById('range');
+  R.value = range;
   R.onchange = () => { range = R.value; render(); };
-  M.onchange = () => { mode = M.value; render(); };
   document.getElementById('refresh').onclick = load;
   document.getElementById('csv').onclick = () => {
-    const cols = ['startedAt', 'mode', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'email', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
-    const line = (r) => [r.startedAt, r.mode, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.email, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
+    const cols = ['startedAt', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'email', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
+    const line = (r) => [r.startedAt, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.email, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([cols.join(',') + '\n' + runs.map(line).join('\n')], { type: 'text/csv' }));
     a.download = 'wake-experience-runs.csv'; a.click();

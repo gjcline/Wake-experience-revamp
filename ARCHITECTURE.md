@@ -7,11 +7,8 @@ and narrates the player through it with a live guide.
 ## The flow
 
 1. Intro: the arcade cabinet, then three short questions, one per screen: the kind of business,
-   your role, and your company with the mode, Quick run (about 5 minutes, the default) or Full
-   run (about 15). Then the pixel office: the car pulls up and you walk to your desk.
-   Quick mode plays Round 1 and your own meeting for you the way most owners do it
-   (game.autopilotRound1 and autopilotMeeting: the loudest numbers, the first read, no owners),
-   shows that baseline, and goes straight to Round 2. Everything after compares the two as usual.
+   your role, and your company (with a three-line "how it works"). No time estimates anywhere.
+   Then the pixel office: the car pulls up and you walk to your desk.
 2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
    window holding the apps a team actually uses. QuickBooks has the finance reports (weekly flash,
    labor, purchasing); Google Drive has the exports from every other system as Sheets, the location
@@ -137,7 +134,7 @@ room. Every outcome, reaction and week line is predetermined content.
 
 Every visit is a run (src/ui/track.js). The page sends the run to `/api/track` at each step
 (home, select, ready, arrive, round1, round2, meeting, week, score), every 30 seconds while the
-player is active, and when the tab is hidden: mode, business, role, company, furthest step,
+player is active, and when the tab is hidden: business, role, company, furthest step,
 active seconds, finished, email (if given on the final score), Book a call clicked, UTM source,
 referrer, device and country, plus the headline result. Each run is one private JSON file in
 Vercel Blob (`runs/<id>.json`).

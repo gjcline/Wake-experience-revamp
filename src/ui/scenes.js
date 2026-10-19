@@ -93,7 +93,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       h('span', { class: 'ar-logo' }, 'WAKE'),
       h('span', { class: 'ar-sub' }, 'MONDAY MORNING'),
       h('span', { class: 'ar-press' }, 'PRESS START'),
-      h('span', { class: 'ar-time' }, '15 MIN · 1 COMPANY · 1 WEEK'));
+      h('span', { class: 'ar-time' }, '1 COMPANY · 1 MONDAY · 1 WEEK'));
     const el = screen('sc-home', v.el,
       h('div', { class: 'ar-foot' }, h('span', {}, 'Run a real company for one Monday. Then run it again with Wake.'), h('span', { class: 'ar-hint' }, 'Click the screen or press Enter')));
     v.pin(ART.arcade.screen, scr, 'ar-screen');
@@ -110,7 +110,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
 
   // ------------------------------------------------------------ 2. setup: three short questions
   // One question per screen, a plain list of answers, one click to move on.
-  const pick = { shell: null, role: null, seed: 0, mode: 'quick' };
+  const pick = { shell: null, role: null, seed: 0 };
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
   const TOTAL = 3;
   const head = (n, onBack) => h('header', { class: 'su-top' },
@@ -147,12 +147,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
-    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, pick.mode); };
-    const modes = [['quick', 'Quick run', '5 min', 'We play the usual morning for you. Then you run it with Wake and see the difference.', 'Recommended'],
-      ['full', 'Full run', '15 min', 'You run the morning yourself first, then again with Wake.', '']];
-    const opts = modes.map(([id, name, time, line, tag]) => h('button', { class: 'su-row su-mode' + (pick.mode === id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(pick.mode === id),
-      onclick: () => { pick.mode = id; sfx.blip(); opts.forEach((o, i) => { const on = modes[i][0] === id; o.classList.toggle('on', on); o.setAttribute('aria-checked', String(on)); }); } },
-      h('i', { class: 'su-dot', 'aria-hidden': 'true' }), h('span', { class: 'su-rt' }, h('b', {}, name, tag ? h('small', {}, tag) : null), h('span', {}, line)), h('em', {}, time)));
+    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed); };
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
     screen('su', head(3, setupRole),
       h('div', { class: 'su-body' },
@@ -161,10 +156,10 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
         h('section', { class: 'su-card' },
           h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),
           h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('10:00 AM', cap(r.meetingName)))),
-        h('p', { class: 'su-q' }, 'How much time do you have?'),
-        h('div', { class: 'su-list', role: 'radiogroup' }, opts),
+        h('p', { class: 'su-q' }, 'How it works'),
+        h('ol', { class: 'su-how' }, h('li', {}, 'You run the morning on your own, with the apps your team uses.'), h('li', {}, 'You run the same morning again, with Wake.'), h('li', {}, 'You see both weeks play out, side by side.')),
         h('div', { class: 'su-go' }, btn('Start the morning', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
-    keys((e) => { if (e.key === 'Enter' && !(document.activeElement && document.activeElement.classList.contains('su-mode'))) { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
+    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
 
   // ------------------------------------------------------------ 3. the pixel office
@@ -220,8 +215,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     return { el, layer, map };
   }
 
-  // `atDesk` replaces the card you get when you sit down (quick mode shows the usual morning).
-  async function arrival(sim, done, atDesk) {
+  async function arrival(sim, done) {
     const w = sim.world, meeting = w.role.meetingName;
     await office(sim, { day: w.shell.mondayLong, time: '7:42 AM', preset: 'office', arrive: true,
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
@@ -231,7 +225,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       card: { step: 2, kicker: 'Round 1 · on your own · 7:48 AM', title: 'Get ready for ten o\'clock.',
         what: 'Your computer has everything your team sent: QuickBooks, Drive, Gmail, Calendar and Messages. Find the numbers that matter, flag 3 to 5 of them, and decide who handles each.',
         why: 'This is how most owners prep today: clicking through every app, hoping nothing important is buried. Remember how it feels.',
-        cta: 'Sit down', ...(atDesk || {}) },
+        cta: 'Sit down' },
       done });
   }
 

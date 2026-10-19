@@ -150,12 +150,11 @@ const CFG = window.WAKE_CONFIG || {};
 
 const world = createScenes({
   root, reduced, onStep: (name) => track.step(name),
-  onPicked(shellId, roleId, seed, mode) {
+  onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
-    track.step('arrive', { mode: mode === 'quick' ? 'quick' : 'full', shell: shellId, role: roleId, company: game.world.shell.company });
-    if (mode === 'quick') { game.autopilotRound1(); world.arrival(game, resetDay, usualMorning()); }
-    else world.arrival(game, () => round1());
+    track.step('arrive', { mode: 'full', shell: shellId, role: roleId, company: game.world.shell.company });
+    world.arrival(game, () => round1());
   },
 });
 const restart = () => { coach.stop(); sfx.ambience(0); game = null; track.begin(); world.start(); };
@@ -182,19 +181,6 @@ function roundOneDone() {
       cta: 'Rewind the morning' },
     done: resetDay });
   sfx.credit();
-}
-
-// Quick mode: the usual morning, already played, shown when you sit down.
-function usualMorning() {
-  const s = game.state, D = game.world.day, sum = game.session().summary;
-  const prep = s.submittedAt - D.start;
-  const stat = (big, small) => h('div', { class: 'mc-stat' }, h('b', {}, big), h('span', {}, small));
-  const loud = sum.flags.filter((f) => f.obvious).length;
-  return { kicker: 'Round 1 · the usual way · locked at ' + fmtClock(s.submittedAt), title: 'Here\'s how most owners spend this morning.',
-    body: h('div', { class: 'mc-stats' }, stat(Math.floor(prep / 60) + ' hr ' + (prep % 60) + ' min', 'digging through reports'), stat(String(sum.flags.length), 'findings, ' + loud + ' of them the loudest numbers'), stat('0', 'owners named')),
-    what: 'We played Round 1 for you the usual way: open every report, chase the numbers that jump out, lock a briefing just before ten. That\'s the baseline.',
-    why: 'Next you run the same morning with Wake. Every result from here compares the two, so the difference is Wake, not luck.',
-    cta: 'Run it with Wake' };
 }
 
 // The day resets: same Monday, same data, with Wake underneath it this time.
@@ -226,11 +212,10 @@ async function walkToMeeting() {
   leave();
   world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
-      what: game.quick() ? 'Your team is in the room and the managers are on video. The meeting runs twice: first with the usual briefing, played for you in seconds, then with the one you built with Wake.'
-        : 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
+      what: 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
       why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
       cta: 'Join the call' },
-    done: () => (game.quick() ? finale().quickMeeting() : finale().meeting()) });
+    done: () => finale().meeting() });
 }
 
 function walkBack() {

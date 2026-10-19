@@ -1,8 +1,8 @@
 // TRACKING
-// One record per run: how far the player got, how long they were actively on it, quick or full,
-// whether they finished, their email if they gave it, and whether they clicked Book a call.
-// It goes to /api/track at every step, every 30 seconds while they are active, and when the page
-// is hidden. Off inside preview hosts, when opened from a file, and when WAKE_CONFIG.track is false.
+// One record per run: how far the player got, how long they were actively on it, whether they
+// finished, their email if they gave it, and whether they clicked Book a call. It goes to
+// /api/track at every step, every 30 seconds while they are active, and when the page is hidden.
+// Off inside preview hosts, when opened from a file, and when WAKE_CONFIG.track is false.
 
 export const STEP_NAMES = ['home', 'select', 'ready', 'arrive', 'round1', 'round2', 'meeting', 'week', 'score'];
 
