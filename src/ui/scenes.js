@@ -134,12 +134,12 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
 
   function setup() {
     onStep('select');
-    select({ n: 1, title: 'What kind of business do you run?', sub: 'Pick the closest fit. You\'ll get a made-up company of that kind, with its own people and numbers.',
+    select({ n: 1, title: 'What kind of business do you want to simulate?', sub: 'Pick one. The game builds a company of that kind, with its own people, numbers and problems.',
       items: SHELL_ORDER.map((id) => ({ id, name: SHELLS[id].label, line: TAGS[id] })),
       onPick: (id) => { pick.shell = id; pick.seed = urlSeed() || randomSeed(); setupRole(); }, onBack: home });
   }
   function setupRole() {
-    select({ n: 2, title: 'What\'s your role?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
+    select({ n: 2, title: 'Who do you want to play?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
       items: ROLE_ORDER.map((id) => ({ id, name: ROLES[id].label, line: ROLES[id].blurb })),
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
@@ -151,14 +151,14 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
     screen('su', head(3, setupRole),
       h('div', { class: 'su-body' },
-        h('h1', {}, 'Here\'s your company'),
-        h('p', { class: 'su-sub' }, 'It\'s Monday morning. Your ' + r.meetingName + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
+        h('h1', {}, 'Your company for this game'),
+        h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + r.meetingName + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
         h('section', { class: 'su-card' },
           h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),
           h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('10:00 AM', cap(r.meetingName)))),
         h('p', { class: 'su-q' }, 'How it works'),
-        h('ol', { class: 'su-how' }, h('li', {}, 'You run the morning on your own, with the apps your team uses.'), h('li', {}, 'You run the same morning again, with Wake.'), h('li', {}, 'You see both weeks play out, side by side.')),
-        h('div', { class: 'su-go' }, btn('Start the morning', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
+        h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with the apps your team uses.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
+        h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
 
