@@ -1,5 +1,5 @@
 // THE WORLD
-// The arcade you walk up to, the stage and character select on its screen, and the pixel office
+// The title screen, three setup questions (business, role, your company), and the pixel office
 // the morning happens in: the street, the lobby, the walk to your desk, the meeting room, Friday
 // evening. Every step of the experience opens with one card that says what you're doing and why
 // it matters. Everything shown about a business or role is read from configuration.
