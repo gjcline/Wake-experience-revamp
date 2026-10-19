@@ -6,7 +6,7 @@ and narrates the player through it with a live guide.
 
 ## The flow
 
-1. Intro: the arcade cabinet, then three short questions, one per screen: the kind of business,
+1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Then the pixel office: the car pulls up and you walk to your desk.
 2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
@@ -93,13 +93,13 @@ and narrates the player through it with a live guide.
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter
                                     a place with its own chapter and that plays; return and the first resumes.
                                     Modal steps (the Round 2 suite tour) hold the desk until NEXT.
-                   scenes.js        the arcade home, the three setup questions (business, role, your company
+                   scenes.js        the title screen, the three setup questions (business, role, your company
                                     and mode), and the office scenes. Every step opens with one
                                     card: "what you're doing", "why it matters", one button.
                    pixel/office.js  the building in three-quarter top-down pixel art: street, lobby, operations
                                     floor, hallway, meeting room, break room, your office. People walk fixed
                                     routes (arrival, to the meeting, back); Friday is the same map after dark.
-                   scenes.css       styles for the arcade, the setup questions, the office scenes and the step card
+                   scenes.css       styles for the title screen, the setup questions, the office scenes and the step card
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks

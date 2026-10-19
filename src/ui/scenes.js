@@ -12,37 +12,7 @@ import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 
-// The arcade photo is 2560 x 1440; rectangles are [x, y, width, height] in image pixels.
-export const IW = 2560, IH = 1440;
-export const ART = { arcade: { src: 'art/arcade.webp', screen: [966, 258, 628, 418] } };
-const CABINET = [700, 0, 1160, 1440];
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
-
-// A photo fitted to the view. `cover` fills the view; otherwise the whole framing stays visible.
-export function createView(art, { cover = true, cls = '' } = {}) {
-  const img = h('img', { class: 'sc-img', src: art.src, alt: '', draggable: 'false' });
-  const stage = h('div', { class: 'sc-stage' }, img);
-  const el = h('div', { class: 'sc-view ' + cls }, stage);
-  let shot = [0, 0, IW, IH], fill = cover;
-  function apply() {
-    const vw = el.clientWidth || window.innerWidth, vh = el.clientHeight || window.innerHeight;
-    const [x, y, w, hh] = shot;
-    const s = fill ? Math.max(vw / w, vh / hh) : Math.min(vw / w, vh / hh);
-    let tx = vw / 2 - (x + w / 2) * s, ty = vh / 2 - (y + hh / 2) * s;
-    tx = IW * s <= vw ? (vw - IW * s) / 2 : Math.min(0, Math.max(vw - IW * s, tx));
-    ty = IH * s <= vh ? (vh - IH * s) / 2 : Math.min(0, Math.max(vh - IH * s, ty));
-    stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
-  }
-  const onResize = () => apply();
-  window.addEventListener('resize', onResize);
-  return {
-    el, stage, img,
-    frame(next, opts = {}) { shot = next; if (opts.cover !== undefined) fill = opts.cover; apply(); },
-    pin(rect, node, cls = '') { const [x, y, w, hh] = rect; const p = h('div', { class: 'sc-pin ' + cls, style: { left: x + 'px', top: y + 'px', width: w + 'px', height: hh + 'px' } }, node); stage.appendChild(p); return p; },
-    ready: () => new Promise((r) => { if (img.complete) r(); else { img.onload = () => r(); img.onerror = () => r(); } }),
-    destroy() { window.removeEventListener('resize', onResize); },
-  };
-}
 
 const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
@@ -82,30 +52,27 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     return el;
   }
 
-  // ------------------------------------------------------------ 1. the arcade
+  // ------------------------------------------------------------ 1. the title screen
+  // The office the game happens in, still and quiet behind a plain title and one button.
+  const EXTRAS = [['#2A1C14', '#E0B08A', '#4F81BD'], ['#111', '#8D5A3B', '#9BBB59'], ['#C9A46A', '#F0C7A0', '#C0504D'], ['#5A3A28', '#C68A64', '#8064A2'], ['#222', '#F0C7A0', '#F2C14E']]
+    .map(([hair, skin, shirt]) => ({ hair, skin, shirt }));
   function home() {
-    const v = createView(ART.arcade);
-    teardown.push(v.destroy);
-    const start = () => { if (gone) return; gone = true; sfx.unlock(); enter(); };
+    const start = () => { if (gone) return; gone = true; sfx.unlock(); sfx.start(); setup(); };
     let gone = false;
-    const scr = h('button', { class: 'ar-scr', type: 'button', onclick: start, 'aria-label': 'Press start' },
-      h('span', { class: 'ar-p1' }, '1 PLAYER'),
-      h('span', { class: 'ar-logo' }, 'WAKE'),
-      h('span', { class: 'ar-sub' }, 'MONDAY MORNING'),
-      h('span', { class: 'ar-press' }, 'PRESS START'),
-      h('span', { class: 'ar-time' }, '1 COMPANY · 1 MONDAY · 1 WEEK'));
-    const el = screen('sc-home', v.el,
-      h('div', { class: 'ar-foot' }, h('span', {}, 'Run a real company for one Monday. Then run it again with Wake.'), h('span', { class: 'ar-hint' }, 'Click the screen or press Enter')));
-    v.pin(ART.arcade.screen, scr, 'ar-screen');
-    v.frame(CABINET, { cover: false });
-    v.ready().then(() => el.classList.add('in'));
+    const holder = h('div', { class: 'px-map' });
+    const el = screen('ti', holder,
+      h('div', { class: 'ti-body' },
+        h('b', { class: 'ti-brand' }, 'Wake'),
+        h('h1', {}, 'Run a company for one Monday morning.'),
+        h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
+        h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
+    const npcs = [[80, 141, true, 'down'], [168, 146, true, 'up'], [254, 146, true, 'up'], [226, 170, true, 'up'], [200, 76, false, 'up']]
+      .map(([x, y, seated, facing], i) => ({ av: EXTRAS[i], x, y, seated, facing }));
+    const map = createOffice(holder, { company: 'Your company', playerShirt: ROLE_COLOR.gm, npcs, reduced });
+    teardown.push(() => map.destroy());
+    map.ready.then(() => el.classList.add('in'));
+    setTimeout(() => { const b = el.querySelector('.ab.primary'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); } });
-    async function enter() {
-      sfx.start();
-      el.classList.add('entering');
-      await wait(450);
-      setup();
-    }
   }
 
   // ------------------------------------------------------------ 2. setup: three short questions

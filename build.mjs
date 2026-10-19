@@ -12,7 +12,6 @@ const body = (host) => `<title>The Wake Experience</title>\n${fonts}\n<style>\n$
 
 mkdirSync('dist', { recursive: true });
 rmSync('dist/art', { recursive: true, force: true });
-cpSync('art', 'dist/art', { recursive: true }); // the images, referenced as art/<name>.webp
 cpSync('src/dashboard.html', 'dist/dashboard.html'); // the team's private runs dashboard, at /dashboard
 writeFileSync('dist/index.html', `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<meta name="description" content="Run a company through one Monday morning. Then see what was happening underneath it.">\n</head>\n<body>\n${body('web')}</body>\n</html>\n`);
 writeFileSync('dist/artifact.html', body('artifact'));
