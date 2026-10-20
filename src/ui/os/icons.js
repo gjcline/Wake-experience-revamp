@@ -1,5 +1,5 @@
 // App marks for the simulated computer. Drawn here as simple SVG so the desk reads as the
-// tools a real team uses: Gmail, QuickBooks, Google Calendar, Messages, Drive, Sheets, Docs,
+// tools a real team uses: the company's ERP (Ledgerline), Gmail, Google Calendar, Messages,
 // Contacts, and Wake. No image files.
 
 const svg = (vb, body) => '<svg viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + body + '</svg>';
@@ -47,6 +47,9 @@ export const ICONS = {
     '<defs><linearGradient id="wkG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#4F46E5"/></linearGradient></defs>' +
     '<rect x="2" y="2" width="44" height="44" rx="11" fill="url(#wkG)"/>' +
     '<path fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" d="M11 17l5.5 15 7.5-15 7.5 15L37 17"/>'),
+  erp: svg('0 0 48 48',
+    '<rect x="2" y="2" width="44" height="44" rx="11" fill="#1F3A5C"/>' +
+    '<rect x="11" y="27" width="6" height="10" rx="1.5" fill="#7FB2E5"/><rect x="21" y="19" width="6" height="18" rx="1.5" fill="#A9CCF0"/><rect x="31" y="12" width="6" height="25" rx="1.5" fill="#fff"/>'),
   folder: svg('0 0 24 24', '<path fill="#5F6368" d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8z"/>'),
 };
 

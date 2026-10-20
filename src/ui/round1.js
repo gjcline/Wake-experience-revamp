@@ -1,21 +1,19 @@
 // ROUND 1: ON YOUR OWN
-// Your computer on Monday morning, and the apps your team actually uses. QuickBooks holds the
-// finance reports; Drive holds the exports from every other system, the location scorecards and
-// your notes. Any figure in a report or a scorecard can be flagged as a finding. Gmail, Messages,
-// Calendar and your notes hold context a player can attach to a finding. Contacts says who
-// everyone is. Connected data links them together.
+// Your computer on Monday morning. The company runs on one ERP (Ledgerline): the dashboard,
+// every report and saved search, each location's scorecard and the shared notes are all in it.
+// The data is all in one place; what it means is up to you. Any figure on the dashboard, in a
+// report or a scorecard can be flagged as a finding. Gmail, Messages, Calendar and the notes
+// hold context a player can attach to a finding. Contacts says who everyone is.
 // Renders what the engine returns. No business logic lives here.
 
 import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { fmtClock } from '../engine/config.js';
 import { createComputer, gameStrip, face, addressOf, glyph, icon } from './os/shell.js';
-import { gmail, gmailRow, gmailMessage, mailDate, qbo, qboReportList, qboReport, dataTable, drive, sheets, docs, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
+import { gmail, gmailRow, gmailMessage, mailDate, dataTable, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
+import { erp, portlet, pageHead, filters, reportList, subtabs, fileCabinet, docPage, pick, hashOf, ERP_NAME, ERP_HOST } from './os/erp.js';
 
 const CLOCK_MS = 2000; // one minute of the morning every two seconds
-// Finance reports live in QuickBooks. Every other system exports to a shared Drive folder.
-const QBO_IDS = ['rep_fin', 'rep_ap', 'rep_labor'];
-const QBO_NAV = { rep_fin: 'Reports', rep_ap: 'Expenses', rep_labor: 'Payroll' };
 
 export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const w = game.world, D = w.day, M = w.shell.multi, V = w.shell.vocab;
@@ -26,20 +24,17 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const mail = (k) => (k === 'me' ? USER.email : addressOf(w.characters[k] || person(k), w.shell.company));
   const fc = (k, size) => (k === 'me' ? face(USER.name, size, '#5F6368') : face(person(k).name, size));
   const reportIds = w.order.report || [];
-  const qboIds = reportIds.filter((id) => QBO_IDS.includes(id));
-  const driveIds = reportIds.filter((id) => !QBO_IDS.includes(id));
   const locIds = w.order.location || [];
   const SCORE_FILE = 'scorecards';
 
   game.startRound1();
   // where the player is: one app at a time, and what is open inside it
   let app = null, docId = null, docStart = 0, shown = game.state.clock;
-  let history = [], hl = [], calTab = 'this', calPopId = null, sheetTab = null, driveFile = null, qboDoc = null, mailId = null, thread = null, profileKey = null;
+  let history = [], hl = [], calTab = 'this', calPopId = null, sheetTab = null, erpTab = 'home', erpDoc = null, mailId = null, thread = null, profileKey = null;
 
   const APPS = [
+    { id: 'erp', name: ERP_NAME, icon: 'erp', title: 'Home - ' + ERP_NAME, url: ERP_HOST + '/app/center/card.nl', hero: true },
     { id: 'gmail', name: 'Gmail', icon: 'gmail', title: 'Gmail', url: 'mail.google.com/mail/u/0/#inbox' },
-    { id: 'qbo', name: 'QuickBooks', icon: 'qbo', title: 'Reports | QuickBooks', url: 'qbo.intuit.com/app/reportlist' },
-    { id: 'drive', name: 'Google Drive', icon: 'drive', title: 'Shared with me - Google Drive', url: 'drive.google.com/drive/shared-with-me' },
     { id: 'calendar', name: 'Google Calendar', icon: 'calendar', title: 'Google Calendar - Week', url: 'calendar.google.com/calendar/u/0/r/week' },
     { id: 'messages', name: 'Messages', icon: 'messages', title: 'Messages', chrome: 'native' },
     { id: 'contacts', name: 'Contacts', icon: 'contacts', title: 'Directory - Google Contacts', url: 'contacts.google.com/directory' },
@@ -71,8 +66,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const unreadOf = (ids) => ids.filter((id) => game.state.sources[id] && !game.state.sources[id].opened).length;
     pc.badge('gmail', game.unread('email'));
     pc.badge('messages', game.unread('message'));
-    pc.badge('qbo', unreadOf(qboIds));
-    pc.badge('drive', unreadOf(driveIds) + (locIds.some((id) => !game.state.sources[id].opened) ? 1 : 0) + unreadOf(['note_role', 'note_mine']));
+    pc.badge('erp', unreadOf(reportIds) + (locIds.some((id) => !game.state.sources[id].opened) ? 1 : 0) + unreadOf(['note_role', 'note_mine']));
   }
   function arrivals(fired) {
     for (const f of fired) {
@@ -95,8 +89,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
   function render() {
     if (app === 'gmail') renderGmail();
-    else if (app === 'qbo') renderQbo();
-    else if (app === 'drive') renderDrive();
+    else if (app === 'erp') renderErp();
     else if (app === 'calendar') renderCalendar();
     else if (app === 'messages') renderMessages();
     else if (app === 'contacts') renderContacts();
@@ -110,9 +103,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const k = src.kind;
     if (k === 'email') { mailId = id; return show2('gmail', () => openMail(id)); }
     if (k === 'message') { thread = src.from; return show2('messages'); }
-    if (k === 'report') { if (QBO_IDS.includes(id)) { qboDoc = id; return show2('qbo', () => openQbo(id)); } driveFile = id; return show2('drive', () => openFile(id)); }
-    if (k === 'location') { driveFile = SCORE_FILE; sheetTab = id; return show2('drive', () => openScorecards(id)); }
-    if (k === 'note') { driveFile = id; return show2('drive', () => openFile(id)); }
+    if (k === 'report' || k === 'location' || k === 'note') { erpDoc = k === 'location' ? SCORE_FILE : id; if (k === 'location') sheetTab = id; return show2('erp', () => openErp(id)); }
     if (k === 'calendar') return show2('calendar');
   }
   function show2(id, then) {
@@ -123,7 +114,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
   const here = () => {
     if (app === 'messages') { const t = threads().find((x) => x.from === thread); return { id: t ? t.list[0].id : null, title: thread ? person(thread).name : 'Messages' }; }
-    if (app === 'drive' && driveFile === SCORE_FILE) return { id: sheetTab, title: sheetTab === 'loc_all' ? 'All locations' : w.sources[sheetTab].title + (M ? ' scorecard' : '') };
+    if (app === 'erp' && erpDoc === SCORE_FILE) return { id: sheetTab, title: sheetTab === 'loc_all' ? 'All locations' : w.sources[sheetTab].title + (M ? ' scorecard' : '') };
     return { id: docId, title: docId && w.sources[docId] ? w.sources[docId].title : 'where you were' };
   };
   function back() {
@@ -140,7 +131,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   // Connected data: other places the same numbers show up.
   function connected(related) {
     if (!related || !related.length) return null;
-    const ic = (r) => (r.kind === 'report' ? (QBO_IDS.includes(r.id) ? 'qbo' : 'sheets') : r.kind === 'location' ? 'sheets' : r.kind === 'email' ? 'gmail' : r.kind === 'message' ? 'messages' : r.kind === 'calendar' ? 'calendar' : 'docs');
+    const ic = (r) => (r.kind === 'email' ? 'gmail' : r.kind === 'message' ? 'messages' : r.kind === 'calendar' ? 'calendar' : 'erp');
     return h('nav', { class: 'cx-bar', 'aria-label': 'Connected data' },
       h('span', { class: 'cx-l' }, 'Connected data'),
       related.map((r) => h('button', { class: 'cx-chip' + (r.opened ? ' seen' : ''), type: 'button', title: 'via ' + r.via.slice(0, 3).join(' · '), onclick: () => { coach.emit('connected'); const from = here(); hl = r.hl; go(r.id, from); } },
@@ -190,62 +181,101 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     badges();
   }
 
-  // ------------------------------------------------------------ QuickBooks
-  function renderQbo() {
-    if (qboDoc) return openQbo(qboDoc, true);
-    const items = qboIds.map((id) => { const s = w.sources[id]; return { id, title: s.title, sub: s.sub, unread: !game.state.sources[id].opened }; });
-    fill(qbo({ company: w.shell.company, user: USER, nav: 'Reports', onNav: qboNav, main: qboReportList({ groups: [['Favorites', items], ['Shared by your team this morning', items.slice().reverse().slice(0, 0)]].filter((g) => g[1].length), onOpen: (id) => openQbo(id) }) }));
-    pc.url('qbo.intuit.com/app/reportlist');
+  // ------------------------------------------------------------ Ledgerline, the ERP
+  // Every report, scorecard and number is in one place. That was never the problem.
+  const rolled = (id) => (game.state.sources[id] || {}).opened;
+  const where = (sid) => (w.signals[sid].sources || []).find((x) => w.sources[x] && ['report', 'location'].includes(w.sources[x].kind) && x !== 'loc_all');
+  const flagOf = (sid) => { const i = game.state.flags.findIndex((f) => f.signals.includes(sid)); return i + 1; };
+  // The dashboard's indicators: the numbers that matter this week are in there, among everything else.
+  const KPIS = (() => {
+    const want = new Set();
+    for (const f of w.findings) { const c = (f.core || []).concat(f.evidence || []).find((id) => w.signals[id] && where(id)); if (c) want.add(c); }
+    for (const id of w.obvious || []) if (w.signals[id] && where(id)) want.add(id);
+    const rest = Object.keys(w.signals).filter((id) => !want.has(id) && where(id) && w.signals[id].value && !/request|assumption|invite|plan/.test(w.signals[id].value));
+    rest.sort((x, y) => hashOf(x) - hashOf(y));
+    return [...want, ...rest.slice(0, Math.max(0, 26 - want.size))].sort((x, y) => hashOf(w.shell.company + x) - hashOf(w.shell.company + y));
+  })();
+  const METERS = (w.obvious || []).filter((id) => w.signals[id] && where(id)).slice(0, 4);
+  const sysOf = (id) => w.system[id] || w.system[(w.sources[id] || {}).kind] || 'ERP';
+
+  function frame(tab, main) {
+    fill(erp({ company: w.shell.company, user: USER, role: w.role.label, tab, onTab: erpTo, main,
+      badge: { reports: reportIds.filter((id) => !rolled(id)).length + (locIds.some((id) => !rolled(id)) ? 1 : 0), documents: ['note_role', 'note_mine'].filter((id) => !rolled(id)).length } }));
   }
-  function qboNav(label) {
-    const id = Object.keys(QBO_NAV).find((k) => QBO_NAV[k] === label && qboIds.includes(k) && label !== 'Reports');
-    if (id) return openQbo(id);
-    qboDoc = null; closeDoc(); docId = null; history = []; renderQbo(); sfx.blip();
+  function renderErp() {
+    if (erpDoc) return openErp(erpDoc, true);
+    if (erpTab === 'reports') return erpReports();
+    if (erpTab === 'documents') return erpFiles();
+    erpHome();
   }
-  function openQbo(id, quiet) {
-    const v = quiet ? game.view(id) : game.open(id); if (!v) return;
-    if (!quiet) { startDoc(id); sfx.blip(); }
-    qboDoc = id;
-    const R = h('div', { class: 'qb-blocks' }, v.blocks.map((b) => h('section', { class: 'qb-block' }, b.title ? h('h3', {}, b.title) : null, b.note ? h('p', { class: 'qb-bnote' }, b.note) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(v.id), cls: 'qb-table' })))));
-    fill(qbo({ company: w.shell.company, user: USER, nav: QBO_NAV[id] || 'Reports', onNav: qboNav, main: qboReport({
-      company: w.shell.company, title: v.title, period: v.intro.split('.')[0], intro: v.intro.split('.').slice(1).join('.').trim(),
-      run: v.run ? v.run : '', by: 'Prepared by ' + v.from.name + ', ' + v.from.title,
-      above: [crumbs(), connected(v.related), h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it as a finding.')],
-      content: R, onBack: () => { closeDoc(); qboDoc = null; docId = null; history = []; hl = []; renderQbo(); badges(); } }) }));
-    pc.url('qbo.intuit.com/app/report?rptId=' + id.replace('rep_', '') + '&token=CUSTOM');
-    scrollHl(pc.body);
-    badges();
-    if (!quiet) coach.emit('doc:report');
+  function erpTo(tab) {
+    erpTab = tab; erpDoc = null; closeDoc(); docId = null; history = []; hl = [];
+    renderErp(); badges(); sfx.blip(); coach.emit('erp:' + tab);
+  }
+  function openErp(id, quiet) {
+    const k = (w.sources[id] || {}).kind;
+    if (id === SCORE_FILE || k === 'location') return openScorecards(id === SCORE_FILE ? sheetTab || locIds[0] : id, quiet);
+    if (k === 'note') return openNote(id, quiet);
+    return openReport(id, quiet);
+  }
+  const fig = (sid, cls) => { const s = w.signals[sid], n = flagOf(sid);
+    return h('button', { type: 'button', class: 'figbtn ' + (cls || '') + (n ? ' is-flag' : ''), 'data-s': sid, title: 'Flag this figure', onclick: () => figure(sid, where(sid)) }, n ? h('i', { class: 'fnum' }, String(n)) : null, s.cell || s.value); };
+  const tone = (d) => (/^-/.test(String(d || '')) ? 'dn' : /^\+/.test(String(d || '')) ? 'up' : '');
+
+  function erpHome() {
+    const seed = w.shell.company;
+    const rem = ['Purchase orders to approve', 'Bills past due', 'Time cards to review', 'Items below reorder point', 'Open support cases', 'Journal entries to post', 'Customer returns to process', 'Expense reports to approve']
+      .map((t, i) => [pick(seed + 'rem', 8, 2, 24)[i], t]);
+    const bars = pick(seed + 'rev', 8, 58, 100);
+    const chart = h('div', { class: 'ns-chart' }, bars.map((v, i) => h('span', { style: { height: v + '%' } }, h('em', {}, 'W' + (i + 1)))));
+    const kpiRows = KPIS.map((sid) => { const s = w.signals[sid], src = where(sid);
+      return h('tr', {}, h('td', {}, s.label), h('td', { class: 'n' }, fig(sid)), h('td', { class: 'n ' + tone(s.delta) }, s.delta || ''), h('td', { class: 'ns-dim' }, sysOf(src))); });
+    const saved = reportIds.map((id) => h('li', {}, h('button', { class: 'ns-link' + (rolled(id) ? '' : ' unread'), type: 'button', onclick: () => openErp(id) }, glyph('chart'), w.sources[id].title)))
+      .concat(locIds.length ? [h('li', {}, h('button', { class: 'ns-link' + (locIds.some((id) => !rolled(id)) ? ' unread' : ''), type: 'button', onclick: () => openErp(SCORE_FILE) }, glyph('chart'), M ? 'Location scorecards' : 'Weekly scorecard'))] : [])
+      .concat(['Open sales orders', 'Inventory valuation', 'Customer balance detail', 'Payroll register', 'Vendor spend by month'].map((t) => h('li', {}, h('span', { class: 'ns-link dead' }, glyph('chart'), t))));
+    const recs = pick(seed + 'rec', 6, 1000, 9999);
+    const recent = ['Invoice', 'Purchase order', 'Bill', 'Sales order', 'Journal', 'Item receipt'].map((t, i) => h('li', {}, h('span', { class: 'ns-link dead' }, t + ' #' + recs[i]), h('em', {}, ['6:52 AM', '6:40 AM', 'Fri', 'Fri', 'Fri', 'Thu'][i])));
+    frame('home', h('div', { class: 'ns-dash' },
+      h('div', { class: 'ns-dh' }, h('h1', {}, 'Home'), h('p', {}, w.shell.mondayLong + ' · ' + w.role.label + ' dashboard · data as of 6:00 AM')),
+      h('div', { class: 'ns-cols' },
+        h('div', { class: 'ns-col ns-side' },
+          portlet('Reminders', h('ul', { class: 'ns-rem' }, rem.map(([n, t]) => h('li', {}, h('b', {}, String(n)), h('span', { class: 'dead' }, t))))),
+          portlet('Saved searches', h('ul', { class: 'ns-list' }, saved)),
+          portlet('Recent records', h('ul', { class: 'ns-list rec' }, recent))),
+        h('div', { class: 'ns-col ns-main' },
+          portlet('KPI meters', h('div', { class: 'ns-meters' }, METERS.map((sid) => { const s = w.signals[sid]; return h('div', { class: 'ns-meter' }, h('span', {}, s.label), fig(sid, 'big'), h('em', { class: tone(s.delta) }, s.delta || '')); }))),
+          portlet('Key performance indicators', h('div', { class: 'dscroll' }, h('table', { class: 'ns-grid ns-kpi' },
+            h('thead', {}, h('tr', {}, h('th', {}, 'Indicator'), h('th', { class: 'n' }, 'This week'), h('th', { class: 'n' }, 'Change'), h('th', {}, 'Source'))),
+            h('tbody', {}, kpiRows))), { sub: KPIS.length + ' indicators' })),
+        h('div', { class: 'ns-col ns-side' },
+          portlet('Revenue by week', chart, { sub: 'Last 8 weeks' }),
+          locIds.length > 1 ? portlet(M ? 'Locations' : 'Scorecard', h('ul', { class: 'ns-list' }, locIds.map((id) => h('li', {}, h('button', { class: 'ns-link' + (rolled(id) ? '' : ' unread'), type: 'button', onclick: () => openErp(id) }, glyph('pin'), id === 'loc_all' ? 'All ' + V.units : w.sources[id].title))))) : null,
+          portlet('Announcements', h('p', { class: 'ns-ann' }, 'Q3 close calendar is posted. Period 7 locks Friday at 5:00 PM.'))))));
+    pc.url(ERP_HOST + '/app/center/card.nl?sc=-29');
   }
 
-  // ------------------------------------------------------------ Drive, Sheets, Docs
-  function driveRows() {
-    const st = (id) => game.state.sources[id] || {};
-    const by = (k) => (k ? person(k).name : 'Me');
-    const rows = [{ group: 'This morning' }];
-    for (const id of driveIds) { const s = w.sources[id]; rows.push({ id, type: 'sheets', name: s.title + ' - ' + (w.system[id] || 'export'), owner: by(s.from), modified: mailDate(s.when.replace(/^Mon /, ''), w.shell.monday), size: (12 + (s.blocks || []).length * 9) + ' KB', unread: !st(id).opened }); }
-    if (locIds.length) rows.push({ id: SCORE_FILE, type: 'sheets', name: (M ? 'Location scorecards' : 'Weekly scorecard') + ' - week ending ' + w.shell.weekEnd.replace(/^\w+, /, ''), owner: M ? 'Location managers' : person(w.locById[w.sources[locIds[0]].loc].manager).name, modified: '6:10 AM', size: '31 KB', unread: locIds.some((id) => !st(id).opened) });
-    rows.push({ group: 'Notes' });
-    rows.push({ id: 'note_role', type: 'docs', name: 'Note from ' + w.characters.boss.name, owner: w.characters.boss.name, modified: 'Fri', size: '2 KB', unread: !st('note_role').opened });
-    rows.push({ id: 'note_mine', type: 'docs', name: '1:1 notes - last week', owner: 'Me', modified: 'Fri', size: '4 KB', unread: !st('note_mine').opened });
-    return rows;
+  // Every report the business runs, grouped the way the suites group them.
+  const GROUP = (id) => { const sy = sysOf(id); return /account/i.test(sy) ? 'Financial' : /purchas/i.test(sy) ? 'Purchasing' : /payroll|hr|people/i.test(sy) ? 'People' : /crm|review|customer/i.test(sy) ? 'Customers' : 'Operations'; };
+  const FILLER = { Financial: ['Income statement', 'Balance sheet', 'Trial balance', 'General ledger', 'A/R aging', 'Budget vs. actual'], Purchasing: ['Open purchase orders', 'Vendor spend', 'Receiving log'], People: ['Payroll register', 'Headcount by department', 'Time-off balances'], Customers: ['Sales by customer', 'Customer balance detail', 'Open cases'], Operations: ['Inventory valuation', 'Work orders', 'Asset register'] };
+  function erpReports() {
+    const groups = Object.keys(FILLER).map((g) => [g, reportIds.filter((id) => GROUP(id) === g).map((id) => ({ id, title: w.sources[id].title, unread: !rolled(id) })).concat(FILLER[g].map((t) => ({ title: t })))]);
+    if (locIds.length) groups.push(['Scorecards', [{ id: SCORE_FILE, title: M ? 'Location scorecards' : 'Weekly scorecard', unread: locIds.some((id) => !rolled(id)) }, { title: 'Scorecard history' }, { title: 'Targets by location' }]]);
+    frame('reports', reportList({ groups, onOpen: (id) => openErp(id) }));
+    pc.url(ERP_HOST + '/app/reporting/reportcenter.nl');
   }
-  function renderDrive() {
-    if (driveFile) return openFile(driveFile, true);
-    fill(drive({ user: USER, crumbs: ['Shared with me', 'Monday reports'], files: driveRows(), onOpen: (id) => openFile(id) }));
-    pc.url('drive.google.com/drive/folders/1mOnDaYrEpOrTs');
-  }
-  function backToDrive() { closeDoc(); driveFile = null; docId = null; history = []; hl = []; renderDrive(); badges(); sfx.back(); }
-  function openFile(id, quiet) {
-    driveFile = id;
-    if (id === SCORE_FILE) return openScorecards(sheetTab || locIds[0], quiet);
-    if (id === 'note_role' || id === 'note_mine') return openNote(id, quiet);
+  function openReport(id, quiet) {
     const v = quiet ? game.view(id) : game.open(id); if (!v) return;
     if (!quiet) { startDoc(id); sfx.blip(); }
-    fill(sheets({ title: v.title + ' - ' + (w.system[id] || 'export'), blocks: v.blocks, cell: figCell(v.id), onBack: backToDrive, intro: v.intro,
-      by: 'Exported ' + (v.run || v.when) + ' by ' + v.from.name,
-      topNote: h('div', { class: 'gs-note' }, crumbs(), connected(v.related), h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it as a finding.')) }));
-    pc.url('docs.google.com/spreadsheets/d/1' + id.replace('rep_', '') + 'Xq7/edit#gid=0');
+    erpDoc = id; erpTab = 'reports';
+    frame('reports', h('div', { class: 'ns-rep' },
+      pageHead(v.title, { sub: 'Saved search · ' + sysOf(id) + ' · run ' + (v.run || v.when || '6:00 AM'), back: () => erpTo('reports') }),
+      crumbs(), connected(v.related),
+      filters([['Period', 'This week'], ['Subsidiary', w.shell.company], [M ? 'Location' : 'Site', M ? 'All' : w.shell.company]]),
+      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it as a finding.'),
+      v.intro ? h('p', { class: 'ns-intro' }, v.intro) : null,
+      h('div', { class: 'ns-blocks' }, v.blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, b.note ? h('p', { class: 'ns-bnote' }, b.note) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(v.id), cls: 'ns-grid' }))))),
+      h('p', { class: 'ns-foot' }, 'Owner: ' + v.from.name + ', ' + v.from.title + ' · synced from ' + sysOf(id))));
+    pc.url(ERP_HOST + '/app/common/search/searchresults.nl?searchid=' + hashOf(id) % 900);
     scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:report');
   }
@@ -253,6 +283,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     sheetTab = tab;
     const v = quiet ? game.view(tab) : game.open(tab); if (!v) return;
     if (!quiet) { startDoc(tab); sfx.blip(); }
+    erpDoc = SCORE_FILE; erpTab = 'reports';
     const sig = (key, value) => (w.signals[key] && w.signals[key].cell) || value;
     let blocks, intro;
     if (tab === 'loc_all') {
@@ -267,22 +298,34 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       intro = L.street + ' · ' + v.sub + ' · ' + p.name + ', ' + p.title;
     }
     const tabs = locIds.map((id) => ({ id, name: id === 'loc_all' ? 'All ' + V.units : w.sources[id].title }));
-    fill(sheets({ title: (M ? 'Location scorecards' : 'Weekly scorecard') + ' - week ending ' + w.shell.weekEnd.replace(/^\w+, /, ''), blocks, intro, cell: figCell(tab), tabs, tab, onTab: (t) => { history = []; hl = []; openScorecards(t); coach.emit('doc:location'); }, onBack: backToDrive,
-      by: 'Updated ' + (v.when || ''),
-      topNote: h('div', { class: 'gs-note' }, crumbs(), connected(v.related), h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it. ' + (M ? 'Each tab at the bottom is a ' + V.unit + '.' : ''))) }));
-    pc.url('docs.google.com/spreadsheets/d/1sCoReCaRdS/edit#gid=' + (locIds.indexOf(tab) + 1));
+    frame('reports', h('div', { class: 'ns-rep' },
+      pageHead(M ? 'Location scorecards' : 'Weekly scorecard', { sub: 'Week ending ' + w.shell.weekEnd.replace(/^\w+, /, '') + ' · updated ' + (v.when || ''), back: () => erpTo('reports') }),
+      crumbs(), connected(v.related),
+      tabs.length > 1 ? subtabs(tabs, tab, (t) => { history = []; hl = []; openScorecards(t); coach.emit('doc:location'); }) : null,
+      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it.'),
+      h('p', { class: 'ns-intro' }, intro),
+      h('div', { class: 'ns-blocks' }, blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(tab), cls: 'ns-grid' })))))));
+    pc.url(ERP_HOST + '/app/center/scorecard.nl?loc=' + (locIds.indexOf(tab) + 1));
     scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:location');
+  }
+  function erpFiles() {
+    const boss = w.characters.boss;
+    frame('documents', fileCabinet({ folders: ['Management', 'Location managers', 'Templates', 'Exports', 'Contracts'], folder: 'Management',
+      files: [{ id: 'note_role', name: 'Note from ' + boss.name, owner: boss.name, modified: 'Fri', size: '2 KB', unread: !rolled('note_role') }, { id: 'note_mine', name: '1:1 notes - last week', owner: 'You', modified: 'Fri', size: '4 KB', unread: !rolled('note_mine') }],
+      onOpen: (id) => openErp(id) }));
+    pc.url(ERP_HOST + '/app/common/media/mediaitemfolders.nl');
   }
   function openNote(id, quiet) {
     const v = quiet ? game.view(id) : game.open(id); if (!v) return;
     if (!quiet) { startDoc(id); sfx.blip(); coach.emit('doc:note'); }
+    erpDoc = id; erpTab = 'documents';
     const boss = w.characters.boss;
     const page = id === 'note_role'
-      ? [h('p', { class: 'doc-meta' }, 'From ' + boss.name + ', ' + boss.title), h('h1', {}, 'Before Monday'), v.body.map((x) => h('p', {}, x)), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_role', source: 'note_role', label: 'Note from ' + boss.name }, v.attachedTo))]
-      : [h('p', { class: 'doc-meta' }, 'Your notes · last week\'s 1:1s'), h('h1', {}, '1:1 notes'), h('ul', {}, v.list.map((x) => h('li', {}, x))), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_mine', source: 'note_mine', label: 'Your notes from last week' }, v.attachedTo))];
-    fill(docs({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', onBack: backToDrive, page, by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edit was last week' }));
-    pc.url('docs.google.com/document/d/1' + id + 'Q/edit');
+      ? [h('p', { class: 'doc-meta' }, 'From ' + boss.name + ', ' + boss.title), h('h2', {}, 'Before Monday'), v.body.map((x) => h('p', {}, x)), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_role', source: 'note_role', label: 'Note from ' + boss.name }, v.attachedTo))]
+      : [h('p', { class: 'doc-meta' }, 'Your notes · last week\'s 1:1s'), h('h2', {}, '1:1 notes'), h('ul', {}, v.list.map((x) => h('li', {}, x))), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_mine', source: 'note_mine', label: 'Your notes from last week' }, v.attachedTo))];
+    frame('documents', docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), page }));
+    pc.url(ERP_HOST + '/core/media/media.nl?id=' + hashOf(id) % 9000);
     badges();
   }
 
@@ -420,7 +463,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const fl = game.flags();
     sfx.select();
     if (!fl.length) {
-      card('attach-card', h('h2', {}, 'Add to a finding'), h('p', {}, 'You haven\'t stored a finding yet. Flag a figure in QuickBooks or a sheet in Drive first, then attach this to it as supporting context.'), h('div', { class: 'row' }, btn('Got it', () => { closeCard(); sfx.back(); }, 'ob primary')));
+      card('attach-card', h('h2', {}, 'Add to a finding'), h('p', {}, 'You haven\'t stored a finding yet. Flag a figure in ' + ERP_NAME + ' first, then attach this to it as supporting context.'), h('div', { class: 'row' }, btn('Got it', () => { closeCard(); sfx.back(); }, 'ob primary')));
       return;
     }
     const draw = () => card('attach-card', h('h2', {}, 'Add to a finding'),
@@ -440,7 +483,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('button', { class: 'gs-findings', type: 'button', onclick: findingsCard },
         h('span', {}, 'Your findings'), h('b', { class: ok ? 'ok' : '' }, n + ' / ' + game.MIN_FLAGS + (n > game.MIN_FLAGS ? '+' : '')),
         h('span', { class: 'slots' }, Array.from({ length: game.MAX_FLAGS }, (_, i) => h('i', { class: i < n ? 'on' : i < game.MIN_FLAGS ? 'need' : '' })))),
-      btn(ok ? 'Review & lock in' : 'Flag ' + (game.MIN_FLAGS - n) + ' more', ok ? findingsCard : () => note('Open QuickBooks or a sheet in Drive. Click any figure that sticks out to flag it.'), 'ob' + (ok ? ' primary' : ' quiet')));
+      btn(ok ? 'Review & lock in' : 'Flag ' + (game.MIN_FLAGS - n) + ' more', ok ? findingsCard : () => note('Open ' + ERP_NAME + '. Click any figure that sticks out to flag it.'), 'ob' + (ok ? ' primary' : ' quiet')));
   }
 
   function findingsCard() {
@@ -457,7 +500,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('div', { class: 'row-tools' }, btn('▲', () => { game.moveFlag(f.id, -1); findingsCard(); drawTray(); }, 'chip'), btn('▼', () => { game.moveFlag(f.id, 1); findingsCard(); drawTray(); }, 'chip'), btn('Edit', () => compose({ existing: game.state.flags.find((x) => x.id === f.id) }), 'chip'))));
     card('findings-card',
       h('h2', {}, 'Your findings'),
-      h('p', {}, fl.length ? 'This is exactly what you\'ll hand your team at 10:00. Edit, reorder, or remove anything. Attach context from Gmail, Messages, Calendar or your notes with Add to a finding.' : 'Nothing stored yet. Click a figure in QuickBooks or a sheet in Drive to flag it.'),
+      h('p', {}, fl.length ? 'This is exactly what you\'ll hand your team at 10:00. Edit, reorder, or remove anything. Attach context from Gmail, Messages, Calendar or your notes with Add to a finding.' : 'Nothing stored yet. Click a figure in ' + ERP_NAME + ' to flag it.'),
       h('ol', { class: 'finding-list' }, rows),
       h('div', { class: 'row' }, ok ? btn('Lock in my briefing', () => { closeCard(); submit(); }, 'ob primary') : h('span', { class: 'quiet' }, 'Store at least ' + game.MIN_FLAGS + ' to lock in.'), btn('Keep working', () => { closeCard(); sfx.back(); coach.emit('closed'); }, 'link')));
     coach.emit('findings');
@@ -471,8 +514,8 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   function rulesCard() {
     card('rules-card', h('h2', {}, 'How this works'),
       h('ul', { class: 'mini-rules' },
-        h('li', {}, 'This is your computer on Monday morning. Your team\'s reports are in QuickBooks and in Drive, along with every ' + V.unit + '\'s scorecard and your notes. Your inbox, texts, calendar and directory are in the dock.'),
-        h('li', {}, 'Click any figure in a QuickBooks report or a sheet to flag it. Pick your read on it, or write your own, and name an owner if you like.'),
+        h('li', {}, 'This is your computer on Monday morning. Your company runs on ' + ERP_NAME + ': the dashboard, every report, each ' + V.unit + '\'s scorecard and your notes are in it. Your inbox, texts, calendar and directory are in the dock.'),
+        h('li', {}, 'Click any figure on the dashboard, in a report or a scorecard to flag it. Pick your read on it and name an owner if you like.'),
         h('li', {}, 'Emails, texts, calendar entries and notes are context. Attach them to a finding with Add to a finding.'),
         h('li', {}, 'Connected data jumps you to other places the same numbers show up, and back.'),
         h('li', {}, 'Store ' + game.MIN_FLAGS + ' to ' + game.MAX_FLAGS + ' findings. Your ' + w.role.meetingName + ' starts at 10:00 AM. Lock in your briefing before then.')),
@@ -484,21 +527,17 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const flagged = () => game.state.flags.length >= 1;
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. Everything your team sent this morning is in the apps you already use: QuickBooks, Drive, Gmail, Messages, Calendar and your directory. Open anything. The guide follows you.', target: '.os-dock', next: 'NEXT ▶', once: true },
-      { text: 'A good place to start is QuickBooks. This morning\'s flash and the other finance reports are there.', target: '.dock-app[data-app="qbo"]', wait: 'app:qbo', hint: 'Open QuickBooks', skipIf: () => coach.seen('app:qbo') },
+      { text: 'This is your computer. Your company runs on ' + ERP_NAME + ': every report, scorecard and number your systems produce is already in one place. Gmail, Messages, Calendar and your directory hold the rest.', target: '.os-dock', next: 'NEXT ▶', once: true },
+      { text: 'Start in ' + ERP_NAME + '. Your Monday dashboard is waiting.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, skipIf: () => coach.seen('app:erp') },
       { text: 'Your findings are stored up here. Open them any time to review, edit or reorder.', target: '.gs-findings', wait: 'findings', hint: 'Open your findings', when: flagged },
       { text: 'This list is exactly what you\'ll hand your team. Edit changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
       { text: 'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have at least ' + game.MIN_FLAGS + ' findings ready by then. The rest is up to you.', target: '.mb-clock', next: 'LET\'S GO ▶', when: flagged },
     ],
-    qbo: [
-      { text: 'Open any report.', target: '.qb-rl', wait: 'doc:report', hint: 'Pick a report', skipIf: () => coach.seen('doc:report') },
-      { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button to return.', target: '.cx-bar', next: 'NEXT ▶', skipIf: () => !document.querySelector('.cx-bar'), once: true },
-      { text: 'Every figure in a report is a data point. When one looks off, click it to flag it.', target: '.qb-paper', wait: 'flagged', hint: 'Click a figure', side: 'over', skipIf: flagged },
-      { text: 'That\'s your first finding. The reports from your other systems, and every ' + V.unit + '\'s scorecard, are in Drive.', target: '.dock-app[data-app="drive"]', next: 'GOT IT ▶', when: flagged, once: true },
-    ],
-    drive: [
-      { text: 'Your other systems export here every morning: operations, customers, maintenance, people. The ' + (M ? V.unit + ' scorecards' : 'weekly scorecard') + ' and your notes are here too.', target: '.gd-table', next: 'GOT IT ▶', once: true, skipIf: () => !document.querySelector('.gd-table') },
-      { text: 'Any figure in a sheet can be flagged, the same as in QuickBooks.', target: '.gs-grid', next: 'GOT IT ▶', once: true, skipIf: () => !document.querySelector('.gs-grid .figbtn') },
+    erp: [
+      { text: 'Your dashboard: every part of the business, in one place, as of 6:00 AM. It\'s all here. Nothing here says which of it matters this week, or why it moved.', target: '.ns-kpi', next: 'NEXT ▶', once: true },
+      { text: 'Every figure is a data point. When one looks off, click it to flag it.', target: '.ns-kpi', wait: 'flagged', hint: 'Click a figure', side: 'over', skipIf: flagged },
+      { text: 'That\'s your first finding. Reports has every saved search your team runs, and ' + (M ? 'each ' + V.unit + '\'s scorecard' : 'the weekly scorecard') + '. Shared notes are in Documents.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', when: flagged, once: true },
+      { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button to return.', target: '.cx-bar', next: 'GOT IT ▶', skipIf: () => !document.querySelector('.cx-bar'), once: true },
     ],
     compose: [
       { text: 'Pick the read closest to yours. An owner and how sure you are help too. Then add it.', target: '.composer', inline: true, wait: 'flagged' },

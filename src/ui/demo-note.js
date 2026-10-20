@@ -7,6 +7,7 @@ const DEAD = [
   '.gm-compose', '.gm-tabs span:not(.on)', '.gm-rb', '.gm-ni:not(.on)',
   '.qb-new', '.qb-run', '.qb-cust', '.qb-save', '.qb-rtabs span:not(.on)',
   '.ed-menus span:not(.ed-by)', '.ed-share', '.mt-b',
+  '.ns-tab.dead', '.ns-btn.dead', '.ns-rli.dead', '.ns-link.dead', '.ns-rem .dead', '.ns-fct li.dead', '.ns-search', '.ns-sel', '.ns-ptt', '.ns-help',
 ].join(', ');
 const LIVE_QBO = ['Reports'];
 
@@ -14,7 +15,7 @@ export function installDemoNote(root) {
   let el = null, timer = 0;
   const show = () => {
     if (!el) { el = document.createElement('div'); el.className = 'demo-note'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-    el.textContent = 'Not part of this demo. Everything you need is in the reports, inbox and texts.';
+    el.textContent = 'Not part of this demo. Everything you need is in the dashboard, reports, inbox and texts.';
     el.classList.add('on');
     clearTimeout(timer); timer = setTimeout(() => el.classList.remove('on'), 2600);
   };

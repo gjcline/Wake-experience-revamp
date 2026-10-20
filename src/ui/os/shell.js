@@ -92,8 +92,9 @@ export function createComputer({ apps, user, company, onOpen, onHome }) {
     if (onHome) onHome();
   }
   function badge(id, n) { if ((badges[id] || 0) === (n || 0)) return; badges[id] = n || 0; drawDock(); drawTabs(); }
-  function notify({ app, title, text, onclick, ms = 8000 }) {
-    const a = apps.find((x) => x.id === app) || {};
+  // `as` shows the note under another name and mark (Wake speaks through the ERP in Round 2)
+  function notify({ app, title, text, onclick, ms = 8000, as }) {
+    const a = as || apps.find((x) => x.id === app) || {};
     const n = h('button', { class: 'os-note', type: 'button', onclick: () => { n.remove(); if (onclick) onclick(); } },
       icon(a.icon || 'gmail', 'ico note-ico'),
       h('span', { class: 'note-main' }, h('span', { class: 'note-top' }, h('b', {}, (a.name || '').toUpperCase()), h('span', {}, 'now')), title ? h('strong', {}, title) : null, text ? h('span', { class: 'note-text' }, text) : null));

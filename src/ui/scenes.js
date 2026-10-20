@@ -122,9 +122,9 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
         h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + r.meetingName + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
         h('section', { class: 'su-card' },
           h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),
-          h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('10:00 AM', cap(r.meetingName)))),
+          h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('Runs on', 'Ledgerline ERP, with every report in one place'), fact('10:00 AM', cap(r.meetingName)))),
         h('p', { class: 'su-q' }, 'How it works'),
-        h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with the apps your team uses.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
+        h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with your ERP, inbox and texts.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
         h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
@@ -186,12 +186,12 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     const w = sim.world, meeting = w.role.meetingName;
     await office(sim, { day: w.shell.mondayLong, time: '7:42 AM', preset: 'office', arrive: true,
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
-        what: 'Walking in on a Monday. Your ' + meeting + ' starts at 10:00 AM, and your team expects you to walk in knowing what matters this week.',
-        why: 'The problems that cost you money this week are already in your reports, inbox and texts. The question is whether you find them by ten.',
+        what: 'Walking in on a Monday. ' + w.shell.company + ' runs on Ledgerline, your ERP: every report, scorecard and number in one place. Your ' + meeting + ' starts at 10:00 AM.',
+        why: 'You built a business that tracks everything. The problems that cost you money this week are already in there. The question is whether you find them by ten.',
         cta: 'Walk in' },
       card: { step: 2, kicker: 'Round 1 · on your own · 7:48 AM', title: 'Get ready for ten o\'clock.',
-        what: 'Your computer has everything your team sent: QuickBooks, Drive, Gmail, Calendar and Messages. Find the numbers that matter, flag 3 to 5 of them, and decide who handles each.',
-        why: 'This is how most owners prep today: clicking through every app, hoping nothing important is buried. Remember how it feels.',
+        what: 'Your computer has Ledgerline, plus Gmail, Calendar and Messages. Every number is in there. Find the ones that matter, flag 3 to 5 of them, and decide who handles each.',
+        why: 'This is how most teams prep today: all the data in one system, and nothing in it saying what changed or why. Remember how it feels.',
         cta: 'Sit down' },
       done });
   }
