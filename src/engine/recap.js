@@ -49,7 +49,7 @@ export function buildRecap(world, state, { score, trace }) {
   }
 
   const total = S.rows.length;
-  const RT = S.rating || { you: 'A solid week', wake: 'A terrific week' };
+  const RT = S.rating || { you: 'A solid week', wake: 'A standout week' };
   const verdict = RT.you + ' on your own. With Wake, ' + RT.wake.charAt(0).toLowerCase() + RT.wake.slice(1) + '.';
   void total; void WORD;
   const C = S.credit;
@@ -61,10 +61,10 @@ export function buildRecap(world, state, { score, trace }) {
   if (C.runRate > 0) mine.push('added ' + kmoney(C.runRate) + ' of yearly run-rate');
   const won = C.wins.length ? ' Your own week was ahead on ' + join(C.wins.map((x) => x.toLowerCase())) + '.' : '';
   const solid = C.found * 2 >= n || C.resolved >= 1;
-  const credit = (mine.length ? 'On your own you ' + join(mine) + '.' + won + (solid ? ' That is a real week, and it is where the business runs today.' : ' That is where the business runs today.')
-    : 'On your own, the people on site still handled some of it themselves' + (C.runRate > 0 ? ', ' + kmoney(C.runRate) + ' of yearly run-rate' : '') + '. That is where the business runs today.')
-    + ' With Wake, the same Monday resolved ' + (S.final.wake.resolved === n ? 'all ' + n : S.final.wake.resolved + ' of ' + n) + (S.by && S.by.wake ? ' by ' + S.by.wake : '') + ', added ' + kmoney(S.final.wake.runRate) + ' of run-rate, and gave the team ' + Math.max(0, Math.round((S.final.you.hours - S.final.wake.hours) * 10) / 10) + ' hours back for what comes next.';
-  const closer = 'Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems before you sat down. The rest of the week followed from that.';
+  const credit = (mine.length ? 'On your own you ' + join(mine) + '.' + won + (solid ? ' That is a strong week, and your systems and your team got you there.' : ' Your systems and your team got you there.')
+    : 'On your own, the people on site still handled some of it themselves' + (C.runRate > 0 ? ', ' + kmoney(C.runRate) + ' of yearly run-rate' : '') + '. Your systems and your team got you there.')
+    + ' With Wake on top of the same systems, the same Monday went further: it resolved ' + (S.final.wake.resolved === n ? 'all ' + n : S.final.wake.resolved + ' of ' + n) + (S.by && S.by.wake ? ' by ' + S.by.wake : '') + ', added ' + kmoney(S.final.wake.runRate) + ' of run-rate, and gave the team ' + Math.max(0, Math.round((S.final.you.hours - S.final.wake.hours) * 10) / 10) + ' hours back for what comes next.';
+  const closer = 'Same ERP, same team, same data. Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems before you sat down, and that is what took the week further.';
   const meta = { company: world.shell.company, role: world.role.label, shell: world.shell.label, date: world.shell.mondayLong, size: world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit, headcount: world.shell.headcount };
 
   // ---------------------------------------------------------------- pieces

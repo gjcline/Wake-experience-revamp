@@ -1,5 +1,6 @@
 // THE FINALE
-// The meeting twice (on your own, then with Wake) as a video call, the result, the week as a
+// The meeting twice (on your own, then prepared with Wake) in person, in the conference room, the
+// result, the week as a
 // live dashboard with each plan's updates coming in over Slack, and the final score as a report.
 // Everything shown is read from the engine. The screens show what happened; the player draws
 // the conclusions.
@@ -8,6 +9,7 @@ import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { ICONS, GLYPH } from './os/icons.js';
 import { face, glyph } from './os/shell.js';
+import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
@@ -16,6 +18,10 @@ const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
 const DECISION = { decided: 'Decided', guess: 'Decided on your word', pilot: 'Decided · smaller start', agreed: 'Agreed · numbers to follow', parked: 'Parked', next: 'Parked to next week', dropped: 'Dropped', busy: 'Kept on the list' };
 const STATUS = { open: 'Open', waiting: 'Waiting', working: 'In progress', fixed: 'Resolved', worse: 'Worse' };
 const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' });
+// Around the conference table: the central team where the walk-in showed them, the managers in
+// the open seats. You sit at the head of the table.
+const SEATS = { controller: [86, 42, 'down'], opsdir: [100, 42, 'down'], trainer: [114, 42, 'down'], hr: [100, 70, 'up'], analyst: [114, 70, 'up'], marketing: [128, 70, 'up'] };
+const OPEN = [[128, 42, 'down'], [86, 70, 'up'], [72, 47, 'right'], [72, 58, 'right']];
 
 export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onBook }) {
   const w = () => game.world;
@@ -26,18 +32,21 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
   const fc = (k, size) => (k === 'wake' ? mark('wake', 'fm wk') : face(k === 'me' ? 'You' : nameOf(k), size, k === 'me' ? '#5F6368' : undefined));
   let alive = true;
   // each screen owns the page until the next one replaces it
-  const own = () => { alive = true; setCleanup(() => { alive = false; document.onkeydown = null; }); };
+  const own = (also) => { alive = true; setCleanup(() => { alive = false; document.onkeydown = null; if (also) also(); }); };
 
-  // ============================================================ THE MEETING: a video call
+  // ============================================================ THE MEETING: in the room
   function stage(side) {
     const W = w();
     const room = W.central.concat(W.locations.map((l) => l.manager));
+    const seat = {}; let o = 0;
+    for (const k of room) seat[k] = SEATS[k] || OPEN[o++] || [76, 52, 'right'];
     const tiles = {};
-    const tile = (k) => { const el = h('div', { class: 'mt-tile' + (k === 'me' ? ' me' : '') }, h('div', { class: 'mt-av' }, fc(k, 64)), h('span', { class: 'mt-nm' }, k === 'me' ? 'You' : nameOf(k)), h('span', { class: 'mt-mic' }, '🎙')); tiles[k] = el; return el; };
+    const tile = (k) => { const el = h('div', { class: 'mt-p' + (k === 'me' ? ' me' : '') }, fc(k, 30), h('span', {}, k === 'me' ? 'You' : first(k))); tiles[k] = el; return el; };
     const screenBody = h('div', { class: 'mt-scr-body' });
-    const screen = h('div', { class: 'mt-scr ' + side },
-      h('div', { class: 'mt-scr-bar' }, side === 'wake' ? mark('wake', 'fm sm') : mark('docs', 'fm sm'), h('b', {}, side === 'wake' ? 'Wake · today\'s briefing' : 'Your notes'), h('span', {}, 'You are presenting')),
+    const paper = h('div', { class: 'mt-paper ' + side },
+      h('div', { class: 'mt-scr-bar' }, side === 'wake' ? mark('wake', 'fm sm') : mark('docs', 'fm sm'), h('b', {}, side === 'wake' ? 'Your briefing · prepared with Wake' : 'Your notes'), h('span', {}, side === 'wake' ? 'Printed 9:52 AM' : 'Printed 9:55 AM')),
       screenBody);
+    const holder = h('div', { class: 'mt-map' });
     const clock = h('b', {}, '10:00 AM'), elapsed = h('span', {}, '0 min');
     const pips = h('div', { class: 'mt-pips' });
     const cnt = (label, cls) => { const b = h('b', {}, '0'); return { el: h('div', { class: 'mt-cnt ' + cls }, b, h('span', {}, label)), b }; };
@@ -48,19 +57,24 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const choices = h('div', { class: 'mt-choices' });
     const ctl = h('div', { class: 'mt-ctl2' });
     const title = (W.role.meetingName[0].toUpperCase() + W.role.meetingName.slice(1));
-    const el = show(side === 'wake' ? 'wake' : 'day', 'cl-screen mt ' + side,
+    const el = show(side === 'wake' ? 'wake' : 'day', 'cl-screen mt room ' + side,
       h('div', { class: 'mt-main' },
         h('div', { class: 'mt-stage' },
-          h('div', { class: 'mt-head' }, h('span', { class: 'mt-tag ' + side }, side === 'wake' ? 'With Wake' : 'On your own'), h('div', { class: 'mt-agenda' }, h('span', {}, 'Agenda'), pips), C.hrs.el, C.owed.el, C.dec.el),
-          h('div', { class: 'mt-view' }, screen, h('div', { class: 'mt-tiles' }, tile('me'), room.map(tile)))),
+          h('div', { class: 'mt-head' }, h('span', { class: 'mt-tag ' + side }, side === 'wake' ? 'Prepared with Wake' : 'On your own'), h('div', { class: 'mt-agenda' }, h('span', {}, 'Agenda'), pips), C.hrs.el, C.owed.el, C.dec.el),
+          h('div', { class: 'mt-roomv' }, holder, paper),
+          h('div', { class: 'mt-ppl' }, tile('me'), room.map(tile))),
         h('aside', { class: 'mt-panel' },
-          h('div', { class: 'mt-ph' }, h('b', {}, 'In-call messages'), h('span', {}, 'Captions are on')),
+          h('div', { class: 'mt-ph' }, h('b', {}, 'In the room'), h('span', {}, 'Conference room · in person')),
           log, choices, ctl)),
       h('footer', { class: 'mt-bar' },
         h('div', { class: 'mt-bl' }, clock, h('i'), h('span', {}, title), h('i'), elapsed),
-        h('div', { class: 'mt-bc' }, ['🎙', 'video', 'cc', 'present', '✋', 'more'].map((x) => h('span', { class: 'mt-b' + (x === 'present' ? ' on' : '') }, GLYPH[x] ? glyph(x) : x === 'cc' ? 'CC' : x === 'present' ? '⇪' : x)), h('span', { class: 'mt-b end' }, '✆')),
-        h('div', { class: 'mt-br' }, glyph('people'), h('span', {}, String(people)))));
-    own();
+        h('div', { class: 'mt-bc' }, h('span', { class: 'mt-loc' }, W.shell.company + ' · conference room')),
+        h('div', { class: 'mt-br' }, glyph('people'), h('span', {}, people + ' in the room'))));
+    const npcs = room.map((k) => ({ av: W.characters[k].av, x: seat[k][0], y: seat[k][1], facing: seat[k][2], seated: true }));
+    const map = createOffice(holder, { company: W.shell.company, playerShirt: ROLE_COLOR[W.role.id] || ROLE_COLOR.gm, npcs, reduced, start: { x: SEAT.meeting.x, y: SEAT.meeting.y, dir: 'left', seated: true, z: 3 } });
+    map.ready.then(() => map.view(106, 50, 3));
+    const bubble = (k, cls) => { const at = k === 'me' ? [SEAT.meeting.x, SEAT.meeting.y] : seat[k]; if (!at) return; map.say(at[0], at[1] - 2, cls === 'q' ? '?' : cls === 'ok' ? 'OK' : cls === 'pres' ? '!' : '...', 1300); };
+    own(() => map.destroy());
     let used = 0;
     C.hrs.b.textContent = '0.0';
     const S = {
@@ -72,8 +86,8 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
       count(k, v) { C[k].b.textContent = String(v); C[k].el.classList.remove('bump'); void C[k].el.offsetWidth; C[k].el.classList.add('bump'); },
       talk(k) { Object.values(tiles).forEach((s) => s.classList.remove('talk')); if (tiles[k]) tiles[k].classList.add('talk'); },
       say(k, text, cls = '') {
-        S.talk(k);
-        const line = h('div', { class: 'mt-msg ' + cls + (k === 'me' ? ' me' : '') + (k === 'wake' ? ' wake' : '') }, fc(k, 28), h('div', {}, h('b', {}, k === 'wake' ? 'Wake' : k === 'me' ? 'You' : nameOf(k)), h('p', {}, text)));
+        S.talk(k); bubble(k, cls);
+        const line = h('div', { class: 'mt-msg ' + cls + (k === 'me' ? ' me' : '') }, fc(k, 28), h('div', {}, h('b', {}, k === 'me' ? 'You' : nameOf(k)), h('p', {}, text)));
         log.appendChild(line); log.scrollTop = log.scrollHeight; sfx.blip();
         return line;
       },
@@ -152,8 +166,8 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           h('div', {}, h('b', {}, Y.hours.toFixed(1)), h('span', {}, 'leadership hours')),
           h('div', {}, h('b', {}, Y.ownerDate + '/' + Y.items.length), h('span', {}, 'with an owner and a date')),
           h('div', {}, h('b', {}, String(Y.ious)), h('span', {}, 'follow-ups owed'))),
-        h('p', {}, 'Same call. Same 10:00 AM. Now run it with the briefing you built with Wake.'),
-        btn('Run it with Wake', meetingWake, 'cb wake')));
+        h('p', {}, 'Same room. Same people. Same 10:00 AM. Now run it again, with the briefing you prepared with Wake.'),
+        btn('Run it prepared with Wake', meetingWake, 'cb wake')));
       sfx.credit();
     })();
   }
@@ -175,7 +189,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     (async () => {
       S.agenda(K.items.length, 0);
       S.say('opsdir', 'Let\'s get started. What have you got for us?');
-      S.screen.replaceChildren(h('h2', {}, 'Briefing loaded'), h('p', { class: 'mt-sq' }, K.items.length + ' items, ranked. Every one with its evidence, owner and the number to watch.'));
+      S.screen.replaceChildren(h('h2', {}, 'Your briefing'), h('p', { class: 'mt-sq' }, K.items.length + ' items, ranked, prepared with Wake this morning. Every one with its evidence, an owner and the number to watch.'));
       await S.tick(3, fast);
       for (const it of K.items) {
         if (!alive) return;
@@ -184,8 +198,8 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         S.say('me', it.headline + ' ' + it.action, 'pres'); await pause(900);
         for (const q of it.qs) {
           S.say(q.asker.key, q.asker.line, 'q'); await pause(650);
-          const a = S.say('wake', q.answer, 'wake');
-          if (q.chips) a.querySelector('div').appendChild(h('div', { class: 'mt-chips' }, q.chips.map((c) => h('span', {}, h('b', {}, c.sys), ' ' + c.label))));
+          const a = S.say('me', q.answer, 'a prep');
+          if (q.chips) a.querySelector('div').appendChild(h('div', { class: 'mt-chips' }, h('em', {}, 'From your briefing'), q.chips.map((c) => h('span', {}, h('b', {}, c.sys), ' ' + c.label))));
           answered += 1; await pause(900);
         }
         S.say(it.owner.key, it.onIt, 'ok'); await pause(500);
@@ -195,7 +209,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
       }
       if (!alive) return;
       S.agenda(K.items.length, K.items.length);
-      if (!skipped) { S.say(K.wrap.asker.key, K.wrap.asker.line, 'q'); await pause(600); S.say('wake', K.wrap.answer, 'wake'); answered += 1; await S.tick(1, fast); }
+      if (!skipped) { S.say(K.wrap.asker.key, K.wrap.asker.line, 'q'); await pause(600); S.say('me', K.wrap.answer, 'a prep'); answered += 1; await S.tick(1, fast); }
       S.set(K.minutes); S.count('dec', K.decided);
       game.presented('wake');
       await pause(700);
@@ -219,10 +233,10 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     show('wake', 'cl-screen rs',
       h('div', { class: 'rs-page' },
         h('p', { class: 'rs-k' }, 'The meeting · result · ' + w().shell.company),
-        h('h1', {}, 'Same call. Two meetings.'),
+        h('h1', {}, 'Same room. Two meetings.'),
         h('section', { class: 'rs-card' },
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk y' }, 'On your own', h('b', {}, Y.minutes + ' min')), yBar),
-          h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk w' }, 'With Wake', h('b', {}, K.minutes + ' min')), kBar),
+          h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk w' }, 'Prepared with Wake', h('b', {}, K.minutes + ' min')), kBar),
           h('div', { class: 'rs-tlrow' }, h('span'), axis),
           h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on your word'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
         h('section', { class: 'rs-card' }, h('table', { class: 'rs-duel' },

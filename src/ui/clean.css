@@ -475,3 +475,24 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 .wx .cl-screen .rs-page > h1, .wx .cl-screen .wd-head h1, .wx .cl-screen .ci-card h1, .wx .cl-screen .cl-choices h1 { color: var(--ink); }
 .wx .cl-inter.night .ci-card h1 { color: #fff; }
 .wx .cl-inter.night .cb.primary { background: #fff; color: #0F172A; border-color: #fff; }
+
+/* ------------------------------------------------------------ the meeting, in person */
+.wx .cl-screen.mt.room { background: #14151A; }
+.mt-roomv { flex: 1; min-height: 0; position: relative; border-radius: 12px; overflow: hidden; background: #0B0A14; }
+.mt-map { position: absolute; inset: 0; }
+.mt-map .px-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.mt-paper { position: absolute; left: 14px; bottom: 14px; width: min(440px, 52%); max-height: calc(100% - 28px); display: flex; flex-direction: column; border-radius: 6px; background: #FFFEFA; color: #1F1F1F; box-shadow: 0 18px 40px rgba(0,0,0,.45); transform: rotate(-.6deg); overflow: hidden; }
+.mt-paper .mt-scr-body { padding: 18px 22px; gap: 8px; overflow: auto; }
+.mt-paper .mt-scr-body h2 { font-size: clamp(17px, 1.6vw, 22px) !important; }
+.mt-paper.wake .mt-scr-bar { background: #E7F8FB; }
+.mt-ppl { flex: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.mt-p { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: #24262C; font-size: 12.5px; color: #C9CDD6; transition: background .15s, box-shadow .15s, opacity .2s; }
+.mt-p .face { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+.mt-p.talk { background: #31343C; box-shadow: inset 0 0 0 2px #8AB4F8; color: #fff; }
+.mt-p.out { opacity: .35; }
+.mt-loc { font-size: 13.5px; color: #9AA0A6; }
+.mt-msg.prep > div { padding: 8px 12px; border-radius: 12px; background: #ECFEFF; }
+.mt-chips em { font-style: normal; font-size: 11px; font-weight: 600; color: #155E75; align-self: center; margin-right: 2px; }
+@media (max-width: 900px) { .mt-paper { position: static; width: auto; transform: none; max-height: 40%; } .mt-roomv { display: flex; flex-direction: column; } .mt-map { position: relative; flex: 1; min-height: 180px; } }
+.mt.room .mt-bar { display: flex; justify-content: space-between; gap: 16px; }
+.mt.room .mt-bc { margin-left: auto; }

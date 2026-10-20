@@ -26,8 +26,10 @@ Add `?seed=123` to the URL to replay the same company.
     src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
                    the live guide (app.js), the title screen and the setup questions (scenes.js)
     src/ui/pixel/  the pixel office the walks happen in (office.js)
-    src/ui/os/     the computer both desks run on, and look-alike Gmail, QuickBooks, Drive,
-                   Sheets, Docs, Google Calendar, Messages and Contacts
+    src/ui/os/     the computer both desks run on: Ledgerline, an unbranded NetSuite-style ERP
+                   (erp.js, erp.css; Wake is built into it in Round 2), and look-alike Gmail,
+                   Google Calendar, Messages and Contacts
+    src/ui/wakeworks.js  the ten seconds of Wake at work between the rounds
     src/dashboard.html  the team's runs dashboard, served at /dashboard
     api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings)
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)

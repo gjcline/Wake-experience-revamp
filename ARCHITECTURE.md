@@ -9,22 +9,30 @@ and narrates the player through it with a live guide.
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Then the pixel office: the car pulls up and you walk to your desk.
-2. Round 1, on your own. The desk is a realistic computer: a menu bar, a dock and a browser
-   window holding the apps a team actually uses. QuickBooks has the finance reports (weekly flash,
-   labor, purchasing); Google Drive has the exports from every other system as Sheets, the location
-   scorecards (one tab per location) and the notes as Docs; Gmail, Messages, Google Calendar and
-   Google Contacts hold the inbox, texts, calendar and team. The
+2. Round 1, on your own. The pitch is not "replace your ERP": the company already runs on one,
+   and all its data is in one place. The desk is a realistic computer whose main app is
+   Ledgerline, an unbranded NetSuite-style ERP: a dashboard of portlets (reminders, saved
+   searches, KPI meters, a 26-row KPI grid), a report center with every report (live ones among
+   dozens of standard ones), location scorecards and a File Cabinet for notes. Everything is
+   there and nothing explains itself. Gmail, Messages, Google Calendar and Google Contacts hold
+   the inbox, texts, calendar and team. The
    clock runs 7:48 to 10:00 by itself (one minute every two seconds). Nothing costs time.
    The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
    pick one of four reads (with the action beneath it), say it in their own words, name an
    owner, say how sure they are. Words and confidence are kept for the sales team.
-3. Rewind to 7:48. Round 2, with Wake. Same computer, with Wake added to the dock. Gmail is
-   labeled by insight, QuickBooks carries statements current to the morning, Drive carries the
-   executive briefs and the drafted Thursday brief, the calendar carries Wake's holds, and texts
-   can be sent to Wake from Messages. Wake reads every system, then hands over five ranked
+3. Rewind to 7:48, then about ten seconds of Wake at work (wakeworks.js): the ERP's modules,
+   the inbox, the calendar and texts connect, with the wider stack around them, and the counts
+   fall from thousands of records to a handful of insights. Round 2: the same computer and the
+   same Ledgerline, with Wake built into it. The dashboard gains a Wake portlet (ranked insights,
+   assign in place) and a Wake column on every KPI (the insight it feeds, or why it needs
+   nothing); a Wake tab holds every insight with its trace; Reports keeps every standard report,
+   tagged with what Wake found, beside the statements current to the morning and the reports Wake
+   prepared (briefs and the drafted Thursday brief). Gmail is labeled by insight, the calendar
+   carries Wake's holds, and texts can be sent to Wake from Messages. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
-4. The meeting, twice. The room asks what any leadership team asks: what is driving it, what
+4. The meeting, twice, in person in the pixel conference room (no video call). Wake never
+   speaks in the room: with Wake, you answer from the briefing you prepared. The room asks what any leadership team asks: what is driving it, what
    it is costing us, who owns it, how we will know. On your own, what you brought decides
    what you can answer; the rest becomes follow-ups in people's queues, and each item acts the
    day after its last follow-up lands. Without the evidence, each item also gets talked around
@@ -78,16 +86,19 @@ and narrates the player through it with a live guide.
                                     company's own numbers, what happens when nobody is assigned), the score
                    recap.js         the verdict, the moment, and the one-page report (screen + download)
     src/ui/        os/              the computer both desks run on: shell.js (menu bar, dock, browser window,
-                                    notifications, the game strip), apps.js (Gmail, QuickBooks, Drive, Sheets,
-                                    Docs, Google Calendar, Messages, Contacts as plain builders), icons.js, os.css
-                   round1.js        the desk: reports in QuickBooks and Sheets, scorecards as a Sheet with a tab per
-                                    location, Gmail, Messages, Calendar, notes as Docs, Contacts, connected data,
+                                    notifications, the game strip), erp.js and erp.css (Ledgerline: the frame,
+                                    portlets, report center, File Cabinet, and the dashboard both rounds share),
+                                    apps.js (Gmail, Google Calendar, Messages, Contacts, data tables), icons.js, os.css
+                   round1.js        the desk: Ledgerline (dashboard, reports, scorecards, File Cabinet), Gmail,
+                                    Messages, Calendar, Contacts, connected data,
                                     the composer, attaching context, the guide steps
-                   round2.js        the Wake desk: Wake connecting, the Wake app (5 to 8 insights, pick 3 to 5),
-                                    the trace drawer back to the Round 1 originals, statements in QuickBooks, briefs
-                                    and the drafted Thursday brief in Drive, Gmail labeled by insight, Messages with
+                   round2.js        the Wake desk: Ledgerline with Wake built in (Wake portlet and KPI column, the
+                                    Wake tab with 5 to 8 insights, pick 3 to 5, the trace drawer back to the Round 1
+                                    originals, statements and Wake reports in Reports), Gmail labeled by insight, Messages with
                                     send to Wake, Wake's calendar holds, Contacts with assignments, the guided tour
-                   finale.js        the meeting as a Google Meet call (questions, answers, follow-ups), Wake's meeting,
+                   wakeworks.js     the ten seconds of Wake at work between the rounds
+                   finale.js        the meeting in person in the pixel conference room (questions, answers,
+                                    follow-ups), the meeting prepared with Wake,
                                     the result, the week as a dashboard with two Slack channels, the final score and the report
                    app.js           the Round 1 complete screen, the reset, Wake reading the morning, the walks,
                                     plus the live guide: chapters per place. Leave a step and it pauses; enter

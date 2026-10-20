@@ -903,7 +903,7 @@ export function generateScenario(shell, role, seed) {
   const today = [
     { id: 'ev_prep', start: '8:00', end: '8:30', title: 'Hold: prep for the ' + role.meetingName, place: 'Your office', kind: 'block' },
     { id: 'ev_meet', start: '10:00', end: '11:00', title: cap(role.meetingName), place: 'Conference room', kind: 'meeting', signals: ['cal.meeting'],
-      detail: { people: att(CENTRAL.concat(locations.map((L) => L.manager))), lines: ['Agenda (draft from ' + F(ctrl) + '): ' + (A ? (M ? A.name + ' labor' : 'labor') : 'cash position') + (Y ? ', the ' + (M ? Y.name + ' ' : '') + 'complaint' : '') + ', open items.', (M ? 'Managers join by video.' : 'Your manager joins in person.'), 'Bring your briefing: what matters this week, and who owns it.'] } },
+      detail: { people: att(CENTRAL.concat(locations.map((L) => L.manager))), lines: ['Agenda (draft from ' + F(ctrl) + '): ' + (A ? (M ? A.name + ' labor' : 'labor') : 'cash position') + (Y ? ', the ' + (M ? Y.name + ' ' : '') + 'complaint' : '') + ', open items.', (M ? 'Managers come in for it, in person.' : 'Your manager joins in person.'), 'Bring your briefing: what matters this week, and who owns it.'] } },
     { id: 'ev_11', start: '11:30', end: '12:00', title: '1:1 with ' + characters.opsdir.name, place: 'Your office', kind: 'meeting', detail: { people: ['opsdir'], lines: ['Site visit plan for the week. ' + F('opsdir') + ' is going to ' + (M ? visitL.name : 'the floor') + ' this afternoon.', 'Vendor scorecards are due at month end.'] } },
     { id: 'ev_lunch', start: '12:00', end: '1:00', title: 'Lunch', kind: 'block' },
     D && o('F3', 'deskreq')

@@ -214,9 +214,9 @@ async function walkToMeeting() {
   leave();
   world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
-      what: 'Your team is in the room and the managers are on video. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you built with Wake.',
+      what: 'Everyone is in the conference room. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you prepared with Wake.',
       why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
-      cta: 'Join the call' },
+      cta: 'Take your seat' },
     done: () => finale().meeting() });
 }
 

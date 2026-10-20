@@ -193,3 +193,13 @@ button.ns-rli:hover span { text-decoration: underline; }
 .ns-kpi td.ns-wcell { min-width: 300px; }
 .ns-wnote.hit span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ns-rli .ns-tag { white-space: nowrap; }
+@media (max-width: 600px) {
+  .ns-head { gap: 10px; padding: 0 10px; }
+  .ns-search { flex: 0 0 auto; max-width: none; }
+  .ns-search span, .ns-help, .ns-role { display: none; }
+  .ns-page { padding: 10px 10px 30px; }
+  .ns-kpi td:first-child { white-space: normal; min-width: 130px; }
+  .ns-kpi td.ns-wcell { min-width: 200px; }
+  .ns-dh { flex-direction: column; gap: 2px; }
+  .ns-pha { display: none; }
+}

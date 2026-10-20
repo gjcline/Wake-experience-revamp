@@ -299,7 +299,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     // how each week rates, in the words an owner would use; the business was already good
     const DAYNAME = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const allBy = W.board.wake.findIndex((x) => x.resolved === n);
-    const rating = { you: fy.resolved >= 2 || (fy.resolved >= 1 && fy.profit > 0 && found >= n - 1) ? 'A good week' : fy.resolved >= 1 || fy.profit > 0 ? 'A solid week' : 'A steady week', wake: 'A terrific week' };
+    const rating = { you: fy.resolved >= 2 || (fy.resolved >= 1 && fy.profit > 0 && found >= n - 1) ? 'A good week' : fy.resolved >= 1 || fy.profit > 0 ? 'A solid week' : 'A steady week', wake: 'A standout week' };
     const by = { wake: allBy >= 0 ? DAYNAME[allBy] : null, wakeDay: allBy };
     const quarter = project(W, found);
     // what the player did well on their own, in their own numbers
