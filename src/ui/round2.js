@@ -1,9 +1,10 @@
 // ROUND 2: WITH WAKE
-// The same computer, the same apps, the same Monday, with Wake connected to all of them. Wake
-// opens in the dock with every insight from this morning, ranked, and the lines behind each one.
-// QuickBooks carries the statements Wake reconciled overnight; Drive carries the executive briefs
-// and a drafted Thursday brief. Gmail is labeled by insight, the calendar carries Wake's suggested
-// holds, and texts (which live in no system) can be sent to Wake. The player's job is the one only
+// The same computer, the same Monday, the same Ledgerline. The difference is that Wake is built into
+// the ERP now, and it read everything before you sat down: the ERP's modules, the inbox, the
+// calendar. The dashboard looks the same, but every indicator says why it moved and which insight it
+// feeds; a Wake portlet ranks what needs you; the Wake tab holds every insight with the lines behind
+// it; Reports holds the standard statements, current to this morning, beside the reports Wake
+// prepared. Texts (which live in no system) can be sent to Wake. The player's job is the one only
 // they can do: decide.
 // Renders what the engine returns. No business logic lives here.
 
@@ -11,12 +12,16 @@ import { h } from './art.js';
 import { sfx } from './arcade/sound.js';
 import { fmtClock } from '../engine/config.js';
 import { createComputer, gameStrip, face, addressOf, glyph, icon } from './os/shell.js';
-import { gmail, gmailRow, gmailMessage, mailDate, qbo, qboReportList, qboReport, dataTable, drive, docs, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
+import { gmail, gmailRow, gmailMessage, mailDate, dataTable, gcal, gcalPopover, monthTitle, messages, imThread, contacts, contactRow } from './os/apps.js';
+import { erp, portlet, pageHead, filters, reportList, subtabs, fileCabinet, docPage, hashOf, ERP_NAME, ERP_HOST, SCORE_FILE, erpModel, homePage, reportGroups, scoreBlocks, scoreTabs } from './os/erp.js';
 
 const CLOCK_MS = 2000;
 const STATEMENTS = ['x_pl', 'x_cash', 'x_bs'];
-// Which app a system's lines live in, for the source chips and the trace.
-const appOfSystem = (s) => (/accounting|purchas|payroll/i.test(s) ? 'qbo' : /inbox|email/i.test(s) ? 'gmail' : /phone|text/i.test(s) ? 'messages' : /calendar/i.test(s) ? 'calendar' : /desk|note/i.test(s) ? 'docs' : 'sheets');
+// Which app a system's lines live in, for the source chips and the trace. Everything the business
+// records is in the ERP; mail, texts and the calendar are the other sources Wake reads.
+const appOfSystem = (s) => (/inbox|email/i.test(s) ? 'gmail' : /phone|text/i.test(s) ? 'messages' : /calendar/i.test(s) ? 'calendar' : 'erp');
+const APP_NAME = { erp: ERP_NAME, gmail: 'Gmail', messages: 'Messages', calendar: 'Google Calendar' };
+const WAKE = { name: 'Wake', icon: 'wake' };
 
 export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   const w = game.world, M = w.shell.multi, V = w.shell.vocab;
@@ -29,20 +34,20 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   const groups = (w.sources.x_list && w.sources.x_list.groups) || [['Briefs', ['x_forecast', 'x_pacing', 'x_brief']]];
   const statements = STATEMENTS.filter((id) => w.sources[id]);
 
+  const model = erpModel(w), { locIds, sysOf } = model;
+
   let app = null, shown = game.state.wakeClock, open = {}, trace = null, calTab = 'this', calPopId = null;
-  let mailId = null, thread = null, qboDoc = null, driveFile = null, profileKey = null, live = false;
+  let mailId = null, thread = null, erpTab = 'home', erpDoc = null, sheetTab = null, live = false;
   const seenDoc = {};
 
   const APPS = [
-    { id: 'wake', name: 'Wake', icon: 'wake', title: 'Today - Wake', url: 'app.wake.ai/today', hero: true },
+    { id: 'erp', name: ERP_NAME, icon: 'erp', title: 'Home - ' + ERP_NAME, url: ERP_HOST + '/app/center/card.nl', hero: true },
     { id: 'gmail', name: 'Gmail', icon: 'gmail', title: 'Gmail', url: 'mail.google.com/mail/u/0/#inbox' },
-    { id: 'qbo', name: 'QuickBooks', icon: 'qbo', title: 'Reports | QuickBooks', url: 'qbo.intuit.com/app/reportlist' },
-    { id: 'drive', name: 'Google Drive', icon: 'drive', title: 'Executive briefs - Google Drive', url: 'drive.google.com/drive/folders/wake-briefs' },
     { id: 'calendar', name: 'Google Calendar', icon: 'calendar', title: 'Google Calendar - Week', url: 'calendar.google.com/calendar/u/0/r/week' },
     { id: 'messages', name: 'Messages', icon: 'messages', title: 'Messages', chrome: 'native' },
     { id: 'contacts', name: 'Contacts', icon: 'contacts', title: 'Directory - Google Contacts', url: 'contacts.google.com/directory' },
   ];
-  const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { app = null; badges(); sfx.back(); coach.emit('desk'); coach.context('desk'); } });
+  const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { app = null; badges(); sfx.back(); coach.emit('desk'); if (coach.seen('erp:reports')) coach.emit('desk:back'); coach.context('desk'); } });
   const overlay = h('div', { class: 'overlay os-ov', hidden: true });
   const strip = gameStrip({ round: 'Step 3 of 6 · With Wake', tone: 'wake', task: 'Decide what matters. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights to hand your team before your ' + w.role.meetingName + ' at 10:00 AM.', onRules: rulesCard });
   show('wake', 'os-screen round2', strip.el, pc.el, overlay);
@@ -53,16 +58,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   setCleanup(() => { clearInterval(ticker); coach.stop(); });
   sfx.ambience(1);
 
-  // ------------------------------------------------------------ Wake connects, then the morning runs
-  function connect(done) {
-    const sys = h('ul', { class: 'wk-sync' }, B0.systems.map((s) => h('li', {}, icon(appOfSystem(s.name) === 'docs' ? 'docs' : appOfSystem(s.name), 'ico wk-sync-ico'), h('span', {}, s.name), h('em', {}, n(s.n) + ' records'), glyph('check', 'gl wk-ok'))));
-    const card = h('div', { class: 'wk-connect' }, icon('wake', 'ico wk-connect-ico'), h('h2', {}, 'Wake read your morning'), h('p', {}, n(B0.funnel.records) + ' records from ' + B0.systems.length + ' systems, connected and ranked at 7:48 AM.'), sys);
-    pc.el.querySelector('.os-desktop').appendChild(card);
-    const items = [...sys.children];
-    let i = 0;
-    const step = () => { if (i < items.length) { items[i].classList.add('on'); i += 1; setTimeout(step, reduced ? 0 : 140); } else setTimeout(() => { card.classList.add('out'); setTimeout(() => { card.remove(); done(); }, reduced ? 0 : 300); }, reduced ? 0 : 700); };
-    setTimeout(step, reduced ? 0 : 300);
-  }
+  // ------------------------------------------------------------ the morning runs
   function start() {
     live = true;
     badges(); drawTray();
@@ -76,20 +72,23 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     tour();
   }
 
+  const wakeDocs = () => groups.flatMap((g) => g[1]).filter((id) => w.sources[id] && !STATEMENTS.includes(id));
+  const erpBadge = () => ({ wake: live ? game.insights().filter((x) => !x.picked).length : 0, reports: statements.concat(wakeDocs()).filter((id) => !seenDoc[id]).length });
   function badges() {
-    pc.badge('wake', live ? game.insights().length : 0);
+    const b = erpBadge();
+    pc.badge('erp', b.wake + b.reports);
     pc.badge('gmail', game.unreadR2('email'));
     pc.badge('messages', game.unreadR2('message'));
-    pc.badge('qbo', statements.filter((id) => !seenDoc[id]).length);
-    pc.badge('drive', groups.flatMap((g) => g[1]).filter((id) => w.sources[id] && !STATEMENTS.includes(id) && !seenDoc[id]).length);
+    if (app === 'erp') pc.body.querySelectorAll('.ns-tab').forEach((t) => { const n2 = b[t.dataset.tab]; let i2 = t.querySelector('.ns-badge'); if (!n2) { if (i2) i2.remove(); return; } if (!i2) { i2 = h('i', { class: 'ns-badge' }); t.appendChild(i2); } i2.textContent = String(n2); });
   }
+  const goWake = () => { if (app !== 'erp') pc.open('erp'); erpTo('wake'); };
   function arrivals(fired) {
     for (const f of fired) {
       const p = f.from ? person(f.from) : null;
       sfx.alert();
       if (f.kind === 'email') {
         pc.notify({ app: 'gmail', title: p ? p.name : 'New email', text: (w.sources[f.source] || {}).title || '', onclick: () => { mailId = f.source; pc.open('gmail'); openMail(f.source); } });
-        setTimeout(() => { const nn = pc.notify({ app: 'wake', title: 'Wake read it', text: f.links.length ? 'It feeds insight #' + f.links.join(', #') + '.' : 'Nothing new. No action needed.', onclick: () => pc.open('wake') }); nn.classList.add('wkn'); }, reduced ? 0 : 900);
+        setTimeout(() => { const nn = pc.notify({ app: 'erp', as: WAKE, title: 'Wake read it', text: f.links.length ? 'It feeds insight #' + f.links.join(', #') + '.' : 'Nothing new. No action needed.', onclick: goWake }); nn.classList.add('wkn'); }, reduced ? 0 : 900);
       } else {
         const src = w.sources[f.source] || {};
         pc.notify({ app: 'messages', title: p ? p.name : 'New message', text: (src.body || [''])[0] + (f.sharpen ? '  ·  You can send it to Wake.' : ''), onclick: () => { thread = f.from; pc.open('messages'); } });
@@ -97,16 +96,15 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     }
   }
 
+  const ctxOf = (tab) => (tab === 'wake' ? 'wake' : tab === 'reports' ? 'reports' : 'erp');
   function openApp(id) {
     app = id; sfx.blip();
     render(); badges();
-    coach.emit('app:' + id); coach.emit('panel:' + id); coach.context(id);
+    coach.emit('app:' + id); coach.emit('panel:' + id); coach.context(id === 'erp' ? ctxOf(erpTab) : id);
   }
   function render() {
-    if (app === 'wake') renderWake();
+    if (app === 'erp') renderErp();
     else if (app === 'gmail') renderGmail();
-    else if (app === 'qbo') renderQbo();
-    else if (app === 'drive') renderDrive();
     else if (app === 'calendar') renderCalendar();
     else if (app === 'messages') renderMessages();
     else if (app === 'contacts') renderContacts();
@@ -120,21 +118,22 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const picked = list.filter((x) => x.picked).length;
     const scroller = pc.body.querySelector('.wk-main');
     const keep = scroller ? scroller.scrollTop : 0;
-    fill(h('div', { class: 'wkapp' },
+    const sys = B.systems.map((x) => h('span', { class: 'wk-sys' }, icon('erp', 'ico wk-sys-ico'), h('span', {}, x.name), h('i', { class: 'wk-live' })));
+    frame('wake', h('div', { class: 'wkapp' },
       h('aside', { class: 'wk-nav' },
-        h('div', { class: 'wk-brand' }, icon('wake', 'ico wk-logo'), h('b', {}, 'Wake')),
         h('span', { class: 'wk-ni on' }, glyph('sparkle'), 'Today', h('b', {}, String(list.length))),
         h('button', { class: 'wk-ni', type: 'button', onclick: briefCard }, glyph('check'), 'Your briefing', h('b', {}, String(picked))),
-        h('span', { class: 'wk-ni' }, glyph('chart'), 'Briefs'),
-        h('span', { class: 'wk-ni' }, glyph('people'), 'Team'),
-        h('p', { class: 'wk-nh' }, 'Connected'),
-        B.systems.map((s) => h('span', { class: 'wk-sys' }, icon(appOfSystem(s.name), 'ico wk-sys-ico'), h('span', {}, s.name), h('i', { class: 'wk-live' }))),
+        h('button', { class: 'wk-ni', type: 'button', onclick: () => erpTo('reports') }, glyph('chart'), 'Wake reports'),
+        h('p', { class: 'wk-nh' }, 'Reading ' + (B.systems.length + 3) + ' sources'),
+        h('p', { class: 'wk-nsub' }, ERP_NAME), sys,
+        h('p', { class: 'wk-nsub' }, 'Everything else'),
         h('span', { class: 'wk-sys' }, icon('gmail', 'ico wk-sys-ico'), h('span', {}, 'Gmail'), h('i', { class: 'wk-live' })),
         h('span', { class: 'wk-sys' }, icon('calendar', 'ico wk-sys-ico'), h('span', {}, 'Calendar'), h('i', { class: 'wk-live' })),
-        h('span', { class: 'wk-sys off' }, icon('messages', 'ico wk-sys-ico'), h('span', {}, 'Texts'), h('em', {}, 'send to Wake'))),
+        h('span', { class: 'wk-sys off' }, icon('messages', 'ico wk-sys-ico'), h('span', {}, 'Texts'), h('em', {}, 'send to Wake')),
+        h('p', { class: 'wk-nfoot' }, 'Your ERP is one source. Wake connects natively to the rest of your stack too.')),
       h('section', { class: 'wk-main' },
         h('header', { class: 'wa-head' },
-          h('div', {}, h('p', { class: 'wa-k' }, w.shell.mondayLong + ' · read at 7:48 AM'), h('h1', {}, 'Good morning. Here\'s what needs you.'),
+          h('div', {}, h('p', { class: 'wa-k' }, 'Wake in ' + ERP_NAME + ' · ' + w.shell.mondayLong + ' · read at 7:48 AM'), h('h1', {}, 'Good morning. Here\'s what needs you.'),
             h('p', { class: 'wa-sum' }, n(B.funnel.records) + ' records from ' + B.systems.length + ' systems. ' + B.funnel.material + ' signals connected into ' + list.length + ' insights, ranked.')),
           h('div', { class: 'wa-pick' + (picked >= game.MIN_PICKS ? ' ok' : '') }, h('b', {}, picked + ' / ' + game.MIN_PICKS + (picked > game.MIN_PICKS ? '+' : '')), h('span', {}, 'assigned · up to ' + game.MAX_PICKS))),
         h('ol', { class: 'wi-list' }, list.map(insightRow)),
@@ -142,7 +141,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
           h('ul', {}, B.filtered.map((f) => h('li', {}, h('strong', {}, f.label + ' ' + f.value), h('span', {}, f.because ? 'Explained by: ' + f.because : 'Within normal range.')))))),
       trace ? traceDrawer() : null));
     const sc = pc.body.querySelector('.wk-main'); if (sc) sc.scrollTop = keep;
-    pc.url('app.wake.ai/today');
+    pc.url(ERP_HOST + '/app/wake/today.nl');
   }
   function insightRow(it) {
     const isOpen = !!open[it.id];
@@ -167,18 +166,26 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     return h('button', { class: 'wi-chip' + (s.flagged ? ' flagged-r1' : s.seen ? ' seen-r1' : '') + (trace && trace.key === s.key ? ' on' : ''), type: 'button', title: 'See where this came from', onclick: () => traceOf(it.id, s.key) },
       icon(appOfSystem(s.system), 'ico wi-cico'), h('span', { class: 'wi-cl' }, s.label + (s.value ? ': ' + s.value : '')));
   }
-  function toggle(id) { open[id] = !open[id]; renderWake(); sfx.blip(); }
+  function toggle(id) { open[id] = !open[id]; rerender(); sfx.blip(); }
+  const rerender = () => { if (app === 'erp') renderErp(); };
   function togglePick(id) {
     const before = game.state.picked.length, had = game.state.picked.includes(id);
     game.pick(id);
     if (!had && game.state.picked.length === before) { note('You can hand off up to ' + game.MAX_PICKS + '. Unassign one to swap it.'); return; }
     sfx[had ? 'back' : 'coin']();
-    renderWake(); drawTray(); badges();
+    rerender(); drawTray(); badges();
     coach.emit('pick');
   }
 
   // Trace a line back to where it lived this morning, drawn the way that app shows it.
   function traceOf(iid, key) { trace = { iid, key }; game.traced(key); sfx.blip(); renderWake(); coach.emit('trace'); }
+  // From a figure anywhere in the ERP straight to the insight it feeds, opened at that line.
+  function goTrace(iid, key) {
+    if (app !== 'erp') pc.open('erp');
+    erpTab = 'wake'; erpDoc = null; open[iid] = true; trace = { iid, key }; game.traced(key); sfx.blip();
+    renderWake(); badges(); coach.context('wake'); coach.emit('erp:wake'); coach.emit('trace');
+    setTimeout(() => { const el = document.getElementById('in-' + iid); if (el) el.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }); }, 60);
+  }
   function traceDrawer() {
     const it = game.insight(trace.iid), t = game.trace(trace.key), ex = t.excerpt;
     const where = appOfSystem(t.source.system);
@@ -191,7 +198,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     else if (ex.kind === 'calendar') body = h('div', { class: 'wt-cal' }, h('p', { class: 'wt-subj' }, ex.title), h('p', { class: 'wt-from' }, ex.when), ex.lines.map((x) => h('p', {}, x)));
     else body = h('div', { class: 'wt-paper sheets' }, h('table', { class: 'dt' }, h('tbody', {}, (ex.tiles || []).map((x) => h('tr', {}, h('td', {}, x.label), h('td', { class: 'n wt-hl' }, x.value), h('td', {}, x.delta || ''))))));
     const r1 = t.r1.flagged ? 'You flagged this as finding #' + t.r1.flagged + ' in Round 1.' : t.r1.seen ? 'You had this open in Round 1, at ' + t.r1.at + ' in ' + t.r1.in + '.' : 'You never opened this in Round 1.';
-    const appName = { qbo: 'QuickBooks', gmail: 'Gmail', messages: 'Messages', calendar: 'Google Calendar', docs: 'Google Docs', sheets: 'Google Sheets' }[where];
+    const appName = APP_NAME[where];
     return h('aside', { class: 'wk-drawer', role: 'dialog', 'aria-label': 'Where this came from' },
       h('header', { class: 'wk-dh' }, h('span', {}, 'Where this came from'), h('button', { class: 'gm-ib', type: 'button', 'aria-label': 'Close', onclick: () => { trace = null; coach.emit('traceClosed'); sfx.back(); renderWake(); } }, '✕')),
       h('div', { class: 'wk-dbody' },
@@ -207,6 +214,8 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
 
   // ------------------------------------------------------------ Gmail, read and labeled by Wake
   const wakeChips = (tags) => (tags.length ? [{ text: 'Wake · Insight #' + tags.join(', #'), tone: 'wkc' }] : [{ text: 'Wake · No action', tone: 'dim' }]);
+  // the insight a source feeds, opened at the line it gave
+  const openTag = (id, rank) => { const it = game.insights()[rank - 1], k = it.sources.find((x) => (w.sources[id].lines || []).includes(x.key)); goTrace(it.id, (k || it.sources[0]).key); };
   function renderGmail() {
     if (mailId) return openMail(mailId, true);
     fill(gmail({ user: USER, inboxCount: game.unreadR2('email'), labels: [{ name: 'Wake', color: '#0891B2' }, { name: 'Finance', color: '#16A765' }, { name: 'People', color: '#4986E7' }],
@@ -219,7 +228,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     if (!quiet) sfx.blip();
     fill(gmail({ user: USER, inboxCount: game.unreadR2('email'), labels: [], view: gmailMessage({
       subject: v.title, chips: wakeChips(v.tags), from: { name: v.from.name, email: mail(v.from.key) }, to: 'me', cc: v.cc, when: v.when, body: v.body,
-      above: h('div', { class: 'wk-banner' + (v.tags.length ? '' : ' dim') }, icon('wake', 'ico wk-b-ico'), h('span', {}, v.tags.length ? 'Already part of insight #' + v.tags.join(', #') + '. Nothing to copy or forward.' : 'Read. Not connected to anything that needs action.'), v.tags.length ? btn('Open in Wake', () => pc.open('wake'), 'ob small tonal') : null),
+      above: h('div', { class: 'wk-banner' + (v.tags.length ? '' : ' dim') }, icon('wake', 'ico wk-b-ico'), h('span', {}, v.tags.length ? 'Already part of insight #' + v.tags.join(', #') + '. Nothing to copy or forward.' : 'Read. Not connected to anything that needs action.'), v.tags.length ? btn('Open in Wake', () => openTag(id, v.tags[0]), 'ob small tonal') : null),
       onBack: () => { mailId = null; renderGmail(); badges(); } }) }));
     pc.url('mail.google.com/mail/u/0/#inbox/' + id.replace('eml_', 'FMfcg') + 'xWk');
     badges();
@@ -240,59 +249,161 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       h('div', { class: 'dscroll' }, dataTable(b, { cell: (c) => (c.spark ? h('span', { class: 'xsp' }, spark(c.spark, c.tone), c.t ? h('span', {}, c.t) : null) : null), cls: 'fin' })));
     return v.blocks.map((b) => (b.type === 'kpis' ? kpis(b) : b.type === 'text' ? text(b) : table(b)));
   }
-  function renderQbo() {
-    if (qboDoc) return openStatement(qboDoc, true);
-    const items = statements.map((id) => ({ id, title: w.sources[id].title, sub: w.sources[id].sub, unread: !seenDoc[id] }));
-    fill(qbo({ company: w.shell.company, user: USER, nav: 'Reports', onNav: () => { qboDoc = null; renderQbo(); },
-      banner: h('div', { class: 'qb-banner' }, icon('wake', 'ico wk-b-ico'), h('span', {}, 'Wake reconciled your books with payroll and operations at 7:48 AM. These statements are current as of this morning, not month end.')),
-      main: qboReportList({ groups: [['Prepared by Wake this morning', items]], onOpen: (id) => openStatement(id) }) }));
-    pc.url('qbo.intuit.com/app/reportlist');
+  // ------------------------------------------------------------ Ledgerline, with Wake built in
+  // The same dashboard, reports and scorecards as Round 1. Wake adds what was missing: what each
+  // number means, which insight it feeds, and who owns it.
+  const insOf = (sid) => game.insights().filter((it) => it.sources.some((x) => x.key === sid));
+  const cleared = (sid) => B0.filtered.find((f) => f.key === sid);
+  const tagsOf = (id) => { const lines = id === SCORE_FILE ? locIds.flatMap((x) => w.sources[x].lines || []) : (w.sources[id] || {}).lines || [];
+    return game.insights().filter((it) => it.sources.some((x) => lines.includes(x.key))).map((it) => it.rank); };
+  const first = (sid) => insOf(sid)[0];
+
+  function frame(tab, main) {
+    fill(erp({ company: w.shell.company, user: USER, role: w.role.label, tab, onTab: erpTo, main, wake: true, badge: erpBadge() }));
   }
-  function openStatement(id, quiet) {
+  function renderErp() {
+    if (erpTab === 'wake') return renderWake();
+    if (erpDoc) return openErp(erpDoc, true);
+    if (erpTab === 'reports') return erpReports();
+    if (erpTab === 'documents') return erpFiles();
+    erpHome();
+  }
+  function erpTo(tab) {
+    erpTab = tab; erpDoc = null; if (tab !== 'wake') trace = null;
+    renderErp(); badges(); sfx.blip(); coach.context(ctxOf(tab)); coach.emit('erp:' + tab);
+  }
+  function openErp(id, quiet) {
+    const k = (w.sources[id] || {}).kind;
+    if (id === SCORE_FILE || k === 'location') return openScorecards(id === SCORE_FILE ? sheetTab || locIds[0] : id, quiet);
+    if (k === 'note') return openNote(id, quiet);
+    if (STATEMENTS.includes(id) || wakeDocs().includes(id)) return openExec(id, quiet);
+    return openReport(id, quiet);
+  }
+
+  // A figure: the same number, now marked with the insight it feeds.
+  const fig = (sid, cls) => {
+    const s = w.signals[sid], it = first(sid);
+    if (!it) return h('span', { class: 'ns-fig ' + (cls || '') }, s.cell || s.value);
+    return h('button', { type: 'button', class: 'figbtn wk-fig ' + (cls || ''), title: 'See why in Wake', onclick: () => goTrace(it.id, sid) }, s.cell || s.value, h('i', { class: 'wnum' }, '#' + it.rank));
+  };
+  const wakeCell = (c) => {
+    if (!c.s) return null;
+    const it = first(c.s); if (!it) return null;
+    const b = h('button', { type: 'button', class: 'figbtn wk-fig', title: 'Feeds insight #' + it.rank + '. See why in Wake.', onclick: () => goTrace(it.id, c.s) }, c.t || '·', h('i', { class: 'wnum' }, '#' + it.rank));
+    b.dataset.cls = 'wk-hit';
+    return b;
+  };
+  // What Wake says about each indicator: why it moved, or why it needs nothing.
+  const wakeCol = {
+    row: (sid) => (first(sid) ? 'wk-row' : ''),
+    cell: (sid) => {
+      const it = first(sid), c = cleared(sid), s = w.signals[sid];
+      if (it) return h('button', { class: 'ns-wnote hit', type: 'button', onclick: () => goTrace(it.id, sid) }, h('b', {}, '#' + it.rank), h('span', {}, it.headline));
+      if (c) return h('span', { class: 'ns-wnote ok' }, glyph('check'), h('span', {}, c.because ? 'Explained: ' + c.because : 'Explained. No action.'));
+      return h('span', { class: 'ns-wnote dim' }, s.kind === 'explainer' ? 'Explains another line. No action.' : 'Checked. No action needed.');
+    },
+    meter: (sid) => { const it = first(sid), c = cleared(sid);
+      return h('span', { class: 'ns-wm' + (it ? ' hit' : '') }, icon('wake', 'ico ns-wk-ico'), it ? 'Insight #' + it.rank : c ? 'Explained' : 'Normal'); },
+  };
+  function wakePortlet() {
+    const list = game.insights(), top = list.slice(0, 5);
+    return portlet('Wake · what needs you this morning', h('div', { class: 'ns-wkb' },
+      h('p', { class: 'ns-wks' }, n(B0.funnel.records) + ' records read at 7:48 AM. ' + B0.funnel.material + ' signals connected into ' + list.length + ' insights. ' + B0.filtered.length + ' unusual numbers explained, no action needed.'),
+      h('ol', { class: 'ns-wkl' }, top.map((it) => h('li', { class: it.picked ? 'picked' : '' },
+        h('span', { class: 'ns-wkr' }, String(it.rank)),
+        h('button', { class: 'ns-wkh', type: 'button', onclick: () => goTrace(it.id, it.keys[0].key) }, h('em', {}, it.place), h('b', {}, it.headline)),
+        h('span', { class: 'ns-wko' }, it.owners.slice(0, 2).map((o) => face(o.name, 22))),
+        btn(h('span', {}, glyph(it.picked ? 'wi-check' : 'plus'), it.picked ? 'Assigned' : 'Assign'), () => togglePick(it.id), 'ob small pick' + (it.picked ? ' on' : ' primary'))))),
+      h('button', { class: 'ns-link ns-wkall', type: 'button', onclick: () => erpTo('wake') }, 'See all ' + list.length + ' insights in Wake', glyph('chevR'))), { cls: 'ns-wkp', sub: 'Ranked by Wake' });
+  }
+  function erpHome() {
+    frame('home', homePage({ w, model, fig, rolled: () => true, onOpen: (id) => openErp(id), wake: wakeCol, top: wakePortlet() }));
+    pc.url(ERP_HOST + '/app/center/card.nl?sc=-29');
+  }
+
+  // Reports: the standard statements, current to this morning, the reports Wake prepared, and every
+  // report from Round 1, now marked with what Wake found in it.
+  function erpReports() {
+    const mine = (id) => ({ id, title: w.sources[id].title, tag: w.sources[id].memo ? 'Draft for you' : 'Wake' });
+    const extra = [];
+    if (statements.length) extra.push(['Financial statements · current to 7:48 AM', statements.map((id) => ({ id, title: w.sources[id].title, tag: 'Reconciled by Wake' }))]);
+    for (const [g, ids] of groups) { const keep = ids.filter((id) => w.sources[id] && !STATEMENTS.includes(id)); if (keep.length) extra.push(['Wake reports · ' + g, keep.map(mine)]); }
+    const tag = (id) => { const t = tagsOf(id); return t.length ? 'Wake · #' + t.join(', #') : 'Wake · nothing new'; };
+    frame('reports', reportList({ groups: reportGroups({ w, model, rolled: () => true, extra, tag }), onOpen: (id) => openErp(id),
+      note: h('div', { class: 'wk-banner' }, icon('wake', 'ico wk-b-ico'), h('span', {}, 'Your standard reports are all still here. Wake read every one at 7:48 AM, and the statements are current to this morning, not month end.')) }));
+    pc.url(ERP_HOST + '/app/reporting/reportcenter.nl');
+  }
+  const wakeBar = (id) => { const t = tagsOf(id);
+    return h('div', { class: 'wk-banner' + (t.length ? '' : ' dim') }, icon('wake', 'ico wk-b-ico'),
+      h('span', {}, t.length ? 'Wake read this at 7:48 AM. It feeds insight #' + t.join(', #') + '. Marked figures open the insight.' : 'Wake read this at 7:48 AM. Nothing in it needs you this week.')); };
+  function openReport(id, quiet) {
     const v = game.openR2(id); if (!v) return;
-    qboDoc = id; seenDoc[id] = true;
-    if (!quiet) { sfx.blip(); coach.emit('doc:exec'); }
-    const d = v.doc || { company: w.shell.company, title: v.title, period: v.sub, systems: '' };
-    fill(qbo({ company: w.shell.company, user: USER, nav: 'Reports', onNav: () => { qboDoc = null; renderQbo(); },
-      banner: h('div', { class: 'qb-banner' }, icon('wake', 'ico wk-b-ico'), h('span', {}, 'Prepared by Wake · ' + v.when + (d.systems ? ' · Source: ' + d.systems : ''))),
-      main: qboReport({ company: d.company, title: d.title, period: d.period, intro: v.intro, run: v.when, by: 'Confidential · for internal use', content: h('div', { class: 'qb-blocks' }, execBlocks(v)), onBack: () => { qboDoc = null; renderQbo(); badges(); } }) }));
-    pc.url('qbo.intuit.com/app/report?rptId=' + id + '&wake=1');
-    badges();
+    if (!quiet) sfx.blip();
+    erpDoc = id; erpTab = 'reports';
+    frame('reports', h('div', { class: 'ns-rep' },
+      pageHead(v.title, { sub: 'Saved search · ' + sysOf(id) + ' · run ' + (v.run || v.when || '6:00 AM'), back: () => erpTo('reports') }),
+      wakeBar(id),
+      filters([['Period', 'This week'], ['Subsidiary', w.shell.company], [M ? 'Location' : 'Site', M ? 'All' : w.shell.company]]),
+      v.intro ? h('p', { class: 'ns-intro' }, v.intro) : null,
+      h('div', { class: 'ns-blocks' }, v.blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, b.note ? h('p', { class: 'ns-bnote' }, b.note) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: wakeCell, cls: 'ns-grid' }))))),
+      h('p', { class: 'ns-foot' }, 'Owner: ' + v.from.name + ', ' + v.from.title + ' · synced from ' + sysOf(id))));
+    pc.url(ERP_HOST + '/app/common/search/searchresults.nl?searchid=' + hashOf(id) % 900);
+    if (!quiet) coach.emit('doc:report');
   }
-  function renderDrive() {
-    if (driveFile) return openBrief(driveFile, true);
-    const files = [];
-    for (const [g, ids] of groups) {
-      const keep = ids.filter((id) => w.sources[id] && !STATEMENTS.includes(id));
-      if (!keep.length) continue;
-      files.push({ group: g });
-      for (const id of keep) { const s = w.sources[id]; files.push({ id, type: s.memo ? 'docs' : 'docs', name: s.title, owner: 'Wake', modified: '7:48 AM', size: '—', unread: !seenDoc[id], tag: s.memo ? 'Draft' : null, tagTone: 'wkapp' }); }
-    }
-    fill(drive({ user: USER, section: 'My Drive', crumbs: ['My Drive', 'Wake', 'Executive briefs'], files, onOpen: (id) => openBrief(id),
-      note: h('div', { class: 'gd-note' }, icon('wake', 'ico wk-b-ico'), h('span', {}, 'Wake built these from the same systems as your insights, so the gathering and reconciling is done. Your financial statements are in QuickBooks.')) }));
-    pc.url('drive.google.com/drive/folders/wake-briefs');
+  function openScorecards(tab, quiet) {
+    sheetTab = tab;
+    const v = game.openR2(tab); if (!v) return;
+    if (!quiet) sfx.blip();
+    erpDoc = SCORE_FILE; erpTab = 'reports';
+    const { blocks, intro } = scoreBlocks(w, v, tab, person);
+    const tabs = scoreTabs(w, locIds);
+    frame('reports', h('div', { class: 'ns-rep' },
+      pageHead(M ? 'Location scorecards' : 'Weekly scorecard', { sub: 'Week ending ' + w.shell.weekEnd.replace(/^\w+, /, '') + ' · updated ' + (v.when || ''), back: () => erpTo('reports') }),
+      wakeBar(tab),
+      tabs.length > 1 ? subtabs(tabs, tab, (t) => openScorecards(t)) : null,
+      h('p', { class: 'ns-intro' }, intro),
+      h('div', { class: 'ns-blocks' }, blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: wakeCell, cls: 'ns-grid' })))))));
+    pc.url(ERP_HOST + '/app/center/scorecard.nl?loc=' + (locIds.indexOf(tab) + 1));
   }
-  function openBrief(id, quiet) {
+  // A statement or a Wake report, opened from Reports.
+  function openExec(id, quiet) {
     const v = game.openR2(id); if (!v) return;
-    driveFile = id; seenDoc[id] = true;
+    erpDoc = id; erpTab = 'reports'; seenDoc[id] = true;
     if (!quiet) { sfx.blip(); coach.emit(v.memo ? 'doc:brief' : 'doc:exec'); }
-    const back = () => { driveFile = null; renderDrive(); badges(); sfx.back(); };
+    const back = () => { erpTo('reports'); };
+    const d = v.doc || { company: w.shell.company, title: v.title, period: v.sub, systems: '' };
     if (v.memo) {
-      fill(docs({ title: v.title, onBack: back, by: 'Drafted by Wake · ' + v.when, page: [
+      frame('reports', docPage({ title: v.title, by: 'Drafted by Wake · ' + v.when + ' · for your review', back, page: [
         h('p', { class: 'doc-meta' }, 'To: ' + v.to + ' · From: You · Draft for your review'),
-        h('h1', {}, v.title),
         h('blockquote', {}, h('b', {}, w.characters.boss.name + ' asked: '), '"' + v.ask + '"'),
         v.memo.map((p) => h('p', {}, p)),
-        h('p', { class: 'doc-meta' }, 'Every figure in this draft comes from this morning\'s data. Open any insight in Wake to see the lines behind it.')],
-        aside: h('div', { class: 'gdoc-comment' }, h('p', { class: 'gc-who' }, icon('wake', 'ico wk-b-ico'), h('b', {}, 'Wake'), h('span', {}, v.when)), h('p', {}, 'Drafted from this morning\'s insights. Review and send when you\'re ready.')) }));
+        h('p', { class: 'doc-meta' }, 'Every figure in this draft comes from this morning\'s data. Open any insight in the Wake tab to see the lines behind it.')],
+        aside: h('div', { class: 'ns-cmt' }, h('p', {}, icon('wake', 'ico wk-b-ico'), h('b', {}, 'Wake'), h('span', {}, v.when)), h('p', {}, 'Drafted from this morning\'s insights. Review and send when you\'re ready.')) }));
     } else {
-      const d = v.doc || { company: w.shell.company, title: v.title, period: v.sub, systems: '' };
-      fill(docs({ title: v.title, onBack: back, by: 'Prepared by Wake · ' + v.when, page: [
-        h('p', { class: 'doc-meta' }, d.company + ' · ' + d.period + (d.systems ? ' · Source: ' + d.systems : '')), h('h1', {}, d.title), v.intro ? h('p', {}, v.intro) : null, execBlocks(v),
+      frame('reports', docPage({ title: d.title, by: (STATEMENTS.includes(id) ? 'Reconciled by Wake' : 'Prepared by Wake') + ' · ' + v.when + (d.systems ? ' · Source: ' + d.systems : ''), back, page: [
+        h('p', { class: 'doc-meta' }, d.company + ' · ' + d.period), v.intro ? h('p', {}, v.intro) : null, h('div', { class: 'ns-exec' }, execBlocks(v)),
         h('p', { class: 'doc-meta' }, 'Confidential · for internal use')] }));
     }
-    pc.url('docs.google.com/document/d/1' + id + 'Wk/edit');
+    pc.url(ERP_HOST + '/app/reporting/reportrunner.nl?cr=' + (hashOf(id) % 400) + '&wake=1');
     badges();
+  }
+  function erpFiles() {
+    const boss = w.characters.boss;
+    frame('documents', fileCabinet({ folders: ['Management', 'Location managers', 'Templates', 'Exports', 'Contracts'], folder: 'Management',
+      files: [{ id: 'note_role', name: 'Note from ' + boss.name, owner: boss.name, modified: 'Fri', size: '2 KB' }, { id: 'note_mine', name: '1:1 notes - last week', owner: 'You', modified: 'Fri', size: '4 KB' }],
+      onOpen: (id) => openErp(id) }));
+    pc.url(ERP_HOST + '/app/common/media/mediaitemfolders.nl');
+  }
+  function openNote(id, quiet) {
+    const v = game.openR2(id); if (!v) return;
+    if (!quiet) sfx.blip();
+    erpDoc = id; erpTab = 'documents';
+    const boss = w.characters.boss;
+    const page = id === 'note_role'
+      ? [h('p', { class: 'doc-meta' }, 'From ' + boss.name + ', ' + boss.title), h('h2', {}, 'Before Monday'), v.body.map((x) => h('p', {}, x))]
+      : [h('p', { class: 'doc-meta' }, 'Your notes · last week\'s 1:1s'), h('h2', {}, '1:1 notes'), h('ul', {}, v.list.map((x) => h('li', {}, x)))];
+    frame('documents', h('div', {}, docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), page, aside: wakeBar(id) })));
+    pc.url(ERP_HOST + '/core/media/media.nl?id=' + hashOf(id) % 9000);
   }
 
   // ------------------------------------------------------------ Calendar, with Wake's holds
@@ -354,7 +465,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const r = game.putThrough(id); if (!r) return;
     sfx.zoom();
     if (from && !reduced) {
-      const a = from.getBoundingClientRect(), d = document.querySelector('.dock-app[data-app="wake"]'), b = d ? d.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight };
+      const a = from.getBoundingClientRect(), d = document.querySelector('.dock-app[data-app="erp"]'), b = d ? d.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight };
       const fly = h('div', { class: 'flyer-os' }, icon('wake', 'ico'));
       Object.assign(fly.style, { left: a.left + 20 + 'px', top: a.top + 20 + 'px' });
       document.body.appendChild(fly);
@@ -362,8 +473,8 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       await new Promise((res) => setTimeout(res, 650)); fly.remove();
     }
     sfx.credit();
-    const nn = pc.notify({ app: 'wake', title: r.finding ? 'Added to insight #' + r.rank : 'Wake read it', text: r.line, onclick: () => pc.open('wake') }); nn.classList.add('wkn');
-    if (r.also) setTimeout(() => { const n2 = pc.notify({ app: 'wake', title: 'And to insight #' + r.also.rank, text: r.also.line }); n2.classList.add('wkn'); }, 500);
+    const nn = pc.notify({ app: 'erp', as: WAKE, title: r.finding ? 'Added to insight #' + r.rank : 'Wake read it', text: r.line, onclick: goWake }); nn.classList.add('wkn');
+    if (r.also) setTimeout(() => { const n2 = pc.notify({ app: 'erp', as: WAKE, title: 'And to insight #' + r.also.rank, text: r.also.line, onclick: goWake }); n2.classList.add('wkn'); }, 500);
     renderMessages(); badges();
     coach.emit('sent');
   }
@@ -385,16 +496,16 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       h('button', { class: 'gs-findings wake-tray', type: 'button', onclick: briefCard },
         h('span', {}, 'Your briefing'), h('b', { class: ok ? 'ok' : '' }, k + ' / ' + game.MIN_PICKS + (k > game.MIN_PICKS ? '+' : '')),
         h('span', { class: 'slots' }, Array.from({ length: game.MAX_PICKS }, (_, i) => h('i', { class: i < k ? 'on' : i < game.MIN_PICKS ? 'need' : '' })))),
-      btn(ok ? 'Lock in my briefing' : 'Assign ' + (game.MIN_PICKS - k) + ' more', ok ? briefCard : () => pc.open('wake'), 'ob' + (ok ? ' primary' : ' quiet')));
+      btn(ok ? 'Lock in my briefing' : 'Assign ' + (game.MIN_PICKS - k) + ' more', ok ? briefCard : goWake, 'ob' + (ok ? ' primary' : ' quiet')));
   }
   function briefCard() {
     const list = game.insights().filter((x) => x.picked);
     sfx.blip();
     card('findings-card', h('h2', {}, 'Your briefing'),
-      h('p', {}, list.length ? 'This is what you\'ll hand your team at 10:00, in Wake\'s priority order.' : 'Nothing assigned yet. Open Wake and assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights.'),
+      h('p', {}, list.length ? 'This is what you\'ll hand your team at 10:00, in Wake\'s priority order.' : 'Nothing assigned yet. Open the Wake tab in ' + ERP_NAME + ' and assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights.'),
       h('ol', { class: 'finding-list' }, list.map((it) => h('li', { class: 'finding-row' }, h('span', { class: 'fnum cy' }, String(it.rank)),
         h('div', {}, h('span', { class: 'fr-src' }, it.place), h('strong', {}, it.headline), h('p', {}, it.action), h('span', { class: 'quiet' }, 'Owner: ' + it.owners.map((o) => o.name).join(' and '))),
-        h('div', { class: 'row-tools' }, btn('Remove', () => { game.pick(it.id); briefCard(); drawTray(); if (app === 'wake') renderWake(); }, 'chip'))))),
+        h('div', { class: 'row-tools' }, btn('Remove', () => { game.pick(it.id); briefCard(); drawTray(); rerender(); badges(); }, 'chip'))))),
       h('div', { class: 'row' }, game.r2Ready() ? btn('Lock in my briefing', () => { closeCard(); lock(); }, 'ob primary') : h('span', { class: 'quiet' }, 'Assign at least ' + game.MIN_PICKS + ' to lock in.'), btn('Keep working', () => { closeCard(); sfx.back(); }, 'link')));
   }
   function lock() { if (!game.lockRound2()) return; sfx.start(); coach.stop(); onLock(); }
@@ -405,41 +516,46 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   function rulesCard() {
     card('rules-card', h('h2', {}, 'How this works'),
       h('ul', { class: 'mini-rules' },
-        h('li', {}, 'Wake is in your dock: every insight from this morning, ranked, with the data behind it.'),
-        h('li', {}, 'Click any source on an insight to see exactly what it said and where it came from.'),
+        h('li', {}, 'Same ' + ERP_NAME + ', with Wake built in. The dashboard shows what needs you, and every indicator says why it moved.'),
+        h('li', {}, 'The Wake tab has every insight, ranked. Click any source to see exactly what it said and where it came from.'),
         h('li', {}, 'Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights. Owners are already matched.'),
+        h('li', {}, 'Reports has your statements current to this morning, plus the reports Wake prepared.'),
         h('li', {}, 'Texts aren\'t in any system. Send one to Wake from Messages and it lands where it belongs.'),
-        h('li', {}, 'QuickBooks has statements current to this morning. Drive has your executive briefs and a drafted Thursday brief. Gmail and Calendar are labeled by Wake.'),
         h('li', {}, 'Lock in your briefing before your ' + w.role.meetingName + ' at 10:00 AM.')),
       h('div', { class: 'row' }, btn('Back to work', closeCard, 'ob primary')));
   }
 
   // ------------------------------------------------------------ the tour
   function tour() {
-    // Wake first; then, back on the desktop, a short tour of the rest of the dock that holds the
-    // screen until it's done; then each app explains itself.
+    // Ledgerline first: the same dashboard, now explained. Then the Wake tab, then Reports. Then,
+    // back on the desktop, a short look at the rest of the computer; then each app explains itself.
     const boss = w.characters.boss.name.split(' ')[0];
-    const step = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: () => coach.seen('app:wake') });
+    const after = () => coach.seen('erp:reports') && coach.seen('desk:back');
+    const step = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: after });
     coach.chapters({
       desk: [
-        { text: 'Same computer, same Monday, same 7:48 AM, same data. This time Wake is connected to all of it, and it read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
-        { text: 'Open Wake. Everything you dug through in Round 1 is already read, connected and ranked there.', target: '.dock-app[data-app="wake"]', wait: 'app:wake', hint: 'Open Wake', skipIf: () => coach.seen('app:wake') },
-        step('A quick tour of the rest of your dock. Texts still land in Messages, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.dock-app[data-app="messages"]'),
-        step('QuickBooks now has statements current to this morning, not month end: income statement, cash flow and balance sheet.', '.dock-app[data-app="qbo"]'),
-        step('Drive holds your executive briefs, and Thursday\'s brief for ' + boss + ' is already drafted. You review it. You don\'t write it.', '.dock-app[data-app="drive"]'),
-        step('Gmail is connected. Wake has read every email, and each one is labeled with the insight it feeds.', '.dock-app[data-app="gmail"]'),
+        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
+        { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, skipIf: () => coach.seen('app:erp') },
+        step('Texts still land in Messages, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.dock-app[data-app="messages"]'),
+        step('Gmail is connected too. Wake has read every email, and each one is labeled with the insight it feeds.', '.dock-app[data-app="gmail"]'),
         step('Your calendar carries Wake\'s suggested holds: the time today\'s decisions will need.', '.dock-app[data-app="calendar"]'),
         step('When you\'ve assigned ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ', lock in your briefing. Your meeting is at 10:00 AM. The computer is yours.', '.wake-tray', 'LET\'S GO ▶'),
       ],
-      wake: [
-        { text: 'These are your insights, ranked. Each one starts with the data behind it: the same lines from this morning\'s reports, inbox and phone, already connected.', target: '.wi', next: 'NEXT ▶' },
-        { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', skipIf: () => coach.seen('trace') },
-        { text: 'That\'s the original line, as it arrived this morning, and how Wake read it. Go as deep as you like, or don\'t. Close it when you\'re done.', target: '.wk-dbody', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', when: () => !!document.querySelector('.wk-dbody') },
-        { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', skipIf: () => coach.seen('pick') },
-        { text: 'Close Wake for a quick tour of the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button' },
+      erp: [
+        { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'NEXT ▶', once: true },
+        { text: 'And every indicator now says why it moved: the insight it feeds, or why it needs nothing from you. Marked figures open the insight.', target: '.ns-kpi', next: 'NEXT ▶', once: true },
+        { text: 'You can assign from here. For the full picture, open the Wake tab.', target: '.ns-tab[data-tab="wake"]', wait: 'erp:wake', hint: 'Open the Wake tab', skipIf: () => coach.seen('erp:wake') },
       ],
-      drive: [
-        { text: 'Every document here ties to the same numbers behind your insights, and none of them waited for month end. Read them the way an owner would: where is the business going, and what only you can move.', target: '.gd-table', next: 'GOT IT ▶', once: true },
+      wake: [
+        { text: 'These are your insights, ranked. Each one starts with the data behind it: lines from your ERP, inbox and phone, already connected.', target: '.wi', next: 'NEXT ▶', once: true },
+        { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', skipIf: () => coach.seen('trace') },
+        { text: 'That\'s the original line, where it lives in your systems, and how Wake read it. Go as deep as you like, or don\'t. Close it when you\'re done.', target: '.wk-dbody', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', when: () => !!document.querySelector('.wk-dbody') },
+        { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', skipIf: () => coach.seen('pick') },
+        { text: 'One more stop in ' + ERP_NAME + ': Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', skipIf: () => coach.seen('erp:reports') },
+      ],
+      reports: [
+        { text: 'Your income statement, cash flow and balance sheet, current to this morning instead of month end. Next to them, the reports Wake prepared, including Thursday\'s brief for ' + boss + ', already drafted. You review it. You don\'t write it.', target: '.ns-rlg', next: 'NEXT ▶', once: true },
+        { text: 'Close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', skipIf: () => coach.seen('desk:back') },
       ],
       messages: [
         { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'GOT IT ▶', once: true },
@@ -454,5 +570,5 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   }
 
   // go
-  setTimeout(() => connect(start), reduced ? 0 : 250);
+  setTimeout(start, reduced ? 0 : 250);
 }
