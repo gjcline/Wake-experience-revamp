@@ -60,4 +60,4 @@ export const ROLES = {
   },
 };
 
-export const ROLE_ORDER = ['gm', 'coo', 'owner', 'partner', 'regional'];
+export const ROLE_ORDER = ['owner', 'gm', 'coo', 'partner', 'regional'];
