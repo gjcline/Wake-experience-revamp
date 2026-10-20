@@ -132,3 +132,39 @@
   .px-hud { top: 10px; left: 10px; right: 10px; }
   .px-chip.co { display: none; }
 }
+
+/* ------------------------------------------------------------ Wake at work, between the rounds */
+.ww { display: flex; flex-direction: column; background: radial-gradient(ellipse at 50% 48%, #0E2A33 0%, #0B0C0F 62%); }
+.ww-top { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 8px; padding: 30px 24px 0; text-align: center; position: relative; }
+.ww-k { font: 500 12.5px/1 'Inter', sans-serif; color: var(--dim); letter-spacing: .02em; }
+.ww-cap { font: 600 clamp(19px, 2.3vw, 26px)/1.3 var(--disp); color: var(--ink); max-width: 30ch; min-height: 2.6em; }
+.ww-cap.in { animation: wwIn .45s ease both; }
+@keyframes wwIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.wx .sc-screen .ww-skip { position: absolute; right: 24px; top: 24px; padding: 7px 12px; border-radius: 8px; background: transparent; border: 1px solid var(--line2); font: 500 13px/1 'Inter', sans-serif; color: var(--dim); }
+.ww-stage { flex: 1; min-height: 0; position: relative; }
+.ww-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ww-ln { stroke: #22D3EE; stroke-width: 1; opacity: 0; transition: opacity .5s; }
+.ww-ln.on { opacity: .28; }
+.ww-node rect { fill: #141519; stroke: #2B2E36; transition: fill .4s, stroke .4s; }
+.ww-node text { font: 500 12.5px 'Inter', sans-serif; fill: #6B7078; transition: fill .4s; }
+.ww-node .ww-sub { font-size: 10px; fill: #4B5058; }
+.ww-node { opacity: .35; transition: opacity .5s; }
+.ww-node.on { opacity: 1; }
+.ww-node.live.on rect { fill: #0F2E36; stroke: #22D3EE; }
+.ww-node.live.on text { fill: #E8EAED; }
+.ww-node.live.on .ww-sub { fill: #67E8F9; }
+.ww-node.far.on { opacity: .55; }
+.ww-dot { fill: #67E8F9; }
+.ww-core { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 104px; height: 104px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #0B0C0F; border: 1.5px solid #22D3EE; box-shadow: 0 0 0 8px rgba(34,211,238,.06), 0 0 50px rgba(34,211,238,.25); font: 600 13px/1 'Inter', sans-serif; color: #E8EAED; }
+.ww-core.pulse { animation: wwPulse .35s ease-out; }
+.ww-core.done { box-shadow: 0 0 0 10px rgba(34,211,238,.1), 0 0 80px rgba(34,211,238,.4); }
+@keyframes wwPulse { from { box-shadow: 0 0 0 14px rgba(34,211,238,.16), 0 0 60px rgba(34,211,238,.35); } }
+.ww-logo { width: 38px; height: 38px; }
+.ww-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; width: min(980px, calc(100% - 32px)); margin: 0 auto; }
+.ww-st { padding: 12px 14px; border-radius: 12px; background: rgba(20,21,25,.9); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; opacity: .35; transition: opacity .4s, border-color .4s; }
+.ww-st.on { opacity: 1; }
+.ww-st:last-child.on { border-color: #22D3EE; }
+.ww-st b { font: 600 clamp(20px, 2.4vw, 28px)/1 var(--disp); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ww-st span { font: 500 12px/1.3 'Inter', sans-serif; color: var(--dim); }
+.ww-foot { display: flex; justify-content: center; padding: 18px 16px 28px; min-height: 84px; }
+@media (max-width: 760px) { .ww-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ww-stats .ww-st:last-child { grid-column: 1 / -1; } }

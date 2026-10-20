@@ -13,6 +13,8 @@ import { installDemoNote } from './demo-note.js';
 import { round1 as runRound1 } from './round1.js';
 import { round2 as runRound2 } from './round2.js';
 import { createFinale } from './finale.js';
+import { wakeAtWork } from './wakeworks.js';
+import { ERP_NAME } from './os/erp.js';
 
 const HOST = (typeof window !== 'undefined' && window.WAKE_HOST) || 'web';
 const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -189,10 +191,10 @@ async function resetDay() {
   const clock = h('b', { class: 'mc-clock' }, fmtClock(s.submittedAt));
   const { layer } = await world.office(game, { day: game.world.shell.mondayLong, time: fmtClock(D.start), preset: 'office', at: 'office', z: 2.1,
     card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Same Monday. Same 7:48 AM.', body: clock,
-      what: 'Wake has already read every report, email and text from this morning. It hands you what matters, ranked, with the evidence and an owner for each. You pick what goes to your team.',
+      what: 'Same Monday, same data, same ' + ERP_NAME + '. The only difference: Wake gets there first. It reads every report, email and text and hands you what matters, ranked, with the evidence and an owner for each.',
       why: 'Deciding is the part only you can do. Wake takes the digging off your plate, so you walk into ten o\'clock ready.',
-      cta: 'Sit back down' },
-    done: () => { game.startRound2(); round2(); } });
+      cta: 'Watch Wake work' },
+    done: async () => { game.startRound2(); await wakeAtWork({ mount: (el) => { leave(); root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, game, reduced, sfx, erpName: ERP_NAME }); round2(); } });
   const go = layer.querySelector('.mc-go .ab'); if (go) go.disabled = true;
   sfx.zoom();
   const step = Math.max(1, Math.round((s.submittedAt - D.start) / 24));
