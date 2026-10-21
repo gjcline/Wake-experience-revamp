@@ -11,6 +11,7 @@ import { randomSeed } from '../engine/config.js';
 import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
+import { icon } from './os/shell.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
 
@@ -34,7 +35,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
 
   // ------------------------------------------------------------ the step card
   // One per step: where you are, what you're doing, why it matters, one button.
-  function card({ step, kicker, title, what, why, cta, onGo, body, tone }) {
+  function card({ step, kicker, title, what, why, wake, cta, onGo, body, tone }) {
     const go = btn(cta, () => onGo(), 'ab primary' + (tone === 'wake' ? ' wake' : ''));
     const el = h('section', { class: 'mc' + (tone ? ' ' + tone : ''), role: 'dialog', 'aria-label': title },
       step ? h('div', { class: 'mc-steps' }, STEPS.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
@@ -42,6 +43,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       h('h1', {}, title),
       what ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'What you\'re doing'), h('p', {}, what)) : null,
       why ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'Why it matters'), h('p', {}, why)) : null,
+      // every step says how Wake does it: it doesn't wait to be asked
+      wake ? h('div', { class: 'mc-wake' }, icon('wake', 'ico mc-wk'), h('div', {}, h('p', { class: 'mc-l' }, 'How Wake does it'), h('p', {}, wake))) : null,
       body || null,
       h('div', { class: 'mc-go' }, go, h('span', { class: 'mc-key' }, 'Enter')));
     let k = null;
@@ -188,10 +191,12 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
         what: 'Walking in on a Monday. ' + w.shell.company + ' runs on Example ERP: every report, scorecard and number in one place. Your ' + meeting + ' starts at 10:00 AM.',
         why: 'You built a business that tracks everything. The problems that cost you money this week are already in there. The question is whether you find them by ten.',
+        wake: 'Wake reads every system the business runs on overnight. Nobody has to ask it a question first: by the time you walk in, it already knows what changed.',
         cta: 'Walk in' },
       card: { step: 2, kicker: 'Round 1 · on your own · 7:48 AM', title: 'Get ready for ten o\'clock.',
         what: 'Your computer has Example ERP, plus Gmail, Calendar and Messages. Every number is in there. Find the ones that matter, flag 3 to 5 of them, and decide who handles each.',
         why: 'This is how most teams prep today: all the data in one system, and nothing in it saying what changed or why. Remember how it feels.',
+        wake: 'This round you dig on your own. With Wake, there is nothing to search for or prompt: the morning is already read, connected and ranked.',
         cta: 'Sit down' },
       done });
   }

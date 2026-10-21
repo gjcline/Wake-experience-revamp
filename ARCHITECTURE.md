@@ -6,6 +6,9 @@ and narrates the player through it with a live guide.
 
 ## The flow
 
+Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
+anyone asks, and never waits for a prompt.
+
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Then the pixel office: the car pulls up and you walk to your desk.
@@ -17,7 +20,8 @@ and narrates the player through it with a live guide.
    there and nothing explains itself. Gmail, Messages, Google Calendar and Google Contacts hold
    the inbox, texts, calendar and team. The
    clock runs 7:48 to 10:00 by itself (one minute every two seconds). Nothing costs time.
-   The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
+   The guide walks the player from the dashboard into Reports and one report before the first
+   flag (flagging is held until then). The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
    pick one of four reads (with the action beneath it), say it in their own words, name an
    owner, say how sure they are. Words and confidence are kept for the sales team.
 3. Rewind to 7:48, then about ten seconds of Wake at work (wakeworks.js): the ERP's modules,
@@ -34,8 +38,10 @@ and narrates the player through it with a live guide.
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
 4. The meeting, twice, in person in the pixel conference room (no video call). Wake never
-   speaks in the room: with Wake, you answer from the briefing you prepared. Both meetings play
-   through on their own (Fast forward and Skip are there): on your own, you answer with what you
+   speaks in the room: with Wake, you answer from the briefing you prepared. A full-screen agenda tees the meeting up first (what
+   it is, why we demo it, your agenda, who is in the room, what to watch). Both meetings play
+   through on their own (Fast forward and Skip are there; after each item's first exchange the
+   rest is summed up in one line): on your own, you answer with what you
    brought (autoPick in engine/meeting.js: the evidence if you have it, your read if you have one,
    otherwise a follow-up). The room asks what any leadership team asks: what is driving it, what
    it is costing us, who owns it, how we will know. On your own, what you brought decides

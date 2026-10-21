@@ -194,6 +194,7 @@ function roundOneDone() {
       body: h('div', { class: 'mc-stats' }, stat(String(s.flags.length), 'findings for your team'), stat(opened + ' of ' + total, 'sources opened'), stat(fmtClock(s.submittedAt), 'briefing ready')),
       what: 'Next you\'ll run the exact same morning again: same company, same data, same 7:48 AM. This time with Wake.',
       why: 'Everything stays the same except Wake, so any difference you see comes from Wake, not from luck.',
+      wake: 'Wake doesn\'t wait for a prompt or a question. It reads every report, email and text as they land, connects them across systems, and has the ranked list ready before you sit down.',
       cta: 'Rewind the morning' },
     done: resetDay });
   sfx.credit();
@@ -207,6 +208,7 @@ async function resetDay() {
     card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Same Monday. Same 7:48 AM.', body: clock,
       what: 'Same Monday, same data, same ' + ERP_NAME + '. The only difference: Wake gets there first. It reads every report, email and text and hands you what matters, ranked, with the evidence and an owner for each.',
       why: 'Deciding is the part only you can do. Wake takes the digging off your plate, so you walk into ten o\'clock ready.',
+      wake: 'Nothing to set up and nothing to ask. Wake is already connected to ' + ERP_NAME + ', the inbox and the calendar, and it has been reading all morning.',
       cta: 'Watch Wake work' },
     done: async () => { game.startRound2(); await wakeAtWork({ mount: (el) => { leave(); root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, game, reduced, sfx, erpName: ERP_NAME }); round2(); } });
   const go = layer.querySelector('.mc-go .ab'); if (go) go.disabled = true;
@@ -230,6 +232,7 @@ async function walkToMeeting() {
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
       what: 'Everyone is in the conference room. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you prepared with Wake.',
       why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
+      wake: 'Wake isn\'t in the room and doesn\'t speak. It did its work before the meeting: every item you bring has its evidence, an owner and the number to watch.',
       cta: 'Take your seat' },
     done: () => finale().meeting() });
 }
@@ -241,6 +244,7 @@ function walkBack() {
     card: { step: 5, kicker: 'Monday · 11:00 AM', title: 'Both plans go to work.',
       what: 'The rest of the week plays out twice, side by side: the plan that left your meeting, and the plan that left Wake\'s.',
       why: 'Decisions only matter once they move the numbers. This is where you see how far each plan gets by Friday.',
+      wake: 'After the meeting Wake keeps watching. Each owner gets an alert with the numbers the moment their measure drifts, so nobody has to remember to check.',
       cta: 'Play out the week' },
     done: () => finale().week() });
 }
@@ -252,6 +256,7 @@ function friday(then) {
     card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in.',
       what: 'Your final score: both weeks side by side, in your company\'s own numbers, and a report to keep.',
       why: 'Same company, same data, same Monday. The only difference was how the morning was run.',
+      wake: 'Wake didn\'t wait for Friday\'s report. It tracked every measure daily all week and flagged what slipped while there was still time to act.',
       cta: 'See your score' },
     done: then });
 }

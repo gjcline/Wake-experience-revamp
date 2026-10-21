@@ -479,8 +479,10 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     ],
     erp: [
       { text: 'Your dashboard: every part of the business, in one place, as of 6:00 AM. It\'s all here. Nothing here says which of it matters this week, or why it moved.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
-      { text: 'Every figure is a data point. When one looks off, click it to flag it.', target: '.ns-kpi', wait: 'flagged', hint: 'Click a figure', side: 'over', force: true, skipIf: flagged },
-      { text: 'That\'s your first finding. Reports has every saved search your team runs, and ' + (M ? 'each ' + V.unit + '\'s scorecard' : 'the weekly scorecard') + '. Shared notes are in Documents.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', when: flagged, once: true },
+      { text: 'Start where your team\'s numbers live. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: flagged },
+      { text: 'Every saved search your team runs is here, among dozens of standard reports. Open this one.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Open it', force: true, skipIf: flagged },
+      { text: 'Every figure is a data point. When one looks off, click it to flag it as a finding.', target: '.ns-blocks', wait: 'flagged', hint: 'Click a figure', side: 'over', force: true, skipIf: flagged },
+      { text: 'That\'s your first finding. Flag 2 to 4 more from any report, or from ' + (M ? 'each ' + V.unit + '\'s scorecard' : 'the weekly scorecard') + ', here in Reports. Shared notes are in Documents.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged, once: true },
       { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button to return.', target: '.cx-bar', next: 'GOT IT ▶', skipIf: () => !document.querySelector('.cx-bar'), once: true },
     ],
     compose: [

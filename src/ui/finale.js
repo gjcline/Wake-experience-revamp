@@ -101,10 +101,34 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
 
   // ------------------------------------------------------------ meeting 1: on your own
   // The engine directs the room one beat at a time; this screen plays each beat as it comes.
-  // The room asks; you answer with what you brought. It plays through on its own.
-  function meeting() {
+  // What the meeting is, before it starts: a full-screen agenda, unlike anything that pops up in
+  // the game, so nobody mistakes it for another notification.
+  function meetingIntro(go) {
+    const W = w(), A = game.meetingAgenda(), room = W.central.concat(W.locations.map((l) => l.manager));
+    const name = W.role.meetingName, Name = name[0].toUpperCase() + name.slice(1);
+    show('day', 'cl-screen mi',
+      h('div', { class: 'mi-page' },
+        h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · conference room'),
+        h('h1', {}, 'Your weekly ' + name),
+        h('p', { class: 'mi-lead' }, 'Every Monday the leadership team meets to decide what happens this week: what matters, who owns it, and by when. ' + (room.length + 1) + ' people including you, one hour on the calendar.'),
+        h('div', { class: 'mi-why' }, h('b', {}, 'Why this meeting'), h('p', {}, 'We chose the weekly ' + name + ' for this demo because it\'s where a morning of data turns into decisions. It\'s the clearest place to see what preparation is worth: every answer you have in the room is a decision made today; every answer you don\'t is a follow-up and a lost day.')),
+        h('div', { class: 'mi-cols' },
+          h('section', {}, h('p', { class: 'mi-l' }, 'Your agenda · what you brought'), h('ol', { class: 'mi-ag' }, A.map((it) => h('li', {}, h('b', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('span', {}, '"' + it.text + '"'))))),
+          h('section', {}, h('p', { class: 'mi-l' }, 'In the room'), h('div', { class: 'mi-ppl' }, room.map((k) => h('span', {}, fc(k, 26), h('em', {}, nameOf(k), h('i', {}, (W.characters[k] || {}).title || ''))))),
+            h('p', { class: 'mi-l' }, 'What to watch'), h('ul', { class: 'mi-watch' }, h('li', {}, h('b', { class: 'dec' }, 'Decided'), ' on the spot, with an owner and a start date'), h('li', {}, h('b', { class: 'owed' }, 'Follow-ups'), ' owed when an answer isn\'t in the room'), h('li', {}, h('b', {}, 'Leadership hours'), ': people in the room × minutes')))),
+        h('p', { class: 'mi-note' }, 'The meeting plays on its own. You answer with what you brought this morning. Then you run it again, prepared with Wake.'),
+        h('div', { class: 'mi-go' }, btn('Start the ' + Name.toLowerCase(), go, 'cb primary big'))));
+    own();
+  }
+
+  // The room asks; you answer with what you brought. It plays through on its own, and after the
+  // first exchange on each item the rest of the back-and-forth is summed up in one line.
+  function meeting() { meetingIntro(() => runMeeting()); }
+  function runMeeting() {
     sfx.ambience(0.6);
     const S = stage('you');
+    let quiet = { q: 0, owed: 0, item: -1 }, said = {};
+    const flush = () => { if (quiet.q) S.note(h('p', { class: 'mt-sum' }, 'The room goes back and forth: ' + quiet.q + ' more ' + (quiet.q === 1 ? 'question' : 'questions') + (quiet.owed ? ', ' + quiet.owed + (quiet.owed === 1 ? ' follow-up' : ' follow-ups') + ' added' : '') + '.')); quiet = { q: 0, owed: 0, item: -1 }; };
     let owed = 0, decided = 0, lastItem = -1, fast = reduced;
     const ff = btn('Fast forward', () => { fast = true; ff.disabled = true; }, 'cb small ghost');
     const sk = btn('Skip to the end', () => { fast = true; ff.disabled = true; sk.disabled = true; }, 'cb small ghost');
@@ -112,7 +136,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const pause = (ms) => wait(fast ? 30 : ms);
     // your answer: what a prepared, reasonable owner says with what they brought
     const choose = async (b) => { await pause(900); return autoPick(b); };
-    const owe = (task) => { owed += 1; S.count('owed', owed); S.note(h('div', { class: 'mt-iou' }, h('b', {}, 'Follow-up'), h('span', {}, first(task.who) + ': ' + task.what))); };
+    const owe = (task, silent) => { owed += 1; S.count('owed', owed); if (silent) { quiet.owed += 1; return; } S.note(h('div', { class: 'mt-iou' }, h('b', {}, 'Follow-up'), h('span', {}, first(task.who) + ': ' + task.what))); };
     const notes = (it, total) => S.screen.replaceChildren(
       h('p', { class: 'mt-sn' }, 'Item ' + it.n + ' of ' + total + (it.what.where ? ' · ' + it.what.where : '')), h('h2', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('p', { class: 'mt-sq' }, '"' + it.text + '"'),
       h('p', { class: 'mt-sm' }, it.owner ? 'Owner: ' + it.owner.name : 'No owner named'));
@@ -133,12 +157,23 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         if (st.item && st.item.n !== lastItem) { lastItem = st.item.n; S.agenda(st.total, st.item.n - 1); notes(st.item, st.total); }
         if (b.first) S.agenda(st.total, 0);
         if (b.type === 'stamp') {
+          flush();
           const moved = ['decided', 'guess', 'agreed', 'pilot'].includes(b.outcome.decision);
           if (moved) { decided += 1; S.count('dec', decided); }
           S.note(stampEl(b.outcome.decision, outcomeText(b.outcome))); sfx[moved ? 'coin' : 'back']();
           game.answerQ(b.id, 'ok'); await pause(650); continue;
         }
         if (b.type === 'present') { await pause(250); S.say('me', b.line, 'pres'); game.answerQ(b.id, 'ok'); await pause(650); continue; }
+        // after an item's first exchange, the rest runs quietly and is summed up at the stamp
+        const busy = b.item && said[b.item] >= 2;
+        if (busy) {
+          if (b.leave) S.out(b.leave);
+          const o = b.auto ? b.opts[0] : autoPick(b);
+          game.answerQ(b.id, o.id);
+          if (!b.auto) { quiet.q += 1; if (o.task && !['keep', 'watch'].includes(o.effect)) owe(o.task, true); }
+          await pause(120); continue;
+        }
+        if (b.item) said[b.item] = (said[b.item] || 0) + 1;
         if (b.auto) {
           S.say(b.who.key, b.line, b.effect === 'trust' ? 'ok' : '');
           if (b.leave) S.out(b.leave);
@@ -157,6 +192,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         await pause(380);
       }
       if (!alive) return;
+      flush();
       const Y = game.meetingYours();
       S.set(Y.minutes); S.talk(null); S.agenda(Y.items.length, Y.items.length);
       game.presented('yours');
