@@ -1,16 +1,15 @@
-// LEDGERLINE ERP
-// The one system the company already runs on: a NetSuite-style ERP with every report, scorecard
-// and number in one place. Unbranded on purpose (it's a demo company's system), but laid out the
-// way the big suites are: a dark header with global search, a row of top tabs, a dashboard of
-// portlets, saved searches, a report list, reports with a filter bar, and a File Cabinet.
+// NETSUITE
+// The one system the company already runs on, with every report, scorecard and number in one
+// place, laid out the way NetSuite is: a dark header with global search, a row of top tabs, a
+// dashboard of portlets, saved searches, a report list, reports with a filter bar, a File Cabinet.
 // Round 1 shows it as it is on any Monday: everything is there, nothing is explained. Round 2 is
 // the same system with Wake built into it. These are the building blocks; the rounds fill them.
 
 import { h } from '../art.js';
 import { face, glyph, icon } from './shell.js';
 
-export const ERP_NAME = 'Ledgerline';
-export const ERP_HOST = 'app.ledgerline.com';
+export const ERP_NAME = 'NetSuite';
+export const ERP_HOST = '4738215.app.netsuite.com';
 
 // Small deterministic numbers for the filler (reminder counts, record numbers, chart bars).
 export function hashOf(s) { let x = 2166136261; for (const c of String(s)) { x ^= c.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; }
