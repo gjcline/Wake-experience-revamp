@@ -324,9 +324,9 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   // Reports: the standard statements, current to this morning, the reports Wake prepared, and every
   // report from Round 1, now marked with what Wake found in it.
   function erpReports() {
-    const mine = (id) => ({ id, title: w.sources[id].title, tag: w.sources[id].memo ? 'Draft for you' : 'Wake' });
+    const mine = (id) => ({ id, title: w.sources[id].title, tag: w.sources[id].memo ? 'Draft for you' : 'Wake', cls: w.sources[id].memo ? 'wk memo' : 'wk' });
     const extra = [];
-    if (statements.length) extra.push(['Financial statements · current to 7:48 AM', statements.map((id) => ({ id, title: w.sources[id].title, tag: 'Reconciled by Wake' }))]);
+    if (statements.length) extra.push(['Financial statements · current to 7:48 AM', statements.map((id) => ({ id, title: w.sources[id].title, tag: 'Reconciled by Wake', cls: 'stmt' }))]);
     for (const [g, ids] of groups) { const keep = ids.filter((id) => w.sources[id] && !STATEMENTS.includes(id)); if (keep.length) extra.push(['Wake reports · ' + g, keep.map(mine)]); }
     const tag = (id) => { const t = tagsOf(id); return t.length ? 'Wake · #' + t.join(', #') : 'Wake · nothing new'; };
     frame('reports', reportList({ groups: reportGroups({ w, model, rolled: () => true, extra, tag }), onOpen: (id) => openErp(id),
@@ -527,35 +527,44 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
 
   // ------------------------------------------------------------ the tour
   function tour() {
-    // Example ERP first: the same dashboard, now explained. Then the Wake tab, then Reports. Then,
-    // back on the desktop, a short look at the rest of the computer; then each app explains itself.
+    // One guided path everybody goes through, in order: the dashboard explained, the Wake tab, a
+    // trace, an assignment, then the Wake reports (the drafted brief and a statement). Each step
+    // holds the screen until it's done (`modal` waits for NEXT, `force` for the one click it asks
+    // for). Then a short look at the rest of the dock, and the computer is yours.
     const boss = w.characters.boss.name.split(' ')[0];
     const after = () => coach.seen('erp:reports') && coach.seen('desk:back');
     const step = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: after });
+    const doc = () => !!document.querySelector('.ns-doc');
+    const memo = !!wakeDocs().find((id) => w.sources[id].memo);
     coach.chapters({
       desk: [
-        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down.', target: '.os-dock', next: 'NEXT ▶', once: true },
-        { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, skipIf: () => coach.seen('app:erp') },
+        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'NEXT ▶', modal: true },
+        { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
         step('Texts still land in Messages, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.dock-app[data-app="messages"]'),
         step('Gmail is connected too. Wake has read every email, and each one is labeled with the insight it feeds.', '.dock-app[data-app="gmail"]'),
         step('Your calendar carries Wake\'s suggested holds: the time today\'s decisions will need.', '.dock-app[data-app="calendar"]'),
-        step('When you\'ve assigned ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ', lock in your briefing. Your meeting is at 10:00 AM. The computer is yours.', '.wake-tray', 'LET\'S GO ▶'),
+        step('That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights, then lock in your briefing. Your meeting is at 10:00 AM. The computer is yours.', '.wake-tray', 'LET\'S GO ▶'),
       ],
       erp: [
-        { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'NEXT ▶', once: true },
-        { text: 'And every indicator now says why it moved: the insight it feeds, or why it needs nothing from you. Marked figures open the insight.', target: '.ns-kpi', next: 'NEXT ▶', once: true },
-        { text: 'You can assign from here. For the full picture, open the Wake tab.', target: '.ns-tab[data-tab="wake"]', wait: 'erp:wake', hint: 'Open the Wake tab', skipIf: () => coach.seen('erp:wake') },
+        { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'NEXT ▶', modal: true },
+        { text: 'And every indicator now says why it moved: the insight it feeds, or why it needs nothing from you. Marked figures open the insight.', target: '.ns-kpi', next: 'NEXT ▶', modal: true },
+        { text: 'You can assign right from the dashboard. For the full picture, open the Wake tab.', target: '.ns-tab[data-tab="wake"]', wait: 'erp:wake', hint: 'Open the Wake tab', force: true, skipIf: () => coach.seen('erp:wake') },
       ],
       wake: [
-        { text: 'These are your insights, ranked. Each one starts with the data behind it: lines from your ERP, inbox and phone, already connected.', target: '.wi', next: 'NEXT ▶', once: true },
-        { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', skipIf: () => coach.seen('trace') },
-        { text: 'That\'s the original line, where it lives in your systems, and how Wake read it. Go as deep as you like, or don\'t. Close it when you\'re done.', target: '.wk-dbody', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', when: () => !!document.querySelector('.wk-dbody') },
-        { text: 'Your call now. Pick ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' to hand to your team. Each one already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', skipIf: () => coach.seen('pick') },
-        { text: 'One more stop in ' + ERP_NAME + ': Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', skipIf: () => coach.seen('erp:reports') },
+        { text: 'These are your insights, ranked. Each one starts with the data behind it: lines from your ERP, inbox and phone, already connected.', target: '.wi', next: 'NEXT ▶', modal: true },
+        { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', force: true, skipIf: () => coach.seen('trace') },
+        { text: 'That\'s the original line, where it lives in your systems, and how Wake read it. Close it when you\'re done.', target: '.wk-drawer', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', force: true, when: () => !!document.querySelector('.wk-dbody') },
+        { text: 'Your call now. Assign this one: it goes to its owner with the numbers attached. Each insight already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', force: true, skipIf: () => coach.seen('pick') },
+        { text: 'Now the reports Wake prepared for you. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: () => coach.seen('erp:reports') },
       ],
       reports: [
-        { text: 'Your income statement, cash flow and balance sheet, current to this morning instead of month end. Next to them, the reports Wake prepared, including Thursday\'s brief for ' + boss + ', already drafted. You review it. You don\'t write it.', target: '.ns-rlg', next: 'NEXT ▶', once: true },
-        { text: 'Close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', skipIf: () => coach.seen('desk:back') },
+        { text: 'Every standard report is still here, now tagged with what Wake found in it. At the top: your income statement, cash flow and balance sheet, current to this morning instead of month end, and the reports Wake prepared.', target: '.ns-rlg', next: 'NEXT ▶', modal: true },
+        { text: memo ? 'Start with this one: Thursday\'s brief for ' + boss + ', already drafted by Wake.' : 'Open one of the reports Wake prepared.', target: memo ? '.ns-rli.memo' : '.ns-rli.wk', wait: ['doc:brief', 'doc:exec'], hint: 'Open it', force: true },
+        { text: (memo ? 'Every figure in this draft comes from this morning\'s data, so you review it instead of writing it. ' : 'Wake builds these from the same lines as your insights. ') + 'Nothing to gather, reconcile or format.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc },
+        { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back', force: true, when: doc },
+        { text: 'Now open your income statement.', target: '.ns-rli.stmt', wait: 'doc:exec', hint: 'Open it', force: true, skipIf: () => !statements.length },
+        { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc, skipIf: () => !statements.length },
+        { text: 'Close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, skipIf: () => coach.seen('desk:back') },
       ],
       messages: [
         { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'GOT IT ▶', once: true },

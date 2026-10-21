@@ -471,15 +471,15 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const flagged = () => game.state.flags.length >= 1;
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. Your company runs on ' + ERP_NAME + ': every report, scorecard and number your systems produce is already in one place. Gmail, Messages, Calendar and your directory hold the rest.', target: '.os-dock', next: 'NEXT ▶', once: true },
-      { text: 'Start in ' + ERP_NAME + '. Your Monday dashboard is waiting.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, skipIf: () => coach.seen('app:erp') },
+      { text: 'This is your computer. Your company runs on ' + ERP_NAME + ': every report, scorecard and number your systems produce is already in one place. Gmail, Messages, Calendar and your directory hold the rest.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'Start in ' + ERP_NAME + '. Your Monday dashboard is waiting.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
       { text: 'Your findings are stored up here. Open them any time to review, edit or reorder.', target: '.gs-findings', wait: 'findings', hint: 'Open your findings', when: flagged },
       { text: 'This list is exactly what you\'ll hand your team. Edit changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
       { text: 'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have at least ' + game.MIN_FLAGS + ' findings ready by then. The rest is up to you.', target: '.mb-clock', next: 'LET\'S GO ▶', when: flagged },
     ],
     erp: [
-      { text: 'Your dashboard: every part of the business, in one place, as of 6:00 AM. It\'s all here. Nothing here says which of it matters this week, or why it moved.', target: '.ns-kpi', next: 'NEXT ▶', once: true },
-      { text: 'Every figure is a data point. When one looks off, click it to flag it.', target: '.ns-kpi', wait: 'flagged', hint: 'Click a figure', side: 'over', skipIf: flagged },
+      { text: 'Your dashboard: every part of the business, in one place, as of 6:00 AM. It\'s all here. Nothing here says which of it matters this week, or why it moved.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'Every figure is a data point. When one looks off, click it to flag it.', target: '.ns-kpi', wait: 'flagged', hint: 'Click a figure', side: 'over', force: true, skipIf: flagged },
       { text: 'That\'s your first finding. Reports has every saved search your team runs, and ' + (M ? 'each ' + V.unit + '\'s scorecard' : 'the weekly scorecard') + '. Shared notes are in Documents.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', when: flagged, once: true },
       { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button to return.', target: '.cx-bar', next: 'GOT IT ▶', skipIf: () => !document.querySelector('.cx-bar'), once: true },
     ],

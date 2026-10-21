@@ -28,11 +28,16 @@ and narrates the player through it with a live guide.
    nothing); a Wake tab holds every insight with its trace; Reports keeps every standard report,
    tagged with what Wake found, beside the statements current to the morning and the reports Wake
    prepared (briefs and the drafted Thursday brief). Gmail is labeled by insight, the calendar
-   carries Wake's holds, and texts can be sent to Wake from Messages. Wake reads every system, then hands over five ranked
+   carries Wake's holds, and texts can be sent to Wake from Messages. Round 2 opens with a guided tour
+   everybody goes through (forced guide steps block every other click): the Wake portlet and KPI
+   column, the Wake tab, a trace, an assignment, the drafted brief and a statement in Reports. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
 4. The meeting, twice, in person in the pixel conference room (no video call). Wake never
-   speaks in the room: with Wake, you answer from the briefing you prepared. The room asks what any leadership team asks: what is driving it, what
+   speaks in the room: with Wake, you answer from the briefing you prepared. Both meetings play
+   through on their own (Fast forward and Skip are there): on your own, you answer with what you
+   brought (autoPick in engine/meeting.js: the evidence if you have it, your read if you have one,
+   otherwise a follow-up). The room asks what any leadership team asks: what is driving it, what
    it is costing us, who owns it, how we will know. On your own, what you brought decides
    what you can answer; the rest becomes follow-ups in people's queues, and each item acts the
    day after its last follow-up lands. Without the evidence, each item also gets talked around
@@ -173,3 +178,15 @@ time, texts put through Wake, and reorders. Set `window.WAKE_CONFIG.logEndpoint`
 
 Emailing the report as an attachment. Editorial tuning of
 the four non-reference shells. Sound beyond simple effects.
+
+## Tuning the money
+
+engine/finale.js holds the three dials. REALIZE (0.5): a fix started this week wins back only part
+of a problem's weekly cost before Friday, and of its yearly value in the run-rate, on both sides.
+WAKE_DONE / WAKE_ALERT (0.95 / 0.55): how far Wake carries a problem you handed off, and one it only
+flagged; Wake never does less than your own plan for the same problem. NEW_RATE (0.08): new
+problems found per week over the quarter. With these, `node test/audit.mjs 1500` prints the gaps:
+the week gap is typically a few thousand dollars (90th percentile about $10k), and Wake usually
+resolves four of five problems. The problem sizes themselves come from the company's own reported
+numbers and are left alone so the reports, the meeting and the week agree.
+

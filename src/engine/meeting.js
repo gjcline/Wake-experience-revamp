@@ -19,6 +19,14 @@ import { judgeFlag } from './judge.js';
 const money = (v) => '$' + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => (v >= 10000 ? '$' + Math.round(v / 1000) + 'k' : money(v));
 export const MOVED = ['decided', 'guess', 'agreed', 'pilot'];
+// How you answer when the meeting plays itself: with the evidence when you brought it, standing
+// by your read when you have one, and otherwise the honest "let me find out" that becomes a
+// follow-up. The same choices a prepared, reasonable owner makes; the gap is what they brought.
+const AUTO = ['answer', 'show', 'assign', 'date', 'hold', 'ok', 'go', 'iou', 'later', 'loop'];
+export function autoPick(beat) {
+  for (const e of AUTO) { const o = beat.opts.find((x) => x.effect === e || x.id === e); if (o) return o; }
+  return beat.opts[0];
+}
 const NEXT_WEEK = 9;
 
 // minutes each kind of answer takes in the room

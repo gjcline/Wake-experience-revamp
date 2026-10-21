@@ -67,7 +67,7 @@ export function reportList({ groups, onOpen, note }) {
     h('div', { class: 'ns-rlg' }, groups.map(([title, items]) => h('section', { class: 'ns-rlc' },
       h('h2', {}, title),
       h('ul', {}, items.map((it) => h('li', {}, it.id
-        ? h('button', { class: 'ns-rli live' + (it.unread ? ' unread' : '') + (it.tone ? ' ' + it.tone : ''), type: 'button', onclick: () => onOpen(it.id) }, h('span', {}, it.title), it.unread ? h('i', { class: 'ns-new' }, 'New') : null, it.tag ? h('em', { class: 'ns-tag' }, it.tag) : null)
+        ? h('button', { class: 'ns-rli live' + (it.unread ? ' unread' : '') + (it.tone ? ' ' + it.tone : '') + (it.cls ? ' ' + it.cls : ''), type: 'button', onclick: () => onOpen(it.id) }, h('span', {}, it.title), it.unread ? h('i', { class: 'ns-new' }, 'New') : null, it.tag ? h('em', { class: 'ns-tag' }, it.tag) : null)
         : h('span', { class: 'ns-rli dead' }, it.title))))))));
 }
 

@@ -40,8 +40,9 @@ function leave() { if (cleanup) { cleanup(); cleanup = null; } }
 // adaptive: the guide is written in chapters, one per place (the desk, the computer, the
 // composer, the inbox...). Walk away from a step and that chapter pauses; walk into a place
 // with its own chapter and that one plays; come back and the first picks up where it left off.
-// A step can be gated (`when`), skipped (`skipIf`), dismissed by leaving (`once`), or modal
-// (`modal`: a short tour that holds the desk until the player presses NEXT).
+// A step can be gated (`when`), skipped (`skipIf`), dismissed by leaving (`once`), modal
+// (`modal`: a short tour that holds the desk until the player presses NEXT), or forced (`force`:
+// only what it points at, plus `allow`, can be clicked until the player does what it asks).
 function createCoach() {
   // fixed elements have no offsetParent, so visibility is whether it has a box on screen
   const vis = (t) => t.getClientRects().length > 0 && getComputedStyle(t).visibility !== 'hidden';
@@ -49,12 +50,21 @@ function createCoach() {
   const box = h('div', { class: 'coach', hidden: true, role: 'status', 'aria-live': 'polite' });
   const block = h('div', { class: 'coach-block', hidden: true });
   document.body.append(block, ring, box);
-  let book = null, stack = ['desk'], timer = null, inline = null, shown = null;
+  let book = null, stack = ['desk'], timer = null, inline = null, shown = null, forceOn = false;
+  // a forced step swallows every click that isn't on its target, the guide, or a dialog it opened
+  const DIALOGS = '.coach, .coach-inline, .os-ov:not([hidden]), .overlay:not([hidden]), [role="dialog"]';
+  document.addEventListener('click', (e) => {
+    const v = forceOn && visible(); if (!v || !v.st.force) return;
+    const t = e.target;
+    if (!(t instanceof Element) || t.closest(DIALOGS) || (v.st.target && t.closest(v.st.target)) || (v.st.allow && t.closest(v.st.allow))) return;
+    e.preventDefault(); e.stopPropagation();
+    box.classList.remove('nudge'); void box.offsetWidth; box.classList.add('nudge');
+  }, true);
   const seen = {};
   const chapterOf = (ctx) => (book ? book[ctx] || (book._alias && book[book._alias[ctx]]) || book['*'] || null : null);
   const stepOf = (ch) => { if (!ch) return null; while (ch.steps[ch.pos] && ch.steps[ch.pos].skipIf && ch.steps[ch.pos].skipIf()) ch.pos += 1; return ch.steps[ch.pos] || null; };
   const visible = () => { const ch = chapterOf(stack[stack.length - 1]); const st = stepOf(ch); return st && (!st.when || st.when()) ? { ch, st } : null; };
-  function hide() { box.hidden = true; ring.hidden = true; block.hidden = true; if (inline) { inline.remove(); inline = null; } shown = null; }
+  function hide() { forceOn = false; box.hidden = true; ring.hidden = true; block.hidden = true; if (inline) { inline.remove(); inline = null; } shown = null; }
   function place() {
     const v = visible();
     if (!v) { if (shown || !box.hidden || !ring.hidden || !block.hidden || inline) hide(); return; }
@@ -63,6 +73,8 @@ function createCoach() {
     const t = st.target ? document.querySelector(st.target) : null;
     const vw = window.innerWidth, vh = window.innerHeight;
     block.hidden = !st.modal;
+    // only hold the screen while the thing to click is actually there, so nobody gets stuck
+    forceOn = !!(st.force && t && vis(t));
     if (st.inline) {
       // the guide lives inside the thing it points at, so nothing it explains is ever dimmed
       if (t && vis(t)) {
@@ -120,6 +132,8 @@ function createCoach() {
   const coach = {
     // chapters: { desk: [...], report: [...], _alias: { email: 'secondary', ... } }
     chapters(map, start = 'desk') {
+      // each round's guide starts fresh: what the player did last round doesn't skip this one
+      for (const k of Object.keys(seen)) delete seen[k];
       book = {}; for (const [k, v] of Object.entries(map)) book[k] = k === '_alias' ? v : { steps: v, pos: 0 };
       stack = [start]; clearInterval(timer); timer = setInterval(place, 250); shown = null; place();
     },

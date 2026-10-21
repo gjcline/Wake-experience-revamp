@@ -20,6 +20,14 @@ const round1 = (x) => Math.round(x * 10) / 10;
 const round2 = (x) => Math.round(x * 100) / 100;
 const OPENING = 3, PRESENT = 2, WAKE_ITEM = 2;
 const NEXT_WEEK = 9;
+// How far Wake carries a problem this week: one you handed off, one it only flagged to its owner.
+// Tuned so Wake reads as a believable step up on a good team (see test/audit.mjs).
+const WAKE_DONE = 0.95, WAKE_ALERT = 0.55;
+// New problems a quarter of attention finds each week, as a share of this week's pool.
+const NEW_RATE = 0.08;
+// A fix started this week wins back only part of a problem's weekly cost before Friday (and
+// part of its yearly value in the run-rate): the leak slows before it stops. Applies to both plans.
+const REALIZE = 0.5;
 const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
 
 export function createFinaleEngine({ world, state, rec, person, insight }) {
@@ -142,7 +150,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       if (fid === 'F3') revenue = d === 0 ? 0 : Mo.weekly / 4 * pd;
       if (fid === 'F4') { cost = (met.path[d] - prevPath) * pd; if (act.e >= 0.85 && d === act.start + 3) { cr = Mo.credit; credit = cr; } }
       if (fid === 'F5') cost = pd < 0 ? Mo.weekly / 7 * pd : d === 4 && met.path[4] && m === 0 ? Mo.perExit : 0;
-      const profit = cost + revenue * cm; // operating; a one-time recovery is kept in `credit`
+      const profit = (cost + revenue * cm) * REALIZE; // operating; a one-time recovery is kept in `credit`
       const ok = okAt(Mo, m, pd);
       const waiting = plan.mode !== 'none' && d < act.start && !(act.pre && d >= act.pre.start);
       const status = ok ? 'fixed' : pd < 0 ? 'worse' : pd > 0 ? 'working' : waiting ? 'waiting' : 'open';
@@ -162,7 +170,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     if (fid === 'F4' && act.e >= 0.85 && act.start <= 4 && act.start + 3 > 4) days[4].lines.push({ t: 'Credit of ' + money(Mo.credit) + ' expected next week.', k: 'wait' });
     const sum = (k) => days.reduce((n, x) => n + x[k], 0);
     const pf = p[4];
-    const run = Math.round(Mo.run * (pf < 0 ? pf / 2 : pf) / 100) * 100;
+    const run = Math.round(Mo.run * REALIZE * (pf < 0 ? pf / 2 : pf) / 100) * 100;
     const pending = plan.mode !== 'none' && act.start > 4 && !act.pre;
     return { side, mode: plan.mode, key: plan.key, start: act.start, first: act.pre ? act.pre.start : act.look !== undefined ? act.look : act.start, e: act.e, plan, days, profit: sum('profit'), revenue: sum('revenue'), cost: sum('cost'), credit, run,
       sq: sq.e || 0, status: pending ? 'waiting' : days[4].status, from: fmtM(Mo, met.path ? 0 : met.start), to: days[4].shown, series: [met.path ? 0 : met.start].concat(days.map((x) => x.m)) };
@@ -183,10 +191,16 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       const best = youPlan[it.fid], other = best === plan ? prev : plan;
       if (other && best.mode !== 'counter' && other.mode !== 'counter' && first1(other) < first1(best) && !best.pre) best.pre = { start: first1(other), e: 0.4 * best.mult };
     }
-    // With Wake, what you handed off starts Monday. Everything else Wake found is still on its
-    // watch: the owner gets the alert with the numbers attached at 7:48 Tuesday and acts on it.
+    // With Wake, what you handed off starts Monday with the numbers attached. Everything else Wake
+    // found stays on its watch: the owner gets the alert Tuesday and fits it in around the week,
+    // so it moves, but not at full strength. Wake is a step up on a good team, not a miracle.
     const wakePlan = {};
-    for (const f of world.findings) wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: 1, fast: 1 } : { mode: 'alert', key: 'aligned', s: 1, mult: 1, fast: 1 };
+    for (const f of world.findings) {
+      const mine = youPlan[f.id], alert = { mode: 'alert', key: 'aligned', s: 1, mult: WAKE_ALERT };
+      // never behind your own plan: what you decided in the room, Wake backs with the numbers a day sooner
+      if (mine && ['aligned', 'partial'].includes(mine.mode)) { alert.mult = Math.max(WAKE_ALERT, Math.min(WAKE_DONE, mine.mult + 0.1)); alert.s = Math.min(1, mine.s); alert.fast = 1; }
+      wakePlan[f.id] = state.wakeOrder.includes(f.id) ? { mode: 'aligned', key: 'aligned', s: 0, mult: WAKE_DONE, fast: 1 } : alert;
+    }
     return { Y, youPlan, wakePlan };
   }
 
@@ -253,7 +267,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
         cum += rows.reduce((n, r) => n + r[side].days[d].profit, 0);
         oneTime += rows.reduce((n, r) => n + r[side].days[d].credit, 0);
         cumH += hours[d];
-        const runRate = Math.round(rows.reduce((n, r) => { const p = r[side].days[d].p; return n + model[r.id].run * (p < 0 ? p / 2 : p); }, 0) / 100) * 100;
+        const runRate = Math.round(rows.reduce((n, r) => { const p = r[side].days[d].p; return n + model[r.id].run * REALIZE * (p < 0 ? p / 2 : p); }, 0) / 100) * 100;
         const resolved = rows.filter((r) => r[side].days[d].status === 'fixed').length;
         const open = side === 'you' ? A.mine.filter((x) => x.kind && !['keep', 'watch', 'brief', 'self'].includes(x.kind) && x.day > d).length + Y.items.filter((x) => x.decision === 'next').length : 0;
         const small = side === 'wake' ? routine.filter((r) => r.wake.day <= d).length : routine.filter((r) => r.you.done && d >= 4).length;
@@ -316,12 +330,12 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   // Profit here is operating profit. One-time recoveries are counted on their own.
   function project(W, found) {
     const WEEKS = 13, n = W.n;
-    const value = (fid) => model[fid].run / 52;
+    const value = (fid) => model[fid].run * REALIZE / 52;
     const pool = W.rows.reduce((sum, r) => sum + value(r.id), 0);
     const late = { F1: [5, 0.8], F2: [6, 0.8], F5: [5, 0.8], F3: [8, 0.7], F4: [99, 0] };
     const share = (side, r, k) => {
       const L = r[side];
-      if (side === 'wake') return 1;
+      if (side === 'wake') return L.e;
       const e = L.e, sq = L.sq || 0;
       if (L.mode === 'counter') return k <= 3 ? sq * 0.7 - 0.25 : k === 4 ? sq : Math.max(sq, 0.6);
       if (L.mode === 'unclear') return Math.max(sq, k === 2 ? 0.4 : 0.7);
@@ -329,7 +343,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       const [wk, eLate] = late[r.id] || [99, 0];
       return k >= wk ? Math.max(sq, eLate) : sq;
     };
-    const catchRate = { you: 0.2 + 0.3 * found / n, wake: 1 };
+    const catchRate = { you: 0.35 + 0.3 * found / n, wake: 0.85 };
     const lag = { you: 3, wake: 1 }, eff = { you: 0.85, wake: 1 };
     const pendingCredit = (side) => { const r = W.rows.find((x) => x.id === 'F4'); if (!r) return 0; const L = r[side]; return !L.credit && L.mode !== 'none' && L.mode !== 'counter' && L.e >= 0.85 ? model.F4.credit : 0; };
     const side = (k0) => {
@@ -337,11 +351,11 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       const recovered = W.board[k0][4].oneTime + pendingCredit(k0);
       // fixes nobody watches slip back a little each week: schedules drift, invoices creep;
       // a midweek check-in slows it, and with Wake every fix has its number on daily watch
-      const slip = k0 === 'wake' ? 0 : W.meeting.you.wrap === 'manual' ? 0.03 : 0.05;
+      const slip = k0 === 'wake' ? 0 : W.meeting.you.wrap === 'manual' ? 0.02 : 0.03;
       for (let k = 2; k <= WEEKS; k++) {
         let v = W.rows.reduce((sum, r) => { const sh = share(k0, r, k); return sum + value(r.id) * (sh > 0 ? sh * Math.pow(1 - slip, k - 2) : sh); }, 0);
         const caught = Math.max(0, k - lag[k0] - 1);
-        v += pool * 0.15 * catchRate[k0] * eff[k0] * caught;
+        v += pool * NEW_RATE * catchRate[k0] * eff[k0] * caught;
         weekly.push(Math.round(v));
         hrs.push(k0 === 'you' ? round1(Math.max(4, W.board.you[4].hours * 0.6)) : 1.5);
       }

@@ -10,6 +10,7 @@ import { sfx } from './arcade/sound.js';
 import { ICONS, GLYPH } from './os/icons.js';
 import { face, glyph } from './os/shell.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
+import { autoPick } from '../engine/meeting.js';
 
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
@@ -100,17 +101,17 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
 
   // ------------------------------------------------------------ meeting 1: on your own
   // The engine directs the room one beat at a time; this screen plays each beat as it comes.
+  // The room asks; you answer with what you brought. It plays through on its own.
   function meeting() {
     sfx.ambience(0.6);
     const S = stage('you');
-    let owed = 0, decided = 0, lastItem = -1;
-    const choose = (b) => new Promise((resolve) => {
-      const opts = b.opts.map((o, i) => h('button', { class: 'mt-opt' + (o.effect === 'answer' ? ' ev' : ''), type: 'button', onclick: () => pick(o) }, h('i', {}, String.fromCharCode(65 + i)), h('span', {}, o.label), o.meta ? h('em', {}, o.meta) : null));
-      const pick = (o) => { document.onkeydown = null; S.choices.replaceChildren(); sfx.select(); resolve(o); };
-      S.choices.replaceChildren(h('p', { class: 'mt-ask' }, 'Your answer'), ...opts);
-      document.onkeydown = (e) => { const i = '123'.indexOf(e.key) >= 0 ? '123'.indexOf(e.key) : 'abc'.indexOf(e.key.toLowerCase()); if (i >= 0 && b.opts[i]) pick(b.opts[i]); };
-      try { opts[0].focus({ preventScroll: true }); } catch (e) { /* fine */ }
-    });
+    let owed = 0, decided = 0, lastItem = -1, fast = reduced;
+    const ff = btn('Fast forward', () => { fast = true; ff.disabled = true; }, 'cb small ghost');
+    const sk = btn('Skip to the end', () => { fast = true; ff.disabled = true; sk.disabled = true; }, 'cb small ghost');
+    S.ctl.replaceChildren(ff, sk);
+    const pause = (ms) => wait(fast ? 30 : ms);
+    // your answer: what a prepared, reasonable owner says with what they brought
+    const choose = async (b) => { await pause(900); return autoPick(b); };
     const owe = (task) => { owed += 1; S.count('owed', owed); S.note(h('div', { class: 'mt-iou' }, h('b', {}, 'Follow-up'), h('span', {}, first(task.who) + ': ' + task.what))); };
     const notes = (it, total) => S.screen.replaceChildren(
       h('p', { class: 'mt-sn' }, 'Item ' + it.n + ' of ' + total + (it.what.where ? ' · ' + it.what.where : '')), h('h2', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('p', { class: 'mt-sq' }, '"' + it.text + '"'),
@@ -128,38 +129,39 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         const st = game.meetingStep();
         if (st.done) break;
         const b = st.beat;
-        await S.to(st.tally.minutes);
+        await S.to(st.tally.minutes, fast);
         if (st.item && st.item.n !== lastItem) { lastItem = st.item.n; S.agenda(st.total, st.item.n - 1); notes(st.item, st.total); }
         if (b.first) S.agenda(st.total, 0);
         if (b.type === 'stamp') {
           const moved = ['decided', 'guess', 'agreed', 'pilot'].includes(b.outcome.decision);
           if (moved) { decided += 1; S.count('dec', decided); }
           S.note(stampEl(b.outcome.decision, outcomeText(b.outcome))); sfx[moved ? 'coin' : 'back']();
-          game.answerQ(b.id, 'ok'); await wait(650); continue;
+          game.answerQ(b.id, 'ok'); await pause(650); continue;
         }
-        if (b.type === 'present') { await wait(250); S.say('me', b.line, 'pres'); game.answerQ(b.id, 'ok'); await wait(650); continue; }
+        if (b.type === 'present') { await pause(250); S.say('me', b.line, 'pres'); game.answerQ(b.id, 'ok'); await pause(650); continue; }
         if (b.auto) {
           S.say(b.who.key, b.line, b.effect === 'trust' ? 'ok' : '');
           if (b.leave) S.out(b.leave);
           const res = game.answerQ(b.id, b.opts[0].id);
-          if (b.first) S.note(h('p', { class: 'mt-hint' }, 'The room will ask questions. Answer with what you brought.'));
-          if (res && res.reply) { await wait(450); S.say(res.reply.by.key, res.reply.line); }
-          await wait(700); continue;
+          if (b.first) S.note(h('p', { class: 'mt-hint' }, 'The room will ask questions. You answer with what you brought this morning.'));
+          if (res && res.reply) { await pause(450); S.say(res.reply.by.key, res.reply.line); }
+          await pause(700); continue;
         }
-        S.say(b.who.key, b.line, 'q'); await wait(300);
+        S.say(b.who.key, b.line, 'q'); await pause(300);
         const o = await choose(b);
         if (!alive) return;
         const res = game.answerQ(b.id, o.id);
-        S.say('me', o.label, 'a');
-        if (res && res.reply) { await wait(380); S.say(res.reply.by.key, res.reply.line, o.effect === 'answer' ? 'ok' : ''); }
+        S.say('me', o.label, 'a' + (o.effect === 'answer' ? ' ok' : ''));
+        if (res && res.reply) { await pause(380); S.say(res.reply.by.key, res.reply.line, o.effect === 'answer' ? 'ok' : ''); }
         if (o.task && !['keep', 'watch'].includes(o.effect)) owe(o.task);
-        await wait(380);
+        await pause(380);
       }
       if (!alive) return;
       const Y = game.meetingYours();
       S.set(Y.minutes); S.talk(null); S.agenda(Y.items.length, Y.items.length);
       game.presented('yours');
-      await wait(500);
+      await pause(500);
+      S.ctl.replaceChildren();
       S.choices.replaceChildren(h('div', { class: 'mt-done' },
         h('p', { class: 'mt-dk' }, 'Meeting over · ' + clockAt(Y.minutes)),
         h('div', { class: 'mt-drow' },

@@ -2,6 +2,7 @@
 // Plays many random games (random flags, answers, picks and meeting choices) across every shell
 // and role, and reports any game where the numbers stop telling one story. Run: node test/audit.mjs 3000
 import { createGame } from '../src/engine/game.js';
+import { autoPick } from '../src/engine/meeting.js';
 import { SHELL_ORDER } from '../src/content/shells.js';
 import { ROLE_ORDER } from '../src/content/roles.js';
 const N = +(process.argv[2] || 1500), verbose = process.argv[3] === 'v';
@@ -29,17 +30,17 @@ for (let run = 0; run < N; run++) {
   const order = rnd() < 0.5 ? ins : ins.slice().sort(() => rnd() - 0.5);
   for (const x of order.slice(0, np)) g.pick(x.id);
   g.lockRound2();
-  const strat = pick(['first', 'last', 'random', 'iou', 'guess']);
+  const strat = process.env.AUTO ? 'auto' : pick(['first', 'last', 'random', 'iou', 'guess']);
   const PREF = { iou: ['iou', 'later', 'rethink', 'wait', 'waitlook', 'longer', 'skip'], guess: ['guess', 'bounce', 'anyway', 'self', 'drop', 'now', 'push', 'quick'] };
   const P = { items: g.meetingAgenda(), said: [] };
   for (let i = 0; i < 400; i++) {
     const st = g.meetingStep(); if (st.done) break; const b = st.beat;
-    const o = b.auto ? b.opts[0] : strat === 'first' ? b.opts[0] : strat === 'last' ? b.opts[b.opts.length - 1] : strat === 'random' ? pick(b.opts) : (b.opts.find((x) => PREF[strat].includes(x.effect)) || b.opts[0]);
+    const o = b.auto ? b.opts[0] : strat === 'auto' ? autoPick(b) : strat === 'first' ? b.opts[0] : strat === 'last' ? b.opts[b.opts.length - 1] : strat === 'random' ? pick(b.opts) : (b.opts.find((x) => PREF[strat].includes(x.effect)) || b.opts[0]);
     g.answerQ(b.id, o.id); P.said.push({ beat: b, opt: o });
   }
   const R = g.recap(), SC = R.score, W = SC.week, fy = SC.final.you, fw = SC.final.wake, Y = W.meeting.you;
   const tag = { seed, shell, role, style, strat, picks: g.state.wakeOrder.join(','), dec: Y.decided + '/' + Y.items.filter((x) => x.kind === 'finding').length, yp: fy.profit, wp: fw.profit, yr: fy.runRate, wr: fw.runRate, rows: W.rows.map((r) => r.id + ':' + r.you.mode + ':' + r.you.profit + '/' + r.wake.profit).join(' ') };
-  S.yp.push(fy.profit); S.wp.push(fw.profit);
+  S.yp.push(fy.profit); S.wp.push(fw.profit); (S.gap = S.gap || []).push(fw.profit - fy.profit); (S.rgap = S.rgap || []).push(fw.runRate - fy.runRate); (S.qgap = S.qgap || []).push(SC.quarter.wake.total - SC.quarter.you.total); (S.wres = S.wres || []).push(fw.resolved);
   const key = style + '/' + strat; (S.by = S.by || {})[key] = S.by[key] || { p: [], r: [], q: [], res: [] };
   S.by[key].p.push(fy.profit / Math.max(1, fw.profit)); S.by[key].r.push(fy.runRate / Math.max(1, fw.runRate)); S.by[key].q.push(SC.quarter.you.total / Math.max(1, SC.quarter.wake.total)); S.by[key].res.push(fy.resolved + '/' + fw.resolved);
   if (fy.profit >= fw.profit) bump('P1 profit >= Wake', tag);
@@ -76,4 +77,4 @@ for (const [k, v] of Object.entries(issues)) { console.log(k, v.length); if (ver
 const q = (arr) => { const s = arr.slice().sort((x, y) => x - y); return [0, 0.1, 0.5, 0.9, 1].map((f) => Math.round(s[Math.min(s.length - 1, Math.floor(f * s.length))])).join(' / '); };
 const med = (a) => { const x = a.slice().sort((m, n) => m - n); return (x[Math.floor(x.length / 2)] * 100).toFixed(0) + '%'; };
 for (const [k, v] of Object.entries(S.by).sort()) console.log(k.padEnd(18), 'n', String(v.p.length).padStart(3), ' week profit', med(v.p).padStart(5), ' run-rate', med(v.r).padStart(5), ' quarter', med(v.q).padStart(5), ' resolved e.g.', v.res.slice(0, 4).join(' '));
-console.log('P1 profit', q(S.yp)); console.log('P1 / Wake week %', q(S.ratio)); console.log('P1 run-rate', q(S.yr)); console.log('P1 quarter', q(S.yq)); console.log('Wake profit', q(S.wp)); console.log('nothing decided', S.dec0, 'of', N);
+console.log('P1 profit', q(S.yp)); console.log('P1 / Wake week %', q(S.ratio)); console.log('P1 run-rate', q(S.yr)); console.log('P1 quarter', q(S.yq)); console.log('Wake profit', q(S.wp)); console.log('Week gap $', q(S.gap)); console.log('Run-rate gap $', q(S.rgap)); console.log('Quarter gap $', q(S.qgap)); console.log('Wake resolved', q(S.wres)); console.log('nothing decided', S.dec0, 'of', N);

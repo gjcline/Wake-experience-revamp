@@ -1136,7 +1136,7 @@ export function generateScenario(shell, role, seed) {
       sq: { e: 0.3, s: 1, text: 'The team at ' + (M ? D.name : 'the front desk') + ' makes a few {followup} between other work.' },
       act: { aligned: 'Central office starts {followup}.', partial: 'Second-visit analysis started.', unclear: 'Another full book of first visits.', counter: { promoMore: 'Offer extended.', promoStop: 'Offer ended.', recognize: 'Team recognized for a record month.' } },
       q: { why: ['marketing', (M ? D.name + ' is' : 'We are') + ' having a record month. Why would we touch it?'], cost: [ctrl, 'What is it worth if we fix it?'] },
-      costLine: 'About ' + money(rebook * tk) + ' this week in rebooked {visits}, and ' + money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * 4.33) + ' a month at risk when the offer ends.',
+      costLine: 'About ' + money(rebook * tk) + ' a week in rebooked {visits}, and ' + money((D.b.repeat - D.n.repeat) / 100 * D.b.rev * 1000 * 4.33) + ' a month at risk when the offer ends.',
       money: [] };
   }
   if (E) {
