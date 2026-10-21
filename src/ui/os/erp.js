@@ -8,8 +8,8 @@
 import { h } from '../art.js';
 import { face, glyph, icon } from './shell.js';
 
-export const ERP_NAME = 'NetSuite';
-export const ERP_HOST = '4738215.app.netsuite.com';
+export const ERP_NAME = 'Example ERP';
+export const ERP_HOST = 'app.example-erp.com';
 
 // Small deterministic numbers for the filler (reminder counts, record numbers, chart bars).
 export function hashOf(s) { let x = 2166136261; for (const c of String(s)) { x ^= c.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; }

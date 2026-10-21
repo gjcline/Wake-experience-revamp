@@ -11,7 +11,7 @@ and narrates the player through it with a live guide.
    Then the pixel office: the car pulls up and you walk to your desk.
 2. Round 1, on your own. The pitch is not "replace your ERP": the company already runs on one,
    and all its data is in one place. The desk is a realistic computer whose main app is
-   NetSuite, NetSuite (a look-alike of its UI): a dashboard of portlets (reminders, saved
+   Example ERP, an unbranded NetSuite-style ERP: a dashboard of portlets (reminders, saved
    searches, KPI meters, a 26-row KPI grid), a report center with every report (live ones among
    dozens of standard ones), location scorecards and a File Cabinet for notes. Everything is
    there and nothing explains itself. Gmail, Messages, Google Calendar and Google Contacts hold
@@ -23,7 +23,7 @@ and narrates the player through it with a live guide.
 3. Rewind to 7:48, then about ten seconds of Wake at work (wakeworks.js): the ERP's modules,
    the inbox, the calendar and texts connect, with the wider stack around them, and the counts
    fall from thousands of records to a handful of insights. Round 2: the same computer and the
-   same NetSuite, with Wake built into it. The dashboard gains a Wake portlet (ranked insights,
+   same Example ERP, with Wake built into it. The dashboard gains a Wake portlet (ranked insights,
    assign in place) and a Wake column on every KPI (the insight it feeds, or why it needs
    nothing); a Wake tab holds every insight with its trace; Reports keeps every standard report,
    tagged with what Wake found, beside the statements current to the morning and the reports Wake
@@ -86,13 +86,13 @@ and narrates the player through it with a live guide.
                                     company's own numbers, what happens when nobody is assigned), the score
                    recap.js         the verdict, the moment, and the one-page report (screen + download)
     src/ui/        os/              the computer both desks run on: shell.js (menu bar, dock, browser window,
-                                    notifications, the game strip), erp.js and erp.css (NetSuite: the frame,
+                                    notifications, the game strip), erp.js and erp.css (Example ERP: the frame,
                                     portlets, report center, File Cabinet, and the dashboard both rounds share),
                                     apps.js (Gmail, Google Calendar, Messages, Contacts, data tables), icons.js, os.css
-                   round1.js        the desk: NetSuite (dashboard, reports, scorecards, File Cabinet), Gmail,
+                   round1.js        the desk: Example ERP (dashboard, reports, scorecards, File Cabinet), Gmail,
                                     Messages, Calendar, Contacts, connected data,
                                     the composer, attaching context, the guide steps
-                   round2.js        the Wake desk: NetSuite with Wake built in (Wake portlet and KPI column, the
+                   round2.js        the Wake desk: Example ERP with Wake built in (Wake portlet and KPI column, the
                                     Wake tab with 5 to 8 insights, pick 3 to 5, the trace drawer back to the Round 1
                                     originals, statements and Wake reports in Reports), Gmail labeled by insight, Messages with
                                     send to Wake, Wake's calendar holds, Contacts with assignments, the guided tour
