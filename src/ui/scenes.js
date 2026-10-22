@@ -12,6 +12,7 @@ import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { icon } from './os/shell.js';
+import { playIntro } from './intro.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
 
@@ -68,7 +69,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
         h('b', { class: 'ti-brand' }, 'Wake'),
         h('h1', {}, 'Run a company for one Monday morning.'),
         h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
-        h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
+        h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
+        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 30-second intro')));
     const npcs = [[80, 141, true, 'down'], [168, 146, true, 'up'], [254, 146, true, 'up'], [226, 170, true, 'up'], [200, 76, false, 'up']]
       .map(([x, y, seated, facing], i) => ({ av: EXTRAS[i], x, y, seated, facing }));
     const map = createOffice(holder, { company: 'Your company', playerShirt: ROLE_COLOR.gm, npcs, reduced });
@@ -76,6 +78,23 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     map.ready.then(() => el.classList.add('in'));
     setTimeout(() => { const b = el.querySelector('.ab.primary'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); } });
+  }
+
+  // ------------------------------------------------------------ 0. the intro
+  // Plays before the title on a first visit; `?intro=1` forces it, `?intro=still` holds it for recording.
+  const introParam = (() => { try { return new URLSearchParams(window.location.search).get('intro'); } catch (e) { return null; } })();
+  function intro() {
+    clear();
+    try { localStorage.setItem('wx-intro', '1'); } catch (e) { /* fine */ }
+    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, reduced, still: introParam === 'still', onDone: () => home() });
+    teardown.push(stop);
+  }
+  function first() {
+    let seen = false;
+    try { seen = !!localStorage.getItem('wx-intro'); } catch (e) { /* fine */ }
+    if (introParam === '0') return home();
+    if (introParam || !seen) return intro();
+    home();
   }
 
   // ------------------------------------------------------------ 2. setup: three short questions
@@ -201,5 +220,5 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       done });
   }
 
-  return { start: home, arrival, office, card, clear, wait };
+  return { start: first, arrival, office, card, clear, wait };
 }

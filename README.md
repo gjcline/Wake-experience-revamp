@@ -30,6 +30,8 @@ Add `?seed=123` to the URL to replay the same company.
                    (erp.js, erp.css; Wake is built into it in Round 2), and look-alike Gmail,
                    Google Calendar, Messages and Contacts
     src/ui/wakeworks.js  the ten seconds of Wake at work between the rounds
+    src/ui/intro.js      the 30-second intro before the title on a first visit (?intro=1 forces it,
+                         ?intro=still holds it for recording); media/wake-intro.mp4 is a recording of it
     src/dashboard.html  the team's runs dashboard, served at /dashboard
     api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings)
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)

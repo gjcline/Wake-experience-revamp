@@ -501,10 +501,28 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         h('section', { class: 'rs-card' }, h('h2', {}, 'The moment that mattered'),
           seen && meant ? h('div', { class: 'mo2-grid' }, seen, h('div', { class: 'mo2-arrow' }, '→'), meant) : h('div', { class: 'mo2-card meant' }, h('h3', {}, m.title), m.lines.map((l) => h('p', {}, l)))),
         h('p', { class: 'fs2-closer' }, R.closer),
+        lives(),
         nextStep(),
         h('div', { class: 'fs2-actions' }, view, actions, status),
         h('div', { class: 'fs2-end' }, btn('Play again', onRestart, 'cb ghost'), h('a', { class: 'cl-link', href: 'https://wakepe.com', target: '_blank', rel: 'noopener' }, 'wakepe.com')));
       rest.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+
+    // Wake is not a meeting tool: one meeting was the easiest place to show it, but it runs every
+    // day, everywhere the business keeps its numbers.
+    function lives() {
+      const W = w(), tile = (g, title, text) => h('div', { class: 'lv-t' }, h('span', { class: 'lv-i' }, glyph(g)), h('b', {}, title), h('p', {}, text));
+      return h('section', { class: 'rs-card fs2-lives' },
+        h('p', { class: 'lv-k' }, mark('wake', 'fm lv-m'), 'Not just meetings'),
+        h('h2', {}, 'Wake lives in your week, not your calendar invite.'),
+        h('p', { class: 'lv-sub' }, 'We used one Monday meeting because it\'s the easiest place to see the difference. The same reading runs every day, across everything ' + W.shell.company + ' runs on, whether or not anyone asks.'),
+        h('div', { class: 'lv-grid' },
+          tile('sparkle', 'Every morning', 'What changed overnight, ranked, with the evidence and an owner, waiting before you sit down.'),
+          tile('flag', 'All day, as it happens', 'When a number drifts, its owner gets an alert with the reason attached. Nobody has to go looking.'),
+          tile('chart', 'Inside your ERP', 'Every report, scorecard and KPI explained where it lives: why it moved, and what it feeds.'),
+          tile('receipt', 'Month-end and close', 'Statements current every morning, reconciled across accounting, payroll and operations, not a month late.'),
+          tile('file', 'Board, lender and owner updates', 'Briefs and covenant checks drafted from live numbers. You review them; you don\'t build them.'),
+          tile('people', 'Across the whole team', 'Managers see their own numbers and what to do about them. Leadership sees the whole picture.')));
     }
 
     // What to do next: a call about their own numbers, or the report by email.
