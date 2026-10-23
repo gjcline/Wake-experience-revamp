@@ -26,7 +26,7 @@ Add `?seed=123` to the URL to replay the same company.
     src/ui/        the screens: Round 1 and 2 desks, the meeting, the week, the final score,
                    the live guide (app.js), the title screen and the setup questions (scenes.js)
     src/ui/pixel/  the pixel office the walks happen in (office.js)
-    src/ui/os/     the computer both desks run on: Example ERP, an unbranded NetSuite-style ERP
+    src/ui/os/     the computer both desks run on: Sample ERP, an unbranded NetSuite-style ERP
                    (erp.js, erp.css; Wake is built into it in Round 2), and look-alike Gmail,
                    Google Calendar, Messages and Contacts
     src/ui/wakeworks.js  the ten seconds of Wake at work between the rounds

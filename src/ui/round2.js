@@ -1,5 +1,5 @@
 // ROUND 2: WITH WAKE
-// The same computer, the same Monday, the same Example ERP. The difference is that Wake is built into
+// The same computer, the same Monday, the same Sample ERP. The difference is that Wake is built into
 // the ERP now, and it read everything before you sat down: the ERP's modules, the inbox, the
 // calendar. The dashboard looks the same, but every indicator says why it moved and which insight it
 // feeds; a Wake portlet ranks what needs you; the Wake tab holds every insight with the lines behind
@@ -249,7 +249,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       h('div', { class: 'dscroll' }, dataTable(b, { cell: (c) => (c.spark ? h('span', { class: 'xsp' }, spark(c.spark, c.tone), c.t ? h('span', {}, c.t) : null) : null), cls: 'fin' })));
     return v.blocks.map((b) => (b.type === 'kpis' ? kpis(b) : b.type === 'text' ? text(b) : table(b)));
   }
-  // ------------------------------------------------------------ Example ERP, with Wake built in
+  // ------------------------------------------------------------ Sample ERP, with Wake built in
   // The same dashboard, reports and scorecards as Round 1. Wake adds what was missing: what each
   // number means, which insight it feeds, and who owns it.
   const insOf = (sid) => game.insights().filter((it) => it.sources.some((x) => x.key === sid));

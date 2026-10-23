@@ -1,5 +1,5 @@
 // ROUND 1: ON YOUR OWN
-// Your computer on Monday morning. The company runs on one ERP (Example ERP): the dashboard,
+// Your computer on Monday morning. The company runs on one ERP (Sample ERP): the dashboard,
 // every report and saved search, each location's scorecard and the shared notes are all in it.
 // The data is all in one place; what it means is up to you. Any figure on the dashboard, in a
 // report or a scorecard can be flagged as a finding. Gmail, Messages, Calendar and the notes
@@ -196,7 +196,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     badges();
   }
 
-  // ------------------------------------------------------------ Example ERP, the ERP
+  // ------------------------------------------------------------ Sample ERP, the ERP
   // Every report, scorecard and number is in one place. That was never the problem.
   const rolled = (id) => (game.state.sources[id] || {}).opened;
   const model = erpModel(w), { where, sysOf } = model;
