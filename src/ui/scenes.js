@@ -81,18 +81,19 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
   }
 
   // ------------------------------------------------------------ 0. the intro
-  // Plays before the title on a first visit; `?intro=1` forces it, `?intro=still` holds it for recording.
+  // Plays before the title on a first visit; `?intro=1` forces it, `?intro=0` skips it.
   const introParam = (() => { try { return new URLSearchParams(window.location.search).get('intro'); } catch (e) { return null; } })();
   function intro() {
     clear();
     try { localStorage.setItem('wx-intro', '1'); } catch (e) { /* fine */ }
-    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, reduced, still: introParam === 'still', onDone: () => home() });
+    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => home() });
     teardown.push(stop);
   }
   function first() {
     let seen = false;
     try { seen = !!localStorage.getItem('wx-intro'); } catch (e) { /* fine */ }
-    if (introParam === '0') return home();
+    // the artifact build is a single file, with no video next to it
+    if (introParam === '0' || window.WAKE_HOST === 'artifact') return home();
     if (introParam || !seen) return intro();
     home();
   }
