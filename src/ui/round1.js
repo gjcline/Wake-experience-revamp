@@ -40,7 +40,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   ];
   const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { closeDoc(); app = null; docId = null; history = []; badges(); sfx.back(); coach.emit('desk'); coach.context('desk'); } });
   const overlay = h('div', { class: 'overlay os-ov', hidden: true });
-  const strip = gameStrip({ round: 'Step 2 of 6 · On your own', task: 'Find what matters. Flag ' + game.MIN_FLAGS + ' to ' + game.MAX_FLAGS + ' figures and decide what happens with each. Your ' + w.role.meetingName + ' is at 10:00 AM.', onRules: rulesCard });
+  const strip = gameStrip({ round: 'Step 2 of 6 · On your own', task: 'Find ' + game.MIN_FLAGS + ' things that look off before your 10:00 AM meeting. Click a row to flag it.', onRules: rulesCard });
 
   show('day', 'os-screen round1', strip.el, pc.el, overlay);
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
@@ -57,7 +57,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       sfx.credit();
     }
   }, reduced ? 600 : CLOCK_MS);
-  setCleanup(() => { clearInterval(ticker); coach.stop(); });
+  setCleanup(() => { clearInterval(ticker); coach.stop(); doneEl.remove(); });
   sfx.ambience(1);
 
   // ------------------------------------------------------------ the dock
@@ -151,6 +151,22 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       return b;
     };
   }
+  // Every row with a figure in it is clickable, not just the number. The row's figure is the one
+  // that matters most (part of a real problem), else its first. Before your first finding, one
+  // row in the report is marked for the guide to point at: "This one looks off."
+  const CORE = new Set(w.findings.flatMap((f) => f.core || []));
+  function rowify(mark) {
+    let tut = null, firstRow = null;
+    pc.body.querySelectorAll('.ns-grid tbody tr').forEach((tr) => {
+      const figs = [...tr.querySelectorAll('.figbtn')]; if (!figs.length) return;
+      const main = figs.find((b) => CORE.has(b.dataset.s)) || figs[0];
+      tr.classList.add('flagrow'); firstRow = firstRow || tr;
+      tr.title = 'Click to flag';
+      tr.addEventListener('click', (e) => { if (!e.target.closest('.figbtn')) main.click(); });
+      if (mark && !tut && !game.state.flags.length && CORE.has(main.dataset.s)) tut = tr;
+    });
+    if (mark && !game.state.flags.length && (tut || firstRow)) (tut || firstRow).classList.add('tut-row');
+  }
   function figure(sid, srcId) {
     const f = game.state.flags.find((x) => x.signals.includes(sid));
     if (f) return compose({ existing: f });
@@ -211,6 +227,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
 
   function erpHome() {
     frame('home', homePage({ w, model, fig, rolled, onOpen: (id) => openErp(id) }));
+    rowify(false);
     pc.url(ERP_HOST + '/app/center/card.nl?sc=-29');
   }
 
@@ -227,12 +244,12 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       pageHead(v.title, { sub: 'Saved search · ' + sysOf(id) + ' · run ' + (v.run || v.when || '6:00 AM'), back: () => erpTo('reports') }),
       crumbs(), connected(v.related),
       filters([['Period', 'This week'], ['Subsidiary', w.shell.company], [M ? 'Location' : 'Site', M ? 'All' : w.shell.company]]),
-      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it as a finding.'),
+      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any row that looks off to flag it.'),
       v.intro ? h('p', { class: 'ns-intro' }, v.intro) : null,
       h('div', { class: 'ns-blocks' }, v.blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, b.note ? h('p', { class: 'ns-bnote' }, b.note) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(v.id), cls: 'ns-grid' }))))),
       h('p', { class: 'ns-foot' }, 'Owner: ' + v.from.name + ', ' + v.from.title + ' · synced from ' + sysOf(id))));
     pc.url(ERP_HOST + '/app/common/search/searchresults.nl?searchid=' + hashOf(id) % 900);
-    scrollHl(pc.body); badges();
+    rowify(true); scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:report');
   }
   function openScorecards(tab, quiet) {
@@ -246,11 +263,11 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       pageHead(M ? 'Location scorecards' : 'Weekly scorecard', { sub: 'Week ending ' + w.shell.weekEnd.replace(/^\w+, /, '') + ' · updated ' + (v.when || ''), back: () => erpTo('reports') }),
       crumbs(), connected(v.related),
       tabs.length > 1 ? subtabs(tabs, tab, (t) => { history = []; hl = []; openScorecards(t); coach.emit('doc:location'); }) : null,
-      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any figure to flag it.'),
+      h('p', { class: 'flag-hint' }, glyph('flag'), 'Click any row that looks off to flag it.'),
       h('p', { class: 'ns-intro' }, intro),
       h('div', { class: 'ns-blocks' }, blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(tab), cls: 'ns-grid' })))))));
     pc.url(ERP_HOST + '/app/center/scorecard.nl?loc=' + (locIds.indexOf(tab) + 1));
-    scrollHl(pc.body); badges();
+    rowify(false); scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:location');
   }
   function erpFiles() {
@@ -366,6 +383,15 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const n = existing ? game.state.flags.indexOf(existing) + 1 : game.state.flags.length + 1;
     let choice = existing ? existing.choice : null, owner = existing ? existing.owner : null, sure = existing ? existing.confidence : null;
     const answers = game.answers(sid);
+    // the first finding is filled in for you: a sensible read (dig into it), its natural owner,
+    // fairly sure. You only have to add it. The rest are yours.
+    const prefill = !existing && !game.state.flags.length;
+    if (prefill) {
+      const a = answers.find((x) => x.intent === 'investigate') || answers.find((x) => x.style === 'analyze') || answers[0];
+      const f = w.findings.find((x) => (x.core || []).concat(x.evidence || []).includes(sid));
+      const nat = f && w.briefing[f.id] ? w.briefing[f.id].owner[0] : null;
+      choice = a ? a.id : null; owner = nat && game.owners().some((o) => o.key === nat) ? nat : null; sure = 'fair';
+    }
     const steps = h('ol', { class: 'cprog' });
     const progress = () => steps.replaceChildren(...[['Your read', !!choice], ['Owner', !!owner], ['How sure', !!sure]].map(([t, done], i) => h('li', { class: 'cp' + i + (done ? ' done' : '') }, h('i', {}, done ? '✓' : String(i + 1)), t)));
     const opts = h('div', { class: 'answers', role: 'radiogroup', 'aria-label': 'Your read' });
@@ -388,15 +414,17 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       if (existing) game.editFlag(existing.id, { choice, note: noteText, owner, confidence: sure }); else game.flag({ signals, source, choice, owner, confidence: sure });
       closeCard(); sfx.coin(); drawTray(); render();
       coach.emit('flagged'); coach.pop();
+      if (!existing && game.state.flags.length === game.MIN_FLAGS && !doneShown) { doneShown = true; doneScreen(); }
     }, 'ob primary');
     const step = (k, title, help, ...body) => h('section', { class: 'cstep2 s' + k }, h('div', { class: 'cs-head' }, h('b', {}, String(k)), h('div', {}, h('p', { class: 'label' }, title), help ? h('p', { class: 'help' }, help) : null)), ...body);
     card('composer',
       h('p', { class: 'stamp' }, existing ? 'Edit finding #' + n : 'New finding #' + n),
+      prefill ? h('p', { class: 'prefill' }, glyph('check'), 'We filled in your first one. Just click Add to findings.') : null,
       h('blockquote', { class: 'flagged' }, h('span', { class: 'fl-src' }, (src ? src.title : '') + (w.system[src && src.id] ? ' · ' + w.system[src.id] : '')), h('strong', {}, s.label), h('span', { class: 'fl-v' }, [s.value, s.delta].filter(Boolean).join(' · '))),
       steps,
-      step(1, 'What\'s your read?', 'Pick the one closest to what you think is going on. The action underneath is what your team would do.', opts),
-      step(2, 'Who owns it?', 'Optional. Who on your team should take this on?', ownersEl),
-      step(3, 'How sure are you?', null, sureEl),
+      step(1, 'What do you think is going on?', 'Pick one.', opts),
+      step(2, 'Who should handle it?', 'Optional.', ownersEl),
+      step(3, 'How sure are you?', 'Optional.', sureEl),
       h('div', { class: 'row' }, save, existing ? btn('Remove this finding', () => { game.removeFlag(existing.id); closeCard(); sfx.back(); drawTray(); render(); }, 'link') : null, btn('Cancel', () => { closeCard(); sfx.back(); coach.emit('cancel'); coach.pop(); }, 'link')));
     drawOpts(); progress();
     coach.emit('compose'); coach.push('compose');
@@ -427,7 +455,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('button', { class: 'gs-findings', type: 'button', onclick: findingsCard },
         h('span', {}, 'Your findings'), h('b', { class: ok ? 'ok' : '' }, n + ' / ' + game.MIN_FLAGS + (n > game.MIN_FLAGS ? '+' : '')),
         h('span', { class: 'slots' }, Array.from({ length: game.MAX_FLAGS }, (_, i) => h('i', { class: i < n ? 'on' : i < game.MIN_FLAGS ? 'need' : '' })))),
-      btn(ok ? 'Review & lock in' : 'Flag ' + (game.MIN_FLAGS - n) + ' more', ok ? findingsCard : () => note('Open ' + ERP_NAME + '. Click any figure that sticks out to flag it.'), 'ob' + (ok ? ' primary' : ' quiet')));
+      btn(ok ? 'Review & lock in' : 'Flag ' + (game.MIN_FLAGS - n) + ' more', ok ? findingsCard : () => note('Open ' + ERP_NAME + '. Click any row that looks off to flag it.'), 'ob' + (ok ? ' primary' : ' quiet')));
   }
 
   function findingsCard() {
@@ -450,7 +478,24 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     coach.emit('findings');
   }
 
-  function submit() { if (!game.submitRound1()) return; sfx.start(); onSubmit(); }
+  function submit() { if (!game.submitRound1()) return; sfx.start(); doneEl.remove(); onSubmit(); }
+
+  // The moment you have enough: the whole screen says so, with one big button to go on.
+  let doneShown = false;
+  const doneEl = h('div', { class: 'r1-done', role: 'dialog', 'aria-label': 'You found ' + game.MIN_FLAGS });
+  function doneScreen() {
+    const fl = game.flags();
+    coach.stop();
+    doneEl.replaceChildren(h('div', { class: 'r1d-box' },
+      h('div', { class: 'r1d-check' }, '✓'),
+      h('h1', {}, 'Nice. You found ' + fl.length + '.'),
+      h('p', { class: 'r1d-sub' }, 'That\'s enough for your 10:00 meeting.'),
+      h('ol', { class: 'r1d-list' }, fl.map((f) => h('li', {}, h('b', {}, f.what.label), h('span', {}, f.what.value || '')))),
+      btn('Continue  →', () => { sfx.blip(); submit(); }, 'r1d-go'),
+      btn('Keep looking', () => { doneEl.remove(); sfx.back(); }, 'r1d-more')));
+    document.body.appendChild(doneEl);
+    setTimeout(() => { const b = doneEl.querySelector('.r1d-go'); if (b) b.focus({ preventScroll: true }); }, 60);
+  }
 
   function card(cls, ...kids) { overlay.hidden = false; overlay.replaceChildren(h('div', { class: 'dialog ' + cls, role: 'dialog' }, ...kids)); overlay.scrollTop = 0; }
   function closeCard() { overlay.hidden = true; overlay.replaceChildren(); }
@@ -471,25 +516,25 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const flagged = () => game.state.flags.length >= 1;
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. Your company runs on ' + ERP_NAME + ': every report, scorecard and number your systems produce is already in one place. Gmail, Messages, Calendar and your directory hold the rest.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
-      { text: 'Start in ' + ERP_NAME + '. Your Monday dashboard is waiting.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
-      { text: 'Your findings are stored up here. Open them any time to review, edit or reorder.', target: '.gs-findings', wait: 'findings', hint: 'Open your findings', when: flagged },
-      { text: 'This list is exactly what you\'ll hand your team. Edit changes your answer or owner. The arrows set the order you\'d tackle them in.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
-      { text: 'Your ' + w.role.meetingName + ' starts at 10:00 AM. Have at least ' + game.MIN_FLAGS + ' findings ready by then. The rest is up to you.', target: '.mb-clock', next: 'LET\'S GO ▶', when: flagged },
+      { text: 'This is your computer. Everything about your company is in ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
+      { text: 'Your findings collect up here. Click to see them.', target: '.gs-findings', wait: 'findings', hint: 'Click it', when: flagged },
+      { text: 'This is what you\'ll bring to your meeting.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
+      { text: 'Find at least ' + game.MIN_FLAGS + ' before your 10:00 AM meeting. Click any row that looks off.', target: '.mb-clock', next: 'LET\'S GO ▶', when: flagged },
     ],
     erp: [
-      { text: 'Your dashboard: every part of the business, in one place, as of 6:00 AM. It\'s all here. Nothing here says which of it matters this week, or why it moved.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
-      { text: 'Start where your team\'s numbers live. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: flagged },
-      { text: 'Every saved search your team runs is here, among dozens of standard reports. Open this one.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Open it', force: true, skipIf: flagged },
-      { text: 'Every figure is a data point. When one looks off, click it to flag it as a finding.', target: '.ns-blocks', wait: 'flagged', hint: 'Click a figure', side: 'over', force: true, skipIf: flagged },
-      { text: 'That\'s your first finding. Flag 2 to 4 more from any report, or from ' + (M ? 'each ' + V.unit + '\'s scorecard' : 'the weekly scorecard') + ', here in Reports. Shared notes are in Documents.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged, once: true },
-      { text: 'Connected data shows other places these numbers show up. Click one to jump there, then use the back button to return.', target: '.cx-bar', next: 'GOT IT ▶', skipIf: () => !document.querySelector('.cx-bar'), once: true },
+      { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'Click Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Click it', force: true, skipIf: flagged },
+      { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
+      { text: 'This one looks off. Click it.', target: '.tut-row', wait: 'compose', hint: 'Click the row', force: true, skipIf: flagged, when: () => !!document.querySelector('.tut-row') },
+      { text: 'That\'s your first finding. Now find ' + (game.MIN_FLAGS - 1) + ' more on your own: click any row that looks off. Other reports are under Reports.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged, once: true },
     ],
     compose: [
-      { text: 'Pick the read closest to yours. An owner and how sure you are help too. Then add it.', target: '.composer', inline: true, wait: 'flagged' },
+      { text: 'We filled this one in for you. Click Add to findings.', target: '.composer .ob.primary', wait: 'flagged', hint: 'Click Add to findings', force: true, allow: '.composer', skipIf: () => game.state.flags.length > 0 },
+      { text: 'Your turn. Pick what you think is going on, then click Add to findings.', target: '.composer', inline: true, wait: 'flagged', skipIf: () => game.state.flags.length !== 1 },
     ],
     secondary: [
-      { text: 'Emails, texts, your calendar and your notes don\'t become findings on their own. When one adds context to a finding you\'ve stored, attach it with Add to a finding. It travels with that finding into the meeting.', target: '.attach-btn', next: 'GOT IT ▶', once: true },
+      { text: 'An email or text can back up a finding. Click Add to a finding to attach it.', target: '.attach-btn', next: 'GOT IT ▶', once: true },
     ],
     _alias: { gmail: 'secondary', messages: 'secondary', calendar: 'secondary' },
   }, 'desk'), reduced ? 0 : 500);

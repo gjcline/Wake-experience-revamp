@@ -203,3 +203,12 @@ button.ns-rli:hover span { text-decoration: underline; }
   .ns-dh { flex-direction: column; gap: 2px; }
   .ns-pha { display: none; }
 }
+
+/* Round 1: whole rows are clickable, and the guide's first row glows */
+.os-screen .ns-grid tr.flagrow { cursor: pointer; }
+.os-screen .ns-grid tr.flagrow:hover td { background: #FEF7E0 !important; }
+.os-screen .ns-grid tr.flagrow:hover td:first-child { box-shadow: inset 3px 0 0 #F9AB00; }
+.os-screen .ns-grid tr.tut-row td { background: #FFF4CC !important; }
+.os-screen .ns-grid tr.tut-row td:first-child { box-shadow: inset 4px 0 0 #F29900; font-weight: 600; }
+.os-screen .composer .prefill { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; padding: 10px 12px; border-radius: 10px; background: #E6F4EA; color: #0D652D; font-size: 14px; font-weight: 600; }
+.os-screen .composer .prefill .gl { width: 18px; height: 18px; color: #188038; }
