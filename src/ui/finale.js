@@ -525,9 +525,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           tile('people', 'Across the whole team', 'Managers see their own numbers and what to do about them. Leadership sees the whole picture.')));
     }
 
-    // What to do next: a call about their own numbers, or the report by email.
+    // The report by email. (A Book a call link can come back here when there is one.)
     function nextStep() {
-      if (!onEmail && !onBook) return null;
+      if (!onEmail) return null;
       const note = h('p', { class: 'fs2-nnote', 'aria-live': 'polite' });
       const input = h('input', { class: 'fs2-in', type: 'email', placeholder: 'you@company.com', autocomplete: 'email', 'aria-label': 'Your email' });
       const saveEmail = (e) => {
@@ -537,10 +537,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         onEmail(v); input.disabled = true; note.textContent = 'Thanks. The Wake team will send your report to ' + v + '.';
       };
       return h('section', { class: 'rs-card fs2-next' },
-        h('div', {}, h('h2', {}, 'See this on your own numbers'), h('p', { class: 'rs-sub' }, 'A 30-minute call: we connect Wake to a week of your real data and walk you through what it finds.')),
+        h('div', {}, h('h2', {}, 'Want a copy of your report?'), h('p', { class: 'rs-sub' }, 'We\'ll email it to you.')),
         h('div', { class: 'fs2-nact' },
-          onBook ? btn('Book a call', () => onBook(input.value.trim()), 'cb wake') : null,
-          onEmail ? h('form', { class: 'fs2-form', onsubmit: saveEmail }, input, h('button', { class: 'cb ghost', type: 'submit' }, 'Send me the report')) : null,
+          h('form', { class: 'fs2-form', onsubmit: saveEmail }, input, h('button', { class: 'cb wake', type: 'submit' }, 'Send me the report')),
           note));
     }
   }
