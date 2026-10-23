@@ -415,6 +415,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       closeCard(); sfx.coin(); drawTray(); render();
       coach.emit('flagged'); coach.pop();
       if (!existing && game.state.flags.length === game.MIN_FLAGS && !doneShown) { doneShown = true; doneScreen(); }
+      else if (!existing && game.state.flags.length > 1) saved();
     }, 'ob primary');
     const step = (k, title, help, ...body) => h('section', { class: 'cstep2 s' + k }, h('div', { class: 'cs-head' }, h('b', {}, String(k)), h('div', {}, h('p', { class: 'label' }, title), help ? h('p', { class: 'help' }, help) : null)), ...body);
     card('composer',
@@ -480,6 +481,14 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
 
   function submit() { if (!game.submitRound1()) return; sfx.start(); doneEl.remove(); onSubmit(); }
 
+  // after a save: the findings counter at the top flashes, and a line says how many you have
+  function saved() {
+    const n = game.state.flags.length, t = strip.right.querySelector('.gs-findings');
+    if (t) { t.classList.remove('bump'); void t.offsetWidth; t.classList.add('bump'); }
+    const el = h('div', { class: 'os-tip saved', role: 'status' }, '✓ Saved to your findings. ' + (n < game.MIN_FLAGS ? n + ' of ' + game.MIN_FLAGS + ' found.' : n + ' found.'));
+    document.querySelector('.os-desktop').appendChild(el); setTimeout(() => el.remove(), 3500);
+  }
+
   // The moment you have enough: the whole screen says so, with one big button to go on.
   let doneShown = false;
   const doneEl = h('div', { class: 'r1-done', role: 'dialog', 'aria-label': 'You found ' + game.MIN_FLAGS });
@@ -518,16 +527,14 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     desk: [
       { text: 'This is your computer. Everything about your company is in ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
       { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
-      { text: 'Your findings collect up here. Click to see them.', target: '.gs-findings', wait: 'findings', hint: 'Click it', when: flagged },
-      { text: 'This is what you\'ll bring to your meeting.', target: '.findings-card', next: 'GOT IT ▶', wait: 'closed', inline: true, onNext: closeCard, when: () => !!document.querySelector('.findings-card') },
-      { text: 'Find at least ' + game.MIN_FLAGS + ' before your 10:00 AM meeting. Click any row that looks off.', target: '.mb-clock', next: 'LET\'S GO ▶', when: flagged },
     ],
     erp: [
       { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
       { text: 'Click Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'This one looks off. Click it.', target: '.tut-row', wait: 'compose', hint: 'Click the row', force: true, skipIf: flagged, when: () => !!document.querySelector('.tut-row') },
-      { text: 'That\'s your first finding. Now find ' + (game.MIN_FLAGS - 1) + ' more on your own: click any row that looks off. Other reports are under Reports.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged, once: true },
+      { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'GOT IT ▶', modal: true, when: flagged },
+      { text: 'Now find ' + (game.MIN_FLAGS - 1) + ' more on your own. Click any row that looks off. Other reports are under Reports.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged },
     ],
     compose: [
       { text: 'We filled this one in for you. Click Add to findings.', target: '.composer .ob.primary', wait: 'flagged', hint: 'Click Add to findings', force: true, allow: '.composer', skipIf: () => game.state.flags.length > 0 },

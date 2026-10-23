@@ -777,3 +777,7 @@ body:has(.os-screen) .coach-inline p { font-size: 14.5px; }
 .r1-done .r1d-go { margin-top: 6px; min-width: 260px; padding: 18px 40px; border-radius: 999px; border: 0; background: #111; color: #fff; font: 700 19px/1 'Inter', sans-serif; cursor: pointer; box-shadow: 0 10px 30px rgba(17,17,17,.2); }
 .r1-done .r1d-go:hover { background: #000; }
 .r1-done .r1d-more { background: none; border: 0; color: #555; font: 500 15px/1 'Inter', sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px; }
+/* the findings counter flashes when a finding is saved */
+.gs-findings.bump { animation: gsBump .9s ease; }
+@keyframes gsBump { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 4px rgba(255,210,63,.55); transform: scale(1.06); } }
+.os-tip.saved { background: #0D652D; color: #fff; }
