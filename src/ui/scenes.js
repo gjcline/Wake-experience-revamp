@@ -80,22 +80,35 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); } });
   }
 
-  // ------------------------------------------------------------ 0. the intro
-  // Plays before the title on a first visit; `?intro=1` forces it, `?intro=0` skips it.
+  // ------------------------------------------------------------ 0. start, then the intro video
+  // A plain start screen with the Wake logo. Its Start click is what lets the browser play the
+  // intro full screen with sound; when the video ends (or is skipped) the title screen follows.
+  // `?intro=0` goes straight to the title, and so does the single-file artifact build, which has
+  // no video next to it.
   const introParam = (() => { try { return new URLSearchParams(window.location.search).get('intro'); } catch (e) { return null; } })();
+  const full = (on) => {
+    try {
+      const d = document;
+      if (on && !d.fullscreenElement && d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(() => {});
+      if (!on && d.fullscreenElement && d.exitFullscreen) d.exitFullscreen().catch(() => {});
+    } catch (e) { /* fullscreen is a nicety */ }
+  };
+  // called straight from a click, so the video may play with sound
   function intro() {
     clear();
-    try { localStorage.setItem('wx-intro', '1'); } catch (e) { /* fine */ }
-    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => home() });
+    full(true);
+    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => { full(false); home(); } });
     teardown.push(stop);
   }
   function first() {
-    let seen = false;
-    try { seen = !!localStorage.getItem('wx-intro'); } catch (e) { /* fine */ }
-    // the artifact build is a single file, with no video next to it
     if (introParam === '0' || window.WAKE_HOST === 'artifact') return home();
-    if (introParam || !seen) return intro();
-    home();
+    let gone = false;
+    const go = () => { if (gone) return; gone = true; sfx.unlock(); intro(); };
+    screen('st', h('div', { class: 'st-body' },
+      h('img', { class: 'st-logo', src: 'media/wake-logo.png', alt: 'Wake', width: 871, height: 197 }),
+      h('button', { class: 'st-go', type: 'button', onclick: go }, 'Start')));
+    setTimeout(() => { const b = document.querySelector('.st-go'); if (b) b.focus({ preventScroll: true }); }, 60);
+    keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   }
 
   // ------------------------------------------------------------ 2. setup: three short questions

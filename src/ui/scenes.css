@@ -183,3 +183,11 @@
 .iv-prog i { display: block; height: 100%; width: 0; background: #0891B2; transition: width .25s linear; }
 .ti-intro { margin-top: 4px; background: none; border: 0; padding: 0; color: var(--dim); font: 500 14px/1 'Inter', sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .ti-intro:hover { color: var(--ink); }
+
+/* ------------------------------------------------------------ the start screen, before the intro */
+.wx .sc-screen.st { display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 15% 10%, #DCEBFA 0%, rgba(220,235,250,0) 45%), radial-gradient(ellipse at 90% 95%, #DDE6FB 0%, rgba(221,230,251,0) 40%), #F7F9FC; color: #111; }
+.st-body { display: flex; flex-direction: column; align-items: center; gap: 44px; padding: 24px; animation: suIn .5s ease both; }
+.st-logo { width: min(420px, 72vw); height: auto; display: block; }
+.wx .sc-screen .st-go { min-width: 180px; padding: 16px 40px; border-radius: 999px; border: 0; background: #111; color: #fff; font: 700 18px/1 'Inter', sans-serif; letter-spacing: .02em; box-shadow: 0 10px 30px rgba(17,17,17,.18); transition: transform .12s, box-shadow .12s; }
+.wx .sc-screen .st-go:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(17,17,17,.24); }
+.wx .sc-screen .st-go:focus-visible { outline: 3px solid #7FB3F5; outline-offset: 3px; }

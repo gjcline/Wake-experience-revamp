@@ -9,8 +9,8 @@ and narrates the player through it with a live guide.
 Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
 anyone asks, and never waits for a prompt.
 
-0. The 30-second intro video (intro.js, media/) plays before the title on a first visit, with Skip
-   and Sound on (browsers start it muted until the visitor clicks); the title has
+0. A Start screen with the Wake logo; Start plays the 30-second intro video (intro.js, media/)
+   full screen with sound, then the title. Skip is always there; the title has
    "Watch the 30-second intro" to replay it.
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
