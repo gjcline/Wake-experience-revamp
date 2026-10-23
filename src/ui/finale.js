@@ -16,7 +16,8 @@ const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleStri
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
 const clockAt = (min) => { const t = 600 + min, hh = Math.floor(t / 60), mm = t % 60; return ((hh + 11) % 12 + 1) + ':' + String(mm).padStart(2, '0') + ' ' + (hh < 12 ? 'AM' : 'PM'); };
 const hrs = (x) => x + (x === 1 ? ' hr' : ' hrs');
-const DECISION = { decided: 'Decided', guess: 'Decided on your word', pilot: 'Decided · smaller start', agreed: 'Agreed · numbers to follow', parked: 'Parked', next: 'Parked to next week', dropped: 'Dropped', busy: 'Kept on the list' };
+// Gentle words on purpose: an item that isn't settled in the room is still being handled.
+const DECISION = { decided: 'Decided', guess: 'Decided on your read', pilot: 'Decided · smaller start', agreed: 'Agreed · numbers to follow', parked: 'Needs a follow-up', next: 'Back next week', dropped: 'Set aside for now', busy: 'Kept on the list' };
 const STATUS = { open: 'Open', waiting: 'Waiting', working: 'In progress', fixed: 'Resolved', worse: 'Worse' };
 const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' });
 // Around the conference table: the central team where the walk-in showed them, the managers in
@@ -24,7 +25,7 @@ const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' 
 const SEATS = { controller: [86, 42, 'down'], opsdir: [100, 42, 'down'], trainer: [114, 42, 'down'], hr: [100, 70, 'up'], analyst: [114, 70, 'up'], marketing: [128, 70, 'up'] };
 const OPEN = [[128, 42, 'down'], [86, 70, 'up'], [72, 47, 'right'], [72, 58, 'right']];
 
-export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onBook }) {
+export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onMeeting }) {
   const w = () => game.world;
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const btn = (label, onclick, cls = 'cb') => h('button', { class: cls, type: 'button', onclick }, label);
@@ -276,7 +277,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk y' }, 'On your own', h('b', {}, Y.minutes + ' min')), yBar),
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk w' }, 'Prepared with Wake', h('b', {}, K.minutes + ' min')), kBar),
           h('div', { class: 'rs-tlrow' }, h('span'), axis),
-          h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided on your word'), h('span', { class: 'agreed' }, h('i'), 'Agreed, numbers to follow'), h('span', { class: 'parked' }, h('i'), 'Parked for follow-ups'), h('span', { class: 'dropped' }, h('i'), 'Dropped or not a priority'))),
+          h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided, details to firm up'), h('span', { class: 'parked' }, h('i'), 'Needs a follow-up'), h('span', { class: 'dropped' }, h('i'), 'Set aside for now'))),
         h('section', { class: 'rs-card' }, h('table', { class: 'rs-duel' },
           h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'))),
           h('tbody', {},
@@ -502,7 +503,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           seen && meant ? h('div', { class: 'mo2-grid' }, seen, h('div', { class: 'mo2-arrow' }, '→'), meant) : h('div', { class: 'mo2-card meant' }, h('h3', {}, m.title), m.lines.map((l) => h('p', {}, l)))),
         h('p', { class: 'fs2-closer' }, R.closer),
         lives(),
-        nextStep(),
+        ...[meetingAsk(), nextStep()].filter(Boolean),
         h('div', { class: 'fs2-actions' }, view, actions, status),
         h('div', { class: 'fs2-end' }, btn('Play again', onRestart, 'cb ghost'), h('a', { class: 'cl-link', href: 'https://wakepe.com', target: '_blank', rel: 'noopener' }, 'wakepe.com')));
       rest.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
@@ -525,7 +526,23 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           tile('people', 'Across the whole team', 'Managers see their own numbers and what to do about them. Leadership sees the whole picture.')));
     }
 
-    // The report by email. (A Book a call link can come back here when there is one.)
+    // The last question: do they already have a meeting with the Wake team? No opens the booking
+    // page in a new tab; Yes just says thanks. Either answer is saved to the run.
+    function meetingAsk() {
+      if (!onMeeting) return null;
+      const note = h('p', { class: 'fs2-nnote', 'aria-live': 'polite' });
+      const answer = (has) => {
+        yes.disabled = no.disabled = true; (has ? yes : no).classList.add('on');
+        onMeeting(has);
+        note.textContent = has ? 'Great. See you there.' : 'The booking page is open in a new tab. Pick any time that works.';
+      };
+      const yes = btn('Yes, I do', () => answer(true), 'cb ghost'), no = btn('No, not yet', () => answer(false), 'cb wake');
+      return h('section', { class: 'rs-card fs2-next fs2-ask' },
+        h('div', {}, h('h2', {}, 'Do you already have a meeting scheduled with us?'), h('p', { class: 'rs-sub' }, 'If not, pick a time and we\'ll walk you through Wake on your own numbers.')),
+        h('div', { class: 'fs2-nact' }, h('div', { class: 'fs2-yn' }, no, yes), note));
+    }
+
+    // The report by email, when we don't already have their email from the sign-up.
     function nextStep() {
       if (!onEmail) return null;
       const note = h('p', { class: 'fs2-nnote', 'aria-live': 'polite' });

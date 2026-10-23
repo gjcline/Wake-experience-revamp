@@ -426,6 +426,7 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 .fs2-form { display: flex; gap: 8px; }
 .wx .cl-screen .fs2-in { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); font: 400 14px/1.2 'Inter', system-ui, sans-serif; color: var(--ink); background: #fff; }
 .fs2-nnote { font-size: 13px; color: var(--w-ink); min-height: 1em; }
+.fs2-yn { display: flex; gap: 8px; } .fs2-yn .cb { flex: 1; } .fs2-yn .cb:disabled:not(.on) { opacity: .45; }
 @media (max-width: 720px) { .fs2-next { grid-template-columns: 1fr; } .fs2-nact { min-width: 0; } }
 .wt-hl { background: #FEF3C7; font-weight: 600; }
 .cl-screen .dt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
@@ -540,3 +541,11 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 .lv-i { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: rgba(34,211,238,.14); }
 .lv-i .gl { width: 17px; height: 17px; display: inline-grid; color: #67E8F9; }
 .lv-i .gl svg { width: 100%; height: 100%; }
+
+/* the first meeting is a good meeting with loose ends, not a failure: green for decided, yellow for
+   anything still open, soft grey for set aside; never red */
+.mt-stamp.s-guess, .mt-stamp.s-pilot { border-color: #34A853; background: #E6F4EA; } .mt-stamp.s-guess b, .mt-stamp.s-pilot b { color: #137333; }
+.mt-stamp.s-agreed, .mt-stamp.s-parked, .mt-stamp.s-next, .mt-stamp.s-busy { border-color: #F9AB00; background: #FEF7E0; } .mt-stamp.s-agreed b, .mt-stamp.s-parked b, .mt-stamp.s-next b, .mt-stamp.s-busy b { color: #B06000; }
+.mt-stamp.s-dropped { border-color: #BDC1C6; background: #F1F3F4; } .mt-stamp.s-dropped b { color: #5F6368; }
+.seg.guess, .seg.pilot { background: #4ADE80; } .seg.agreed, .seg.parked, .seg.next, .seg.busy { background: #F59E0B; } .seg.dropped { background: #CBD5E1; color: #475569; }
+.rs-legend .guess i { background: #4ADE80; } .rs-legend .parked i { background: #F59E0B; } .rs-legend .dropped i { background: #CBD5E1; }

@@ -1,5 +1,5 @@
 // THE INTRO
-// The 30-second intro video (media/wake-intro.mp4, with a WebM copy for browsers without H.264),
+// The 15-second intro video (media/wake-intro.mp4, with a WebM copy for browsers without H.264),
 // played full screen after the Start screen and from "Watch the intro" on the title. Both start
 // from a click, so it plays with sound; if a browser still blocks sound it plays muted with a
 // Sound on button. Skip is always there, and if the video can't play the title follows.

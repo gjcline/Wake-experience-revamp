@@ -8,7 +8,7 @@ const out = await build({ entryPoints: ['src/ui/app.js'], bundle: true, format: 
 const js = out.outputFiles[0].text.replace(/<\/script/g, '<\\/script');
 const css = ['src/ui/styles.css', 'src/ui/round1.css', 'src/ui/round2.css', 'src/ui/os/os.css', 'src/ui/os/erp.css', 'src/ui/clean.css', 'src/ui/scenes.css'].map((f) => readFileSync(f, 'utf8')).join('\n');
 const fonts = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Press+Start+2P&display=swap">';
-const body = (host) => `<title>The Wake Experience</title>\n${fonts}\n<style>\n${css}</style>\n<div id="wx" class="wx cl-root"></div>\n<script>window.WAKE_HOST=${JSON.stringify(host)};window.WAKE_CONFIG=window.WAKE_CONFIG||${JSON.stringify({ logEndpoint: '', bookUrl: process.env.WAKE_BOOK_URL || '' })};</script>\n<script>\n${js}</script>\n`;
+const body = (host) => `<title>The Wake Experience</title>\n${fonts}\n<style>\n${css}</style>\n<div id="wx" class="wx cl-root"></div>\n<script>window.WAKE_HOST=${JSON.stringify(host)};window.WAKE_CONFIG=window.WAKE_CONFIG||${JSON.stringify({ logEndpoint: '', bookUrl: process.env.WAKE_BOOK_URL || 'https://cal.com/bliztic/wake' })};</script>\n<script>\n${js}</script>\n`;
 
 mkdirSync('dist', { recursive: true });
 rmSync('dist/art', { recursive: true, force: true });

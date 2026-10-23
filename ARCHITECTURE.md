@@ -9,9 +9,9 @@ and narrates the player through it with a live guide.
 Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
 anyone asks, and never waits for a prompt.
 
-0. A Start screen with the Wake logo; Start plays the 30-second intro video (intro.js, media/)
+0. A Start screen with the Wake logo; Start plays the 15-second intro video (intro.js, media/)
    full screen with sound, then the title. Skip is always there; the title has
-   "Watch the 30-second intro" to replay it.
+   "Watch the 15-second intro" to replay it.
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Then the pixel office: the car pulls up and you walk to your desk.
@@ -160,18 +160,21 @@ room. Every outcome, reaction and week line is predetermined content.
 Every visit is a run (src/ui/track.js). The page sends the run to `/api/track` at each step
 (home, select, ready, arrive, round1, round2, meeting, week, score), every 30 seconds while the
 player is active, and when the tab is hidden: business, role, company, furthest step,
-active seconds, finished, email (if given on the final score), Book a call clicked, UTM source,
+active seconds, finished, name / email / phone (asked for when they hit Play; remembered on that
+browser), whether they already have a meeting (the last question on the final score), whether
+they opened the booking page, UTM source,
 referrer, device and country, plus the headline result. Each run is one private JSON file in
 Vercel Blob (`runs/<id>.json`).
 
 - `api/track.js` stores a run. `api/runs.js` returns all runs and bookings for the dashboard.
-- `api/cal.js` is the Cal.com webhook: Book a call opens `WAKE_BOOK_URL` with
-  `metadata[runId]=<run id>` (and the email if given), so each booking lands next to its run.
+- `api/cal.js` is the Cal.com webhook. Answering "No" to "Do you already have a meeting
+  scheduled?" opens `WAKE_BOOK_URL` (https://cal.com/bliztic/wake by default) in a new tab with
+  `metadata[runId]=<run id>`, name and email filled in, so each booking lands next to its run.
 - `/dashboard` (src/dashboard.html) is the team's view: visits, played, finished, median time,
-  emails, bookings, how far people get, quick vs full, every run, CSV export.
+  sign-ups (name, email, phone), meeting answers, bookings, how far people get, quick vs full, every run, CSV export.
 
 Vercel environment variables: `BLOB_READ_WRITE_TOKEN` (the store), `DASHBOARD_KEY` (opens the
-dashboard), `WAKE_BOOK_URL` (the booking page; the button is hidden until it is set),
+dashboard), `WAKE_BOOK_URL` (the booking page; defaults to https://cal.com/bliztic/wake),
 `CAL_WEBHOOK_SECRET` (optional, checks the Cal.com signature). Tracking is off when opened
 from a file or as an artifact, or when `WAKE_CONFIG.track` is false.
 

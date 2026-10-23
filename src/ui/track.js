@@ -1,6 +1,7 @@
 // TRACKING
 // One record per run: how far the player got, how long they were actively on it, whether they
-// finished, their email if they gave it, and whether they clicked Book a call. It goes to
+// finished, who they are (name, email, phone from the sign-up at Play), whether they already had
+// a meeting with Wake, and whether they opened the booking page. It goes to
 // /api/track at every step, every 30 seconds while they are active, and when the page is hidden.
 // Off inside preview hosts, when opened from a file, and when WAKE_CONFIG.track is false.
 
@@ -47,7 +48,7 @@ export function createTracker({ host }) {
     begin() {
       if (run) send(true);
       activeMs = 0; lastInput = Date.now();
-      run = { id: uid(), visitor, startedAt: new Date().toISOString(), step: 0, stepName: 'home', steps: [{ name: 'home', at: 0 }], mode: null, shell: null, role: null, company: null, finished: false, email: null, bookClicked: false, utm, referrer, device, result: null };
+      run = { id: uid(), visitor, startedAt: new Date().toISOString(), step: 0, stepName: 'home', steps: [{ name: 'home', at: 0 }], mode: null, shell: null, role: null, company: null, finished: false, name: null, email: null, phone: null, hasMeeting: null, bookClicked: false, utm, referrer, device, result: null };
       send();
     },
     step(name, extra) {

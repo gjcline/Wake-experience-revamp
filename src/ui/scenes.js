@@ -19,7 +19,7 @@ export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The 
 const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
-export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
+export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSignup = null }) {
   let teardown = [];
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const clear = () => { teardown.forEach((f) => f()); teardown = []; };
@@ -61,7 +61,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
   const EXTRAS = [['#2A1C14', '#E0B08A', '#4F81BD'], ['#111', '#8D5A3B', '#9BBB59'], ['#C9A46A', '#F0C7A0', '#C0504D'], ['#5A3A28', '#C68A64', '#8064A2'], ['#222', '#F0C7A0', '#F2C14E']]
     .map(([hair, skin, shirt]) => ({ hair, skin, shirt }));
   function home() {
-    const start = () => { if (gone) return; gone = true; sfx.unlock(); sfx.start(); setup(); };
+    const start = () => { if (gone) return; gone = true; sfx.unlock(); sfx.start(); signup(); };
     let gone = false;
     const holder = h('div', { class: 'px-map' });
     const el = screen('ti', holder,
@@ -70,7 +70,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
         h('h1', {}, 'Run a company for one Monday morning.'),
         h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
         h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
-        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 30-second intro')));
+        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 15-second intro')));
     const npcs = [[80, 141, true, 'down'], [168, 146, true, 'up'], [254, 146, true, 'up'], [226, 170, true, 'up'], [200, 76, false, 'up']]
       .map(([x, y, seated, facing], i) => ({ av: EXTRAS[i], x, y, seated, facing }));
     const map = createOffice(holder, { company: 'Your company', playerShirt: ROLE_COLOR.gm, npcs, reduced });
@@ -109,6 +109,38 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {} }) {
       h('button', { class: 'st-go', type: 'button', onclick: go }, 'Start')));
     setTimeout(() => { const b = document.querySelector('.st-go'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  }
+
+  // ------------------------------------------------------------ 1b. who's playing
+  // Play asks for a name, an email and (optionally) a phone number before the game starts, so the
+  // Wake team knows who played. Remembered on this browser, so Play again goes straight through.
+  // Not asked in the single-file artifact build, which has no tracking.
+  const KNOWN = 'wx-contact';
+  const known = () => { try { return JSON.parse(localStorage.getItem(KNOWN) || 'null'); } catch (e) { return null; } };
+  function signup() {
+    if (!onSignup || window.WAKE_HOST === 'artifact') return setup();
+    const me = known();
+    if (me && me.name && me.email) { onSignup(me); return setup(); }
+    const field = (label, attrs, hint) => { const input = h('input', { class: 'sg-in', ...attrs }); return [h('label', { class: 'sg-f' }, h('span', {}, label, hint ? h('em', {}, hint) : null), input), input]; };
+    const [fName, name] = field('Your name', { type: 'text', autocomplete: 'name', required: true, maxlength: 80 });
+    const [fEmail, email] = field('Work email', { type: 'email', autocomplete: 'email', required: true, maxlength: 120 });
+    const [fPhone, phone] = field('Phone', { type: 'tel', autocomplete: 'tel', maxlength: 40 }, 'optional');
+    const note = h('p', { class: 'sg-note', 'aria-live': 'polite' });
+    const submit = (e) => {
+      e.preventDefault();
+      const c = { name: name.value.trim(), email: email.value.trim(), phone: phone.value.trim() || null };
+      if (!c.name) { note.textContent = 'Please add your name.'; name.focus(); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) { note.textContent = 'That email doesn\'t look right.'; email.focus(); return; }
+      try { localStorage.setItem(KNOWN, JSON.stringify(c)); } catch (err) { /* fine */ }
+      sfx.select(); onSignup(c); setup();
+    };
+    screen('su sg', h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'), h('span'), h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); home(); } }, '\u2190 Back')),
+      h('div', { class: 'su-body' },
+        h('h1', {}, 'Before you start'),
+        h('p', { class: 'su-sub' }, 'Tell us who\'s playing, and we\'ll send you your report at the end.'),
+        h('form', { class: 'sg-form', onsubmit: submit, novalidate: true }, fName, fEmail, fPhone, note,
+          h('div', { class: 'su-go' }, h('button', { class: 'ab primary big', type: 'submit' }, 'Start the game'), h('span', { class: 'mc-key' }, 'Enter')))));
+    setTimeout(() => name.focus({ preventScroll: true }), 60);
   }
 
   // ------------------------------------------------------------ 2. setup: three short questions

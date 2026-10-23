@@ -1,5 +1,5 @@
 // POST /api/track: the experience reports a run's progress (where they got to, time spent,
-// mode, email if given). Each report overwrites that run's record.
+// mode, and who they are: name, email, phone, whether they already have a meeting). Each report overwrites that run's record.
 import { save, json, ID } from './_store.js';
 
 const STR = (v, n = 200) => (typeof v === 'string' ? v.slice(0, n) : null);
@@ -16,7 +16,8 @@ export async function POST(request) {
     startedAt: STR(b.startedAt, 40), lastAt: new Date().toISOString(),
     activeSeconds: NUM(b.activeSeconds), step: NUM(b.step), stepName: STR(b.stepName, 40), steps: Array.isArray(b.steps) ? b.steps.slice(0, 40).map((s) => ({ name: STR(s.name, 40), at: NUM(s.at) })) : [],
     mode: STR(b.mode, 10), shell: STR(b.shell, 20), role: STR(b.role, 20), company: STR(b.company, 80),
-    finished: !!b.finished, email: STR(b.email, 120), bookClicked: !!b.bookClicked,
+    finished: !!b.finished, name: STR(b.name, 80), email: STR(b.email, 120), phone: STR(b.phone, 40),
+    hasMeeting: typeof b.hasMeeting === 'boolean' ? b.hasMeeting : null, bookClicked: !!b.bookClicked,
     utm: b.utm && typeof b.utm === 'object' ? Object.fromEntries(Object.entries(b.utm).slice(0, 6).map(([k, v]) => [STR(k, 20), STR(v, 100)])) : null,
     referrer: STR(b.referrer, 120), device: STR(b.device, 10), country: request.headers.get('x-vercel-ip-country') || null,
     result: b.result && typeof b.result === 'object' && JSON.stringify(b.result).length < 4000 ? b.result : null,

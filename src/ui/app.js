@@ -163,9 +163,11 @@ const coach = createCoach();
 // one record per run, for the team's dashboard (see track.js and api/)
 const track = createTracker({ host: HOST });
 const CFG = window.WAKE_CONFIG || {};
+let contact = null;   // name, email, phone from the sign-up at Play
 
 const world = createScenes({
   root, reduced, onStep: (name) => track.step(name),
+  onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone || null }); },
   onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
@@ -265,8 +267,8 @@ function friday(then) {
 function finale() {
   return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
     onFinished: (result) => track.step('score', { finished: true, result }),
-    onEmail: (email) => track.set({ email }),
-    onBook: CFG.bookUrl ? book : null });
+    onEmail: contact ? null : (email) => track.set({ email }),
+    onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); } });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.
@@ -276,11 +278,13 @@ function post() {
   try { navigator.sendBeacon(cfg.logEndpoint, new Blob([JSON.stringify(game.session())], { type: 'application/json' })); } catch (e) { /* never block the experience */ }
 }
 
-// Book a call: the booking page gets the run id (and email, if given) so the booking matches the run.
+// The booking page (Cal.com) gets the run id, name and email, so the booking matches the run and
+// the form is already filled in.
 function book(email) {
   track.set({ bookClicked: true, ...(email && /@/.test(email) ? { email } : {}) });
   const u = new URL(CFG.bookUrl, window.location.href);
   if (track.id) u.searchParams.set('metadata[runId]', track.id);
+  if (contact && contact.name) u.searchParams.set('name', contact.name);
   if (email && /@/.test(email)) u.searchParams.set('email', email);
   window.open(u.toString(), '_blank', 'noopener');
 }

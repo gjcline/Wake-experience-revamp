@@ -103,8 +103,8 @@ function render() {
     <td>${esc(LABEL[r.stepName] || r.stepName || '')}</td>
     <td>${mins(r.activeSeconds)}</td>
     <td>${r.finished ? '<span class="yes">Yes</span>' : '<span class="no">No</span>'}</td>
-    <td>${esc(r.email || '')}</td>
-    <td>${r.booking ? `<span class="yes">Booked</span><div class="sub">${r.booking.startTime ? new Date(r.booking.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</div>` : r.bookClicked ? '<span class="clicked">Clicked</span>' : '<span class="no">–</span>'}</td>
+    <td>${esc(r.name || '')}<div class="sub">${esc([r.email, r.phone].filter(Boolean).join(' · '))}</div></td>
+    <td>${r.booking ? `<span class="yes">Booked</span><div class="sub">${r.booking.startTime ? new Date(r.booking.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}</div>` : r.bookClicked ? '<span class="clicked">Clicked</span>' : r.hasMeeting ? '<span class="yes">Has one</span>' : '<span class="no">–</span>'}</td>
     <td>${esc((r.utm && (r.utm.source || r.utm.ref)) || r.referrer || 'direct')}<div class="sub">${esc([r.device, r.country].filter(Boolean).join(' · '))}</div></td>
   </tr>`).join('');
   const unmatched = (data.bookings || []).filter((b) => !(b.event && /CANCEL/i.test(b.event)) && !runs.some((r) => r.booking === b)).length;
@@ -116,7 +116,7 @@ function render() {
     <section class="kpis">
       ${kpi(runs.length, 'visits')}${kpi(played.length, 'played (' + pct(played.length, runs.length) + ' of visits)')}
       ${kpi(done.length, 'finished (' + pct(done.length, played.length) + ' of played)')}${kpi(mins(median(played.map((r) => r.activeSeconds || 0))) || '–', 'median time, played')}
-      ${kpi(played.filter((r) => r.email).length, 'left an email')}${kpi(booked.length, 'booked a call (' + pct(booked.length, played.length) + ')')}
+      ${kpi(runs.filter((r) => r.email).length, 'signed up')}${kpi(booked.length, 'booked a call (' + pct(booked.length, played.length) + ')')}
     </section>
     <div class="grid2">
       <section class="card"><h2>How far people get</h2><div class="funnel">${funnel}</div>
@@ -125,14 +125,14 @@ function render() {
         <tbody>${Object.keys(ROLE).map(roleRow).join('')}</tbody></table></div>
         <p class="sub" style="margin-top:12px">Bookings match a run by the run ID in the booking link, or by email.${unmatched ? ' ' + unmatched + ' booking(s) in this period didn\'t match a run.' : ''}</p></section>
     </div>
-    <section class="card"><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Started</th><th>Company</th><th>Got to</th><th>Time</th><th>Finished</th><th>Email</th><th>Call</th><th>Source</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="muted">No runs in this period yet.</td></tr>'}</tbody></table></div></section>`;
+    <section class="card"><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Started</th><th>Company</th><th>Got to</th><th>Time</th><th>Finished</th><th>Who</th><th>Meeting</th><th>Source</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="muted">No runs in this period yet.</td></tr>'}</tbody></table></div></section>`;
   const R = document.getElementById('range');
   R.value = range;
   R.onchange = () => { range = R.value; render(); };
   document.getElementById('refresh').onclick = load;
   document.getElementById('csv').onclick = () => {
-    const cols = ['startedAt', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'email', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
-    const line = (r) => [r.startedAt, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.email, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
+    const cols = ['startedAt', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'name', 'email', 'phone', 'hasMeeting', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
+    const line = (r) => [r.startedAt, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.name, r.email, r.phone, r.hasMeeting, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([cols.join(',') + '\n' + runs.map(line).join('\n')], { type: 'text/csv' }));
     a.download = 'wake-experience-runs.csv'; a.click();
