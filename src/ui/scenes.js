@@ -138,7 +138,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     screen('su sg', h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'), h('span'), h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); home(); } }, '\u2190 Back')),
       h('div', { class: 'su-body' },
         h('h1', {}, 'Before you start'),
-        h('p', { class: 'su-sub' }, 'Tell us who\'s playing, and we\'ll send you your report at the end.'),
+        h('p', { class: 'su-sub' }, 'Tell us who\'s playing. We\'ll follow up after you play.'),
         h('form', { class: 'sg-form', onsubmit: submit, novalidate: true }, fName, fEmail, fPhone, note,
           h('div', { class: 'su-go' }, h('button', { class: 'ab primary big', type: 'submit' }, 'Start the game'), h('span', { class: 'mc-key' }, 'Enter')))));
     setTimeout(() => name.focus({ preventScroll: true }), 60);
