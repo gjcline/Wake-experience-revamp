@@ -167,7 +167,7 @@ let contact = null;   // name, email, phone from the sign-up at Play
 
 const world = createScenes({
   root, reduced, onStep: (name) => track.step(name),
-  onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone || null }); },
+  onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone }); },
   onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };

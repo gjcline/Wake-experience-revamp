@@ -112,7 +112,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   }
 
   // ------------------------------------------------------------ 1b. who's playing
-  // Play asks for a name, an email and (optionally) a phone number before the game starts, so the
+  // Play asks for a name, an email and a phone number before the game starts, so the
   // Wake team knows who played. Remembered on this browser, so Play again goes straight through.
   // Not asked in the single-file artifact build, which has no tracking.
   const KNOWN = 'wx-contact';
@@ -120,17 +120,18 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function signup() {
     if (!onSignup || window.WAKE_HOST === 'artifact') return setup();
     const me = known();
-    if (me && me.name && me.email) { onSignup(me); return setup(); }
+    if (me && me.name && me.email && me.phone) { onSignup(me); return setup(); }
     const field = (label, attrs, hint) => { const input = h('input', { class: 'sg-in', ...attrs }); return [h('label', { class: 'sg-f' }, h('span', {}, label, hint ? h('em', {}, hint) : null), input), input]; };
     const [fName, name] = field('Your name', { type: 'text', autocomplete: 'name', required: true, maxlength: 80 });
     const [fEmail, email] = field('Work email', { type: 'email', autocomplete: 'email', required: true, maxlength: 120 });
-    const [fPhone, phone] = field('Phone', { type: 'tel', autocomplete: 'tel', maxlength: 40 }, 'optional');
+    const [fPhone, phone] = field('Phone', { type: 'tel', autocomplete: 'tel', required: true, maxlength: 40 });
     const note = h('p', { class: 'sg-note', 'aria-live': 'polite' });
     const submit = (e) => {
       e.preventDefault();
-      const c = { name: name.value.trim(), email: email.value.trim(), phone: phone.value.trim() || null };
+      const c = { name: name.value.trim(), email: email.value.trim(), phone: phone.value.trim() };
       if (!c.name) { note.textContent = 'Please add your name.'; name.focus(); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) { note.textContent = 'That email doesn\'t look right.'; email.focus(); return; }
+      if (c.phone.replace(/\D/g, '').length < 7) { note.textContent = 'Please add a phone number we can reach you on.'; phone.focus(); return; }
       try { localStorage.setItem(KNOWN, JSON.stringify(c)); } catch (err) { /* fine */ }
       sfx.select(); onSignup(c); setup();
     };

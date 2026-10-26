@@ -160,7 +160,7 @@ room. Every outcome, reaction and week line is predetermined content.
 Every visit is a run (src/ui/track.js). The page sends the run to `/api/track` at each step
 (home, select, ready, arrive, round1, round2, meeting, week, score), every 30 seconds while the
 player is active, and when the tab is hidden: business, role, company, furthest step,
-active seconds, finished, name / email / phone (asked for when they hit Play; remembered on that
+active seconds, finished, name / email / phone (all required when they hit Play; remembered on that
 browser), whether they already have a meeting (the last question on the final score), whether
 they opened the booking page, UTM source,
 referrer, device and country, plus the headline result. Each run is one private JSON file in
