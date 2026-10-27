@@ -2737,15 +2737,19 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 /* ------------------------------------------------------------ the title screen */
 .ti { background: #0B0A14; opacity: 0; transition: opacity .6s ease; }
 .ti.in { opacity: 1; }
-.ti .px-map::after { background: linear-gradient(90deg, rgba(11,12,15,.97) 0%, rgba(11,12,15,.94) 34%, rgba(11,12,15,.55) 56%, rgba(11,12,15,.18) 100%); box-shadow: none; }
-.ti-body { position: absolute; left: 0; top: 0; bottom: 0; width: min(560px, 100%); padding: 0 56px; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+.ti .px-map::after { background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(11,12,15,.95) 0%, rgba(11,12,15,.88) 45%, rgba(11,12,15,.55) 100%); box-shadow: none; }
+/* the title sits centered over the office */
+.ti-body { position: absolute; inset: 0; padding: 0 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.ti-body h1 { max-width: 16ch; }
 .ti-brand { font: 700 18px/1 'Inter', sans-serif; letter-spacing: -.01em; color: #fff; margin-bottom: 8px; }
 .ti-body h1 { font: 650 44px/1.1 'Inter', sans-serif; letter-spacing: -.025em; color: #fff; }
 .ti-body p { font-size: 17px; line-height: 1.55; color: var(--dim); max-width: 40ch; }
+.ti-body .su-go { justify-content: center; }
+.ti-body .su-go .mc-key { display: none; }
 .ti-body .su-go { margin-top: 12px; }
 @media (max-width: 820px) {
-  .ti .px-map::after { background: linear-gradient(0deg, rgba(11,12,15,.98) 0%, rgba(11,12,15,.95) 48%, rgba(11,12,15,.35) 75%, rgba(11,12,15,.15) 100%); }
-  .ti-body { top: auto; padding: 0 20px 40px; justify-content: flex-end; }
+  .ti .px-map::after { background: rgba(11,12,15,.88); }
+  .ti-body { padding: 0 16px; }
   .ti-body h1 { font-size: 32px; }
 }
 
