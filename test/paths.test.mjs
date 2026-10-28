@@ -313,10 +313,11 @@ test('all shells, roles and sizes play through cleanly', () => {
 test('the call with your lender plays through, with its own script and clock', () => {
   let seed = 600;
   for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) {
-    const g = mk(seed++, shell, role, 'lender'); g.startRound1();
-    assert.equal(g.world.moment, 'lender');
-    assert.ok(/lender/.test(g.world.role.meetingName));
+    const g = mk(seed++, shell, role); g.startRound1();
+    assert.equal(g.world.moment, 'meeting');
     for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[2].id }); }
+    // picked after both rounds, where the meeting would start
+    assert.equal(g.setMoment('lender'), 'lender'); assert.ok(g.world.lender && g.world.lender.bank);
     const out = finish(g, { through: g.world.phone });
     invariants(g, out, 'lender ' + shell + '/' + role);
     const Y = out.d.yours, K = out.d.wake;

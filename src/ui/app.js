@@ -168,11 +168,11 @@ let contact = null;   // name, email, phone from the sign-up at Play
 const world = createScenes({
   root, reduced, onStep: (name) => track.step(name),
   onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone }); },
-  onPicked(shellId, roleId, seed, moment) {
-    game = createGame({ shellId, roleId, seed, moment });
-    world.setMoment(game.world.moment);
+  onPicked(shellId, roleId, seed) {
+    game = createGame({ shellId, roleId, seed });
+    world.setMoment('meeting');
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
-    track.step('arrive', { mode: 'full', shell: shellId, role: roleId, moment: game.world.moment, company: game.world.shell.company });
+    track.step('arrive', { mode: 'full', shell: shellId, role: roleId, company: game.world.shell.company });
     world.arrival(game, () => round1());
   },
 });
@@ -224,7 +224,15 @@ async function resetDay() {
 
 function round2() {
   track.step('round2');
-  runRound2({ game, show, coach, reduced, onLock: () => walkToMeeting(), setCleanup: (fn) => { cleanup = fn; } });
+  runRound2({ game, show, coach, reduced, onLock: () => pickMoment(), setCleanup: (fn) => { cleanup = fn; } });
+}
+
+// ------------------------------------------------------------------ your 10:00 AM
+// Both briefings are locked. Now the player picks where to see the difference: the meeting, or
+// the call with the lender (more moments are listed as coming).
+function pickMoment() {
+  leave();
+  world.moment(game, (m) => { game.setMoment(m); world.setMoment(game.world.moment); track.set({ moment: game.world.moment }); walkToMeeting(); });
 }
 
 // ------------------------------------------------------------------ the meeting

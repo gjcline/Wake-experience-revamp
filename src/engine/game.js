@@ -8,6 +8,7 @@
 // No business logic lives in the interface. Everything here is deterministic for a seed.
 
 import { buildWorld, fmtClock } from './config.js';
+import { lenderFor } from './lender.js';
 import { createSignalEngine } from './signals.js';
 import { createEventEngine } from './events.js';
 import { createTracker } from './behavior.js';
@@ -338,6 +339,13 @@ export function createGame({ shellId, roleId, seed = 1, moment = 'meeting', now 
     const also = s.also ? { finding: s.also.finding, rank: state.insightOrder.indexOf(s.also.finding) + 1, line: s.also.line } : null;
     return { finding: s.finding, rank, line: s.line, also, briefing: briefing() };
   }
+  // the 10:00 AM the player picks after both rounds: the meeting, or the call with the lender
+  function setMoment(m) {
+    world.moment = m === 'lender' ? 'lender' : 'meeting';
+    world.lender = world.moment === 'lender' ? lenderFor(seed) : undefined;
+    state.moment = world.moment; rec('moment_selected', { moment: world.moment });
+    return world.moment;
+  }
   function lockRound2() {
     if (!r2Ready()) return false;
     state.wakeOrder = state.insightOrder.filter((id) => state.picked.includes(id));
@@ -398,7 +406,7 @@ export function createGame({ shellId, roleId, seed = 1, moment = 'meeting', now 
   return {
     world, state, tracker, signals, fmtClock, MIN_FLAGS, MAX_FLAGS,
     startRound1, tickClock, listSources, unread, open, view, dwell, answers, flag, editFlag, removeFlag, moveFlag, attach, detach, attachedTo, flags, owners, submitRound1,
-    startRound2, briefing, assign, moveWake, putThrough, lockRound2,
+    startRound2, briefing, assign, moveWake, putThrough, lockRound2, setMoment,
     tickWake, listR2, unreadR2, openR2, insights, insight, trace, pick, assignments, r2Ready, MIN_PICKS, MAX_PICKS,
     traced: (id) => rec('trace_opened', { signal: id }),
     meetingStep, answerQ, meetingPrep, meetingAgenda, meetingYours, meetingWake, afterMeeting, presented, week, finale, recap, complete, exported, session, person,

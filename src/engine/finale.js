@@ -51,13 +51,15 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   const answer = (id, optId) => { const r = M.answer(id, optId); if (r) rec('meeting_answer', { q: id, effect: r.effect }); else rec('meeting_answer', { q: id }); return r; };
   // the call with your lender (world.moment 'lender') is the same outcomes on a call: its own
   // script, its own clock, three people on the line instead of a room
-  const LC = world.moment === 'lender' ? createLenderCall({ world, who }) : null;
+  // the moment is picked after both rounds, so the call is set up when it's first needed
+  let callEngine = null;
+  const lcOf = () => (world.moment === 'lender' ? (callEngine = callEngine || createLenderCall({ world, who })) : null);
   const onCall = (r, c) => {
     r.call = c; r.minutes = c.minutes; r.attendees = c.attendees; r.hours = c.hours;
     for (const it of r.items) { const x = c.items.find((y) => y.n === it.n); if (x) it.minutes = x.minutes; }
     return r;
   };
-  const yours = () => { const r = M.result(); return LC ? onCall(r, LC.yours(r, M.agenda())) : r; };
+  const yours = () => { const r = M.result(), LC = lcOf(); return LC ? onCall(r, LC.yours(r, M.agenda())) : r; };
   // the prep each meeting needed: from 7:48 AM to the moment the briefing was locked in
   const prep = () => ({ you: Math.max(0, (state.submittedAt || 600) - 468), wake: Math.max(0, (state.wakeDoneAt || 468) - 468) });
 
@@ -82,12 +84,13 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const people = new Set(items.flatMap((x) => x.owners.map((o) => o.key))).size;
     const minutes = OPENING + items.length * WAKE_ITEM + 1, attendees = world.central.length + world.locations.length + 1;
     const res = { items, wrap, minutes, attendees, hours: Math.round(minutes * attendees / 6) / 10, asked, answered: asked, decided: items.length, ownerDate: items.length, real: items.length, deferred: 0, ious: 0, people };
+    const LC = lcOf();
     return LC ? onCall(res, LC.wake(res)) : res;
   }
 
   // ============================================================ AFTER THE MEETING
   function after() {
-    const Y = yours(), Wk = wake(), boss = world.boss || 'your boss';
+    const Y = yours(), Wk = wake(), boss = world.boss || 'your boss', LC = lcOf();
     const mine = LC
       ? Y.call.lines.filter((l) => l.owe).map((l) => ({ who: who('me'), what: l.owe, hrs: 0.5, day: 0 })).concat([{ who: who('me'), what: 'Write up the call and brief the team on what you told the bank', hrs: 0.5, day: 0 }])
       : [{ who: who('me'), what: 'Write up the meeting notes and send them round', hrs: 0.5, day: 0 }];
@@ -293,7 +296,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
 
   // ============================================================ THE FINAL SCORE
   function score() {
-    const W = week(), Y = W.meeting.you, Wk = W.meeting.wake, n = W.n;
+    const W = week(), Y = W.meeting.you, Wk = W.meeting.wake, n = W.n, LC = lcOf();
     const fy = W.board.you[4], fw = W.board.wake[4];
     const found = new Set(Y.items.filter((x) => x.kind === 'finding').map((x) => x.fid)).size;
     const fmtT = (x) => (x === null ? 'None this week' : x === 0 ? 'Same day' : x + (x === 1 ? ' day' : ' days'));

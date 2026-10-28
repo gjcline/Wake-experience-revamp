@@ -1,5 +1,6 @@
 // THE WORLD
-// The title screen, four setup questions (business, role, which 10:00 AM, your company), and the pixel office
+// The title screen, three setup questions (business, role, your company), the pick of the 10:00 AM
+// after both rounds, and the pixel office
 // the morning happens in: the street, the lobby, the walk to your desk, the meeting room, Friday
 // evening. Every step of the experience opens with one card that says what you're doing and why
 // it matters. Everything shown about a business or role is read from configuration.
@@ -150,24 +151,24 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     setTimeout(() => name.focus({ preventScroll: true }), 60);
   }
 
-  // ------------------------------------------------------------ 2. setup: four short questions
+  // ------------------------------------------------------------ 2. setup: three short questions
   // One question per screen, a plain list of answers, one click to move on.
-  const pick = { shell: null, role: null, seed: 0, moment: 'meeting' };
+  const pick = { shell: null, role: null, seed: 0 };
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
-  const TOTAL = 4;
+  const TOTAL = 3;
   const head = (n, onBack) => h('header', { class: 'su-top' },
     h('b', { class: 'su-brand' }, 'Wake'),
     h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
     onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '← Back') : h('span'));
 
   // `soon` items are shown but can't be picked yet: they say what else Wake does
-  function select({ n, title, sub, items, onPick, onBack, note }) {
+  function select({ n, title, sub, items, onPick, onBack, note, top }) {
     const all = items.map((it) => it.soon
       ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
       : h('button', { class: 'su-row', type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
         it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
     const rows = all.filter((r) => r.tagName === 'BUTTON');
-    screen('su', head(n, onBack),
+    screen('su', top || head(n, onBack),
       h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null));
     rows[0].focus({ preventScroll: true });
     keys((e) => {
@@ -187,13 +188,16 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function setupRole() {
     select({ n: 2, title: 'Who do you want to play?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
       items: ROLE_ORDER.map((id) => ({ id, name: ROLES[id].label, line: ROLES[id].blurb })),
-      onPick: (id) => { pick.role = id; setupMoment(); }, onBack: setup });
+      onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
-  // The 10:00 AM you play: the role's own meeting, or a call with the bank about your covenants.
-  // The morning is the same either way; what changes is who asks the questions.
-  function setupMoment() {
-    const r = ROLES[pick.role], G = (k) => GLYPH[k] || '';
-    select({ n: 3, title: 'Where do you want to see Wake work?', sub: 'Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick one moment to play: same company, same morning, same data.',
+  // ------------------------------------------------------------ the 10:00 AM: where to see Wake work
+  // After both rounds, where the meeting would start. The briefing is ready two ways; the player
+  // picks the moment to see the difference in. More moments are listed as coming, to show range.
+  function moment(game, onPick) {
+    const r = game.world.role, G = (k) => GLYPH[k] || '';
+    const top = h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'),
+      h('div', { class: 'su-prog' }, h('span', {}, 'Step 4 of 6 · Your 10:00 AM')), h('span'));
+    select({ top, title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
       items: [
         { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
         { id: 'lender', icon: G('call'), name: 'A call with your lender', line: 'Your relationship manager at the bank calls ahead of the covenant check. Every answer you don\'t have goes in the bank\'s file.', meta: 'Phone call' },
@@ -201,17 +205,18 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
         { soon: true, icon: G('receipt'), name: 'A dispute call with a vendor', line: 'Recover what they overbilled, with every invoice in hand.' },
         { soon: true, icon: G('file'), name: 'A due diligence call with a buyer', line: 'Someone wants to invest. They ask for the story behind every number.' },
       ],
-      note: 'Every moment uses the same morning and the same Wake. Only the people asking the questions change.',
-      onPick: (id) => { pick.moment = id; ready(); }, onBack: setupRole });
+      note: 'Every moment uses the same morning and the same two briefings. Only the people asking the questions change.',
+      onPick });
   }
+
   function ready() {
     onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
-    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, pick.moment); };
-    const tenAm = pick.moment === 'lender' ? 'call with your lender' : r.meetingName;
+    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed); };
+    const tenAm = r.meetingName;
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
-    screen('su', head(4, setupMoment),
+    screen('su', head(3, setupRole),
       h('div', { class: 'su-body' },
         h('h1', {}, 'Your company for this game'),
         h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + tenAm + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
@@ -221,7 +226,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
         h('p', { class: 'su-q' }, 'How it works'),
         h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with your ERP, inbox and texts.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
         h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
-    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupMoment(); });
+    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
 
   // ------------------------------------------------------------ 3. the pixel office
@@ -294,5 +299,5 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
       done });
   }
 
-  return { start: first, arrival, office, card, clear, wait, setMoment };
+  return { start: first, arrival, office, card, clear, wait, setMoment, moment };
 }

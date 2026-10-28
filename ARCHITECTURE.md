@@ -61,7 +61,7 @@ anyone asks, and never waits for a prompt.
    history, the data, "what are we doing?"): topics rotate through the meeting, every option set
    rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
-4b. Or the call with your lender. In setup the player picks which 10:00 AM to play: the role's
+4b. Or the call with your lender. After both rounds are locked, the player picks where to see Wake work: the role's
    own meeting, or a call from the company's relationship manager at the bank ahead of the
    covenant check (world.moment 'lender'; the bank and banker come from the seed). The morning
    and both rounds are the same. What each item comes to is decided exactly as in the meeting
