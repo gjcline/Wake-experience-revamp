@@ -12,7 +12,7 @@
 // impact, run-rate added, problems resolved, time to action, team hours and open follow-ups.
 
 import { createMeeting, MOVED } from './meeting.js';
-import { createLenderCall } from './lender.js';
+import { createCall } from './moments.js';
 
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
@@ -51,9 +51,10 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   const answer = (id, optId) => { const r = M.answer(id, optId); if (r) rec('meeting_answer', { q: id, effect: r.effect }); else rec('meeting_answer', { q: id }); return r; };
   // the call with your lender (world.moment 'lender') is the same outcomes on a call: its own
   // script, its own clock, three people on the line instead of a room
-  // the moment is picked after both rounds, so the call is set up when it's first needed
+  // the call moments (moments.js) are the same outcomes on a call: their own script, their own
+  // clock, three people on the line instead of a room. Picked after both rounds, so set up on demand.
   let callEngine = null;
-  const lcOf = () => (world.moment === 'lender' ? (callEngine = callEngine || createLenderCall({ world, who })) : null);
+  const lcOf = () => (world.moment === 'meeting' ? null : (callEngine && callEngine.moment === world.moment ? callEngine : (callEngine = { moment: world.moment, ...createCall({ world, who }) })));
   const onCall = (r, c) => {
     r.call = c; r.minutes = c.minutes; r.attendees = c.attendees; r.hours = c.hours;
     for (const it of r.items) { const x = c.items.find((y) => y.n === it.n); if (x) it.minutes = x.minutes; }
@@ -92,10 +93,10 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   function after() {
     const Y = yours(), Wk = wake(), boss = world.boss || 'your boss', LC = lcOf();
     const mine = LC
-      ? Y.call.lines.filter((l) => l.owe).map((l) => ({ who: who('me'), what: l.owe, hrs: 0.5, day: 0 })).concat([{ who: who('me'), what: 'Write up the call and brief the team on what you told the bank', hrs: 0.5, day: 0 }])
+      ? Y.call.lines.filter((l) => l.owe).map((l) => ({ who: who('me'), what: l.owe, hrs: 0.5, day: 0 })).concat([{ who: who('me'), what: LC.S.after.first, hrs: 0.5, day: 0 }])
       : [{ who: who('me'), what: 'Write up the meeting notes and send them round', hrs: 0.5, day: 0 }];
     Y.tasks.filter((x) => x.kind !== 'self').forEach((x) => mine.push({ who: who(x.who), what: x.what, hrs: x.hrs, day: x.day || 1, kind: x.kind }));
-    mine.push({ who: who('me'), what: 'Build ' + thu + ' brief for ' + (LC ? LC.L.first + ' at the bank' : boss), hrs: 2, day: 2 });
+    mine.push({ who: who('me'), what: LC ? LC.S.after.brief(thu, LC.P) : 'Build ' + thu + ' brief for ' + boss, hrs: 2, day: 2 });
     if (Y.wrap === 'manual') mine.push({ who: who('me'), what: 'Check in with each owner on Wednesday', hrs: Math.max(0.5, Math.round(0.25 * Y.items.filter((x) => x.kind === 'finding').length * 2) / 2), day: 2 });
     for (const x of Y.tasks) if (x.kind === 'self') mine.push({ who: who('me'), what: x.what, hrs: 3, day: 1 });
     if (Y.trackerHours) mine.push({ who: who('me'), what: 'Build the tracker and send it round', hrs: Y.trackerHours, day: 1 });
@@ -104,7 +105,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       { at: '10:15 AM', what: 'Decisions, owners and due dates sent to ' + Wk.people + (Wk.people === 1 ? ' person' : ' people') },
       { at: '10:15 AM', what: Wk.items.length + ' tasks in owners\' queues, each with its number to watch' },
       { at: '10:16 AM', what: Wk.items.length + ' measures on daily watch, with alerts to each owner' },
-      { at: '10:16 AM', what: thu.charAt(0).toUpperCase() + thu.slice(1) + ' brief for ' + (LC ? LC.L.first + ' at ' + LC.L.bank : boss) + (LC ? ' sent, with today\'s numbers' : ' updated with today\'s decisions') },
+      { at: '10:16 AM', what: LC ? LC.S.after.done(thu, LC.P) : thu.charAt(0).toUpperCase() + thu.slice(1) + ' brief for ' + boss + ' updated with today\'s decisions' },
     ].concat(holds.map((h) => { const hh = parseInt(h.start, 10); return { at: h.start + (hh >= 7 && hh < 12 ? ' AM' : ' PM'), what: t(h.title) + ', on the calendar' }; }));
     return { mine, done, hours: round1(mine.reduce((n, x) => n + x.hrs, 0)) };
   }
@@ -316,7 +317,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const rows = [
       row('ready', 'Briefing ready', fmt(state.submittedAt || 600), fmt(state.wakeDoneAt || 468), state.submittedAt, state.wakeDoneAt, true),
       row('found', 'Problems found', found + ' of ' + n, n + ' of ' + n, found, n),
-      LC ? row('call', 'Time on the call with the bank', Y.minutes + ' min', Wk.minutes + ' min', Y.minutes, Wk.minutes, true)
+      LC ? row('call', LC.S.result.scoreRow, Y.minutes + ' min', Wk.minutes + ' min', Y.minutes, Wk.minutes, true)
         : row('room', 'Leadership hours in the meeting', hrs(Y.hours), hrs(Wk.hours), Y.hours, Wk.hours, true),
       row('owned', 'Decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, Wk.ownerDate + ' of ' + Wk.items.length, Y.ownerDate / Math.max(1, Y.items.length), Wk.ownerDate / Math.max(1, Wk.items.length), false, Wk.ownerDate - Y.ownerDate),
       row('tta', 'Time to action', fmtT(W.tta.you), fmtT(W.tta.wake), W.tta.you === null ? 99 : W.tta.you, W.tta.wake === null ? 99 : W.tta.wake, true),

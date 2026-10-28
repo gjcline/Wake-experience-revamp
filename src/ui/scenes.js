@@ -14,6 +14,7 @@ import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { icon } from './os/shell.js';
 import { WAKE_MARK, GLYPH } from './os/icons.js';
+import { specOf, CALL_MOMENTS } from '../engine/moments.js';
 import { playIntro } from './intro.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
@@ -25,7 +26,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   let teardown = [];
   // the step names along the top of every card; step 4 is whichever 10:00 AM was picked
   let steps = STEPS.slice();
-  const setMoment = (m) => { steps = STEPS.slice(); if (m === 'lender') steps[3] = 'The call'; };
+  const setMoment = (m) => { steps = STEPS.slice(); const sp = specOf(m); if (sp) steps[3] = sp.step; };
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const clear = () => { teardown.forEach((f) => f()); teardown = []; };
   const keys = (fn) => { const k = (e) => fn(e); window.addEventListener('keydown', k); teardown.push(() => window.removeEventListener('keydown', k)); };
@@ -200,10 +201,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     select({ top, title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
       items: [
         { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
-        { id: 'lender', icon: G('call'), name: 'A call with your lender', line: 'Your relationship manager at the bank calls ahead of the covenant check. Every answer you don\'t have goes in the bank\'s file.', meta: 'Phone call' },
-        { soon: true, icon: G('chart'), name: 'Your monthly update to the owner or board', line: 'Present the month and answer for every number.' },
-        { soon: true, icon: G('receipt'), name: 'A dispute call with a vendor', line: 'Recover what they overbilled, with every invoice in hand.' },
-        { soon: true, icon: G('file'), name: 'A due diligence call with a buyer', line: 'Someone wants to invest. They ask for the story behind every number.' },
+        ...CALL_MOMENTS.map((id) => { const sp = specOf(id); return { id, icon: G(sp.icon), name: sp.pick.name, line: sp.pick.line, meta: sp.medium }; }),
       ],
       note: 'Every moment uses the same morning and the same two briefings. Only the people asking the questions change.',
       onPick });

@@ -8,7 +8,7 @@
 // No business logic lives in the interface. Everything here is deterministic for a seed.
 
 import { buildWorld, fmtClock } from './config.js';
-import { lenderFor } from './lender.js';
+import { callerFor, CALL_MOMENTS } from './moments.js';
 import { createSignalEngine } from './signals.js';
 import { createEventEngine } from './events.js';
 import { createTracker } from './behavior.js';
@@ -339,10 +339,11 @@ export function createGame({ shellId, roleId, seed = 1, moment = 'meeting', now 
     const also = s.also ? { finding: s.also.finding, rank: state.insightOrder.indexOf(s.also.finding) + 1, line: s.also.line } : null;
     return { finding: s.finding, rank, line: s.line, also, briefing: briefing() };
   }
-  // the 10:00 AM the player picks after both rounds: the meeting, or the call with the lender
+  // the 10:00 AM the player picks after both rounds: the meeting, or one of the calls (moments.js)
   function setMoment(m) {
-    world.moment = m === 'lender' ? 'lender' : 'meeting';
-    world.lender = world.moment === 'lender' ? lenderFor(seed) : undefined;
+    world.moment = CALL_MOMENTS.includes(m) ? m : 'meeting';
+    world.caller = world.moment === 'meeting' ? undefined : callerFor(world.moment, seed, world);
+    world.lender = world.moment === 'lender' ? world.caller : undefined;
     state.moment = world.moment; rec('moment_selected', { moment: world.moment });
     return world.moment;
   }

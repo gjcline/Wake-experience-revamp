@@ -9,6 +9,7 @@ import { intentsOf } from '../src/engine/judge.js';
 import { SHELL_ORDER } from '../src/content/shells.js';
 import { ROLE_ORDER } from '../src/content/roles.js';
 import { HANDLING } from '../src/content/rounds.js';
+import { CALL_MOMENTS } from '../src/engine/moments.js';
 
 let tick = 0;
 const mk = (seed = 7, shellId = 'service', roleId = 'coo', moment) => createGame({ shellId, roleId, seed, moment, now: () => (tick += 3000), sessionId: 'test' });
@@ -310,16 +311,16 @@ test('all shells, roles and sizes play through cleanly', () => {
   }
 });
 
-test('the call with your lender plays through, with its own script and clock', () => {
+test('every call moment plays through, with its own script and clock', () => {
   let seed = 600;
-  for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) {
+  for (const moment of CALL_MOMENTS) for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) {
     const g = mk(seed++, shell, role); g.startRound1();
     assert.equal(g.world.moment, 'meeting');
     for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[2].id }); }
     // picked after both rounds, where the meeting would start
-    assert.equal(g.setMoment('lender'), 'lender'); assert.ok(g.world.lender && g.world.lender.bank);
+    assert.equal(g.setMoment(moment), moment); assert.ok(g.world.caller && g.world.caller.name && g.world.caller.org);
     const out = finish(g, { through: g.world.phone });
-    invariants(g, out, 'lender ' + shell + '/' + role);
+    invariants(g, out, moment + ' ' + shell + '/' + role);
     const Y = out.d.yours, K = out.d.wake;
     for (const c of [Y.call, K.call]) {
       assert.ok(c && c.lines.length > 4, 'the call has a script');

@@ -61,15 +61,16 @@ anyone asks, and never waits for a prompt.
    history, the data, "what are we doing?"): topics rotate through the meeting, every option set
    rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
-4b. Or the call with your lender. After both rounds are locked, the player picks where to see Wake work: the role's
-   own meeting, or a call from the company's relationship manager at the bank ahead of the
-   covenant check (world.moment 'lender'; the bank and banker come from the seed). The morning
-   and both rounds are the same. What each item comes to is decided exactly as in the meeting
-   (meeting.js runs underneath); engine/lender.js writes the call those outcomes make: the banker
-   asks what a lender asks (is it real, one-time or ongoing, what does it do to margin), you
-   answer with the numbers, on your read, or owe the bank a number, and the bank's read at the
-   end. Three people on the line, shorter than a meeting. The call screens, the result ("Same
-   bank. Two calls."), the scorecard row and the report read the call instead of the room.
+4b. Or a call. After both rounds are locked, the player picks where to see Wake work: the role's
+   meeting, or one of four calls (engine/moments.js): the lender ahead of the covenant check, the
+   monthly update to the board, the biggest supplier before next quarter's pricing, or a buyer
+   doing due diligence. The person calling comes from the seed (the supplier's account rep is the
+   one already in the company's data). What each item comes to is decided exactly as in the
+   meeting (meeting.js runs underneath); each moment's spec writes the call those outcomes make:
+   what that caller asks about each kind of problem, what they say back, what you owe them after,
+   and how they leave the call (the supplier call lands on whether you recover the overbilling).
+   Three people on the line, shorter than a meeting. The call screens, the result, the scorecard
+   row, the week and the report all take their words from the spec.
 5. The week. Both plans run Monday afternoon to Friday on a dashboard, each with its own Slack
    channel of daily updates, and a
    six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,
@@ -107,8 +108,8 @@ anyone asks, and never waits for a prompt.
                    judge.js         reads a finding: the picked answer (fixed intent), any words written,
                                     the owner and attached context -> handling, reactions, status
                    game.js          the Simulation Engine: rounds, clock, flags, briefing
-                   lender.js        the call with your lender: the bank, the banker's questions, the call's
-                                    script and clock, written from the meeting's outcomes
+                   moments.js       the calls (lender, board, supplier, buyer): who calls, what they ask,
+                                    every word the screens use, and the call's script and clock
                    meeting.js       the meeting director: each item is a scene built from the problem, the people
                                     with a stake in it, what you brought and how the meeting has gone (trust,
                                     stakeholder pushback and their own fixes, connections, tangents, a time check,
