@@ -129,6 +129,14 @@
 .su-how { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; color: var(--dim); }
 .su-how li::marker { color: var(--faint); }
 .su-go { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+/* the moment picker: icons, and the moments that are coming */
+.su-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.06); color: #fff; }
+.su-ic svg { width: 20px; height: 20px; }
+.wx .sc-screen .su-row.soon { cursor: default; opacity: .55; border-style: dashed; background: transparent; }
+.su-row.soon:hover { border-color: var(--line); }
+.su-soon { font-style: normal; font-size: 11.5px !important; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--dim); }
+.su-note { font-size: 13.5px; color: var(--faint); margin-top: 4px; }
+@media (max-width: 560px) { .su-row > em:not(.su-soon) { display: none; } .su-ic { width: 30px; height: 30px; } }
 /* who's playing: name, email, phone */
 .sg-form { display: flex; flex-direction: column; gap: 14px; }
 .sg-f { display: flex; flex-direction: column; gap: 7px; }

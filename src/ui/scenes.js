@@ -12,7 +12,7 @@ import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { icon } from './os/shell.js';
-import { WAKE_MARK } from './os/icons.js';
+import { WAKE_MARK, GLYPH } from './os/icons.js';
 import { playIntro } from './intro.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
@@ -160,11 +160,15 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
     onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '← Back') : h('span'));
 
-  function select({ n, title, sub, items, onPick, onBack }) {
-    const rows = items.map((it) => h('button', { class: 'su-row', type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
-      h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
+  // `soon` items are shown but can't be picked yet: they say what else Wake does
+  function select({ n, title, sub, items, onPick, onBack, note }) {
+    const all = items.map((it) => it.soon
+      ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
+      : h('button', { class: 'su-row', type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
+        it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
+    const rows = all.filter((r) => r.tagName === 'BUTTON');
     screen('su', head(n, onBack),
-      h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, rows)));
+      h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null));
     rows[0].focus({ preventScroll: true });
     keys((e) => {
       const i = rows.indexOf(document.activeElement);
@@ -188,12 +192,16 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   // The 10:00 AM you play: the role's own meeting, or a call with the bank about your covenants.
   // The morning is the same either way; what changes is who asks the questions.
   function setupMoment() {
-    const r = ROLES[pick.role];
-    select({ n: 3, title: 'Which 10:00 AM do you want to play?', sub: 'Same company, same morning, same data. Pick who you\'ll be answering to at ten.',
+    const r = ROLES[pick.role], G = (k) => GLYPH[k] || '';
+    select({ n: 3, title: 'Where do you want to see Wake work?', sub: 'Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick one moment to play: same company, same morning, same data.',
       items: [
-        { id: 'meeting', name: cap(r.meetingName), line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
-        { id: 'lender', name: 'Call with your lender', line: 'Your relationship manager at the bank calls ahead of the covenant check. Every answer you don\'t have goes in the bank\'s file.', meta: 'Phone call' },
+        { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
+        { id: 'lender', icon: G('call'), name: 'A call with your lender', line: 'Your relationship manager at the bank calls ahead of the covenant check. Every answer you don\'t have goes in the bank\'s file.', meta: 'Phone call' },
+        { soon: true, icon: G('chart'), name: 'Your monthly update to the owner or board', line: 'Present the month and answer for every number.' },
+        { soon: true, icon: G('receipt'), name: 'A dispute call with a vendor', line: 'Recover what they overbilled, with every invoice in hand.' },
+        { soon: true, icon: G('file'), name: 'A due diligence call with a buyer', line: 'Someone wants to invest. They ask for the story behind every number.' },
       ],
+      note: 'Every moment uses the same morning and the same Wake. Only the people asking the questions change.',
       onPick: (id) => { pick.moment = id; ready(); }, onBack: setupRole });
   }
   function ready() {

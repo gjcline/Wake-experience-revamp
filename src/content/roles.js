@@ -42,7 +42,7 @@ export const ROLES = {
     blurb: 'You sit on the board for the group that owns it.',
     seat: 'You are the Executive Partner for the group that owns the company. You are in the building two days a week.',
     lens: ['finance', 'labor', 'customer', 'purchasing', 'operations', 'people', 'maintenance'],
-    note: { from: 'Arjun, the group CFO', text: 'Quarterly review is Thursday. The labor line here is going to get questions.' },
+    note: { from: 'Richard, the group CFO', text: 'Quarterly review is Thursday. The labor line here is going to get questions.' },
     meetingName: 'operating review',
     decisionPrompt: 'What do you ask the management team to do?',
     reportVoice: 'As Executive Partner',

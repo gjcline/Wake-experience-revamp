@@ -11,7 +11,7 @@
 // Everything is deterministic for a seed and a set of answers.
 
 const BANKS = ['First Harbor Bank', 'Summit Commercial Bank', 'Keystone Business Bank', 'Northline Bank', 'Cedar Trust Bank', 'Prairie State Bank'];
-const BANKERS = ['Dana Whitfield', 'Marcus Hale', 'Priya Raman', 'Owen Castillo', 'Leah Brennan', 'Victor Osei', 'Hannah Ruiz', 'Graham Price'];
+const BANKERS = ['Dana Whitfield', 'Mark Hale', 'Jennifer Ramsey', 'Owen Carlisle', 'Leah Brennan', 'Victor Olsen', 'Hannah Reed', 'Graham Price'];
 const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
 
 // who calls: the same bank and banker for a seed
