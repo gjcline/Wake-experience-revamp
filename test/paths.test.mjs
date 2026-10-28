@@ -11,7 +11,7 @@ import { ROLE_ORDER } from '../src/content/roles.js';
 import { HANDLING } from '../src/content/rounds.js';
 
 let tick = 0;
-const mk = (seed = 7, shellId = 'service', roleId = 'coo') => createGame({ shellId, roleId, seed, now: () => (tick += 3000), sessionId: 'test' });
+const mk = (seed = 7, shellId = 'service', roleId = 'coo', moment) => createGame({ shellId, roleId, seed, moment, now: () => (tick += 3000), sessionId: 'test' });
 const flaggable = (g, id) => g.world.signals[id].sources.find((s) => ['report', 'location'].includes(g.world.sources[s].kind));
 const pick = (g, sig, pred) => g.answers(sig).find(pred);
 const coreSig = (g, f) => f.core.find((id) => flaggable(g, id)) || f.evidence.find((id) => flaggable(g, id));
@@ -308,6 +308,34 @@ test('all shells, roles and sizes play through cleanly', () => {
     const all = JSON.stringify(Object.values(g.world.sources).map((s) => [s.title, s.body, s.blocks, s.tiles, s.today, s.weeks, s.note, s.list]));
     assert.ok(!/\{[A-Za-z]+\}/.test(all) && !/undefined|NaN|—/.test(all), 'clean desk text for ' + shell + '/' + role);
   }
+});
+
+test('the call with your lender plays through, with its own script and clock', () => {
+  let seed = 600;
+  for (const shell of SHELL_ORDER) for (const role of ROLE_ORDER) {
+    const g = mk(seed++, shell, role, 'lender'); g.startRound1();
+    assert.equal(g.world.moment, 'lender');
+    assert.ok(/lender/.test(g.world.role.meetingName));
+    for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[2].id }); }
+    const out = finish(g, { through: g.world.phone });
+    invariants(g, out, 'lender ' + shell + '/' + role);
+    const Y = out.d.yours, K = out.d.wake;
+    for (const c of [Y.call, K.call]) {
+      assert.ok(c && c.lines.length > 4, 'the call has a script');
+      const text = c.lines.map((l) => l.text).join(' ');
+      assert.ok(!/undefined|NaN|\bnull\b|\{[A-Za-z]+\}/.test(text), 'clean call text: ' + (text.match(/.{0,30}(undefined|NaN|null|\{[A-Za-z]+\}).{0,20}/) || [''])[0]);
+      assert.equal(c.attendees, 3);
+    }
+    assert.equal(Y.minutes, Y.call.minutes); assert.equal(K.minutes, K.call.minutes);
+    assert.ok(K.minutes <= Y.minutes + 2, 'the Wake call is not much longer than yours');
+    assert.equal(K.call.owed, 0);
+    assert.equal(Y.call.owed, Y.call.lines.filter((l) => l.owe).length);
+    assert.ok(out.d.after.mine.length >= 1);
+    const sc = g.finale();
+    assert.ok(sc.rows.some((r) => r.id === 'call') && !sc.rows.some((r) => r.id === 'room'));
+  }
+  // the meeting is untouched by default
+  const g = mk(5, 'service', 'gm'); assert.equal(g.world.moment, 'meeting'); assert.ok(!g.world.lender);
 });
 
 test('round 2: picks, trace, arrivals, and the inbox Wake already read', () => {

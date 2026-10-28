@@ -168,10 +168,11 @@ let contact = null;   // name, email, phone from the sign-up at Play
 const world = createScenes({
   root, reduced, onStep: (name) => track.step(name),
   onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone }); },
-  onPicked(shellId, roleId, seed) {
-    game = createGame({ shellId, roleId, seed });
+  onPicked(shellId, roleId, seed, moment) {
+    game = createGame({ shellId, roleId, seed, moment });
+    world.setMoment(game.world.moment);
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
-    track.step('arrive', { mode: 'full', shell: shellId, role: roleId, company: game.world.shell.company });
+    track.step('arrive', { mode: 'full', shell: shellId, role: roleId, moment: game.world.moment, company: game.world.shell.company });
     world.arrival(game, () => round1());
   },
 });
@@ -230,6 +231,7 @@ function round2() {
 async function walkToMeeting() {
   track.step('meeting');
   leave();
+  if (game.world.moment === 'lender') return takeTheCall();
   const name = game.world.role.meetingName;
   const watch = h('div', { class: 'mc-box' },
     h('p', { class: 'mc-l' }, 'Why this meeting'),
@@ -249,9 +251,40 @@ async function walkToMeeting() {
     done: () => finale().meeting() });
 }
 
+// The other 10:00 AM: the bank calls. You take it at your desk, so nobody walks anywhere.
+function takeTheCall() {
+  const L = game.world.lender, ctrl = game.world.characters.controller;
+  const watch = h('div', { class: 'mc-box' },
+    h('p', { class: 'mc-l' }, 'Why this call'),
+    h('p', {}, 'A lender asks the hardest questions about your numbers: is it real, is it one-time, what does it do to margin and cash. Every answer you have on the call builds the bank\'s confidence; every "let me get back to you" goes in their file.'),
+    h('p', { class: 'mc-l' }, 'Watch for'),
+    h('ul', { class: 'mc-watch' },
+      h('li', {}, h('b', { class: 'dec' }, 'Answered'), ' on the call, with the numbers'),
+      h('li', {}, h('b', { class: 'owed' }, 'Owed to the bank'), ' when you have to get back to them'),
+      h('li', {}, h('b', {}, 'The bank\'s read'), ' at the end of the call')));
+  world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'office', at: 'office', z: 2.1,
+    card: { step: 4, kicker: '10:00 AM · Call with your lender', title: 'The bank is calling.',
+      what: L.name + ' from ' + L.bank + ' is calling ahead of the covenant check. ' + ctrl.name + ' (' + ctrl.title + ') is on the line with you. The call runs twice: first with what you found on your own, then with what you prepared with Wake.',
+      note: 'These calls are simulated. You don\'t play them: they run on their own, and you watch the difference Wake makes.',
+      body: watch,
+      wake: 'Wake isn\'t on the call. It did its work before ten: every answer you give has its numbers behind it, and the covenant brief for the bank is already drafted.',
+      cta: 'Take the call' },
+    done: () => finale().meeting() });
+}
+
 function walkBack() {
   track.step('week');
   leave();
+  if (game.world.moment === 'lender') {
+    world.office(game, { day: 'Monday', time: '10:30 AM', preset: 'office', at: 'office', z: 2.1,
+      card: { step: 5, kicker: 'Monday · 10:30 AM', title: 'Both plans go to work.',
+        what: 'The rest of the week plays out twice, side by side: the plan you gave the bank on your own, and the plan you gave it with Wake.',
+        why: 'What you told the bank only counts once it moves the numbers. This is where you see how far each plan gets by Friday.',
+        wake: 'After the call Wake keeps watching. Each owner gets an alert the moment their measure drifts, and the bank\'s numbers stay current without anyone pulling them.',
+        cta: 'Play out the week' },
+      done: () => finale().week() });
+    return;
+  }
   world.office(game, { day: 'Monday', time: '10:52 AM', preset: 'office', at: 'meeting', z: 2, route: 'toOffice', end: 'sit', endView: [192, 120, 1],
     card: { step: 5, kicker: 'Monday · 11:00 AM', title: 'Both plans go to work.',
       what: 'The rest of the week plays out twice, side by side: the plan that left your meeting, and the plan that left Wake\'s.',

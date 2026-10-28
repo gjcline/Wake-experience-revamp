@@ -1,5 +1,5 @@
 // THE WORLD
-// The title screen, three setup questions (business, role, your company), and the pixel office
+// The title screen, four setup questions (business, role, which 10:00 AM, your company), and the pixel office
 // the morning happens in: the street, the lobby, the walk to your desk, the meeting room, Friday
 // evening. Every step of the experience opens with one card that says what you're doing and why
 // it matters. Everything shown about a business or role is read from configuration.
@@ -22,6 +22,9 @@ const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSignup = null }) {
   let teardown = [];
+  // the step names along the top of every card; step 4 is whichever 10:00 AM was picked
+  let steps = STEPS.slice();
+  const setMoment = (m) => { steps = STEPS.slice(); if (m === 'lender') steps[3] = 'The call'; };
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const clear = () => { teardown.forEach((f) => f()); teardown = []; };
   const keys = (fn) => { const k = (e) => fn(e); window.addEventListener('keydown', k); teardown.push(() => window.removeEventListener('keydown', k)); };
@@ -40,7 +43,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function card({ step, kicker, title, what, note, why, wake, cta, onGo, body, tone }) {
     const go = btn(cta, () => onGo(), 'ab primary' + (tone === 'wake' ? ' wake' : ''));
     const el = h('section', { class: 'mc' + (tone ? ' ' + tone : ''), role: 'dialog', 'aria-label': title },
-      step ? h('div', { class: 'mc-steps' }, STEPS.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
+      step ? h('div', { class: 'mc-steps' }, steps.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
       kicker ? h('p', { class: 'mc-k' }, kicker) : null,
       h('h1', {}, title),
       what ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'What you\'re doing'), h('p', {}, what)) : null,
@@ -147,11 +150,11 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     setTimeout(() => name.focus({ preventScroll: true }), 60);
   }
 
-  // ------------------------------------------------------------ 2. setup: three short questions
+  // ------------------------------------------------------------ 2. setup: four short questions
   // One question per screen, a plain list of answers, one click to move on.
-  const pick = { shell: null, role: null, seed: 0 };
+  const pick = { shell: null, role: null, seed: 0, moment: 'meeting' };
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
-  const TOTAL = 3;
+  const TOTAL = 4;
   const head = (n, onBack) => h('header', { class: 'su-top' },
     h('b', { class: 'su-brand' }, 'Wake'),
     h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
@@ -180,25 +183,37 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function setupRole() {
     select({ n: 2, title: 'Who do you want to play?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
       items: ROLE_ORDER.map((id) => ({ id, name: ROLES[id].label, line: ROLES[id].blurb })),
-      onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
+      onPick: (id) => { pick.role = id; setupMoment(); }, onBack: setup });
+  }
+  // The 10:00 AM you play: the role's own meeting, or a call with the bank about your covenants.
+  // The morning is the same either way; what changes is who asks the questions.
+  function setupMoment() {
+    const r = ROLES[pick.role];
+    select({ n: 3, title: 'Which 10:00 AM do you want to play?', sub: 'Same company, same morning, same data. Pick who you\'ll be answering to at ten.',
+      items: [
+        { id: 'meeting', name: cap(r.meetingName), line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
+        { id: 'lender', name: 'Call with your lender', line: 'Your relationship manager at the bank calls ahead of the covenant check. Every answer you don\'t have goes in the bank\'s file.', meta: 'Phone call' },
+      ],
+      onPick: (id) => { pick.moment = id; ready(); }, onBack: setupRole });
   }
   function ready() {
     onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
-    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed); };
+    const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed, pick.moment); };
+    const tenAm = pick.moment === 'lender' ? 'call with your lender' : r.meetingName;
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
-    screen('su', head(3, setupRole),
+    screen('su', head(4, setupMoment),
       h('div', { class: 'su-body' },
         h('h1', {}, 'Your company for this game'),
-        h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + r.meetingName + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
+        h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + tenAm + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
         h('section', { class: 'su-card' },
           h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),
-          h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('Runs on', 'Sample ERP, with every report in one place'), fact('10:00 AM', cap(r.meetingName)))),
+          h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('Runs on', 'Sample ERP, with every report in one place'), fact('10:00 AM', cap(tenAm)))),
         h('p', { class: 'su-q' }, 'How it works'),
         h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with your ERP, inbox and texts.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
         h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
-    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
+    keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupMoment(); });
   }
 
   // ------------------------------------------------------------ 3. the pixel office
@@ -271,5 +286,5 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
       done });
   }
 
-  return { start: first, arrival, office, card, clear, wait };
+  return { start: first, arrival, office, card, clear, wait, setMoment };
 }

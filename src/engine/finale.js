@@ -12,6 +12,7 @@
 // impact, run-rate added, problems resolved, time to action, team hours and open follow-ups.
 
 import { createMeeting, MOVED } from './meeting.js';
+import { createLenderCall } from './lender.js';
 
 export const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
@@ -48,7 +49,15 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
   const M = createMeeting({ world, state, person });
   const step = () => M.step();
   const answer = (id, optId) => { const r = M.answer(id, optId); if (r) rec('meeting_answer', { q: id, effect: r.effect }); else rec('meeting_answer', { q: id }); return r; };
-  const yours = () => M.result();
+  // the call with your lender (world.moment 'lender') is the same outcomes on a call: its own
+  // script, its own clock, three people on the line instead of a room
+  const LC = world.moment === 'lender' ? createLenderCall({ world, who }) : null;
+  const onCall = (r, c) => {
+    r.call = c; r.minutes = c.minutes; r.attendees = c.attendees; r.hours = c.hours;
+    for (const it of r.items) { const x = c.items.find((y) => y.n === it.n); if (x) it.minutes = x.minutes; }
+    return r;
+  };
+  const yours = () => { const r = M.result(); return LC ? onCall(r, LC.yours(r, M.agenda())) : r; };
   // the prep each meeting needed: from 7:48 AM to the moment the briefing was locked in
   const prep = () => ({ you: Math.max(0, (state.submittedAt || 600) - 468), wake: Math.max(0, (state.wakeDoneAt || 468) - 468) });
 
@@ -72,15 +81,18 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const wrap = { asker: { ...who('opsdir'), line: 'How will we know any of this is working before ' + thu + '?' }, answer: watch + ' numbers on watch, checked daily. Each owner gets an alert if theirs drifts.' };
     const people = new Set(items.flatMap((x) => x.owners.map((o) => o.key))).size;
     const minutes = OPENING + items.length * WAKE_ITEM + 1, attendees = world.central.length + world.locations.length + 1;
-    return { items, wrap, minutes, attendees, hours: Math.round(minutes * attendees / 6) / 10, asked, answered: asked, decided: items.length, ownerDate: items.length, real: items.length, deferred: 0, ious: 0, people };
+    const res = { items, wrap, minutes, attendees, hours: Math.round(minutes * attendees / 6) / 10, asked, answered: asked, decided: items.length, ownerDate: items.length, real: items.length, deferred: 0, ious: 0, people };
+    return LC ? onCall(res, LC.wake(res)) : res;
   }
 
   // ============================================================ AFTER THE MEETING
   function after() {
     const Y = yours(), Wk = wake(), boss = world.boss || 'your boss';
-    const mine = [{ who: who('me'), what: 'Write up the meeting notes and send them round', hrs: 0.5, day: 0 }];
+    const mine = LC
+      ? Y.call.lines.filter((l) => l.owe).map((l) => ({ who: who('me'), what: l.owe, hrs: 0.5, day: 0 })).concat([{ who: who('me'), what: 'Write up the call and brief the team on what you told the bank', hrs: 0.5, day: 0 }])
+      : [{ who: who('me'), what: 'Write up the meeting notes and send them round', hrs: 0.5, day: 0 }];
     Y.tasks.filter((x) => x.kind !== 'self').forEach((x) => mine.push({ who: who(x.who), what: x.what, hrs: x.hrs, day: x.day || 1, kind: x.kind }));
-    mine.push({ who: who('me'), what: 'Build ' + thu + ' brief for ' + boss, hrs: 2, day: 2 });
+    mine.push({ who: who('me'), what: 'Build ' + thu + ' brief for ' + (LC ? LC.L.first + ' at the bank' : boss), hrs: 2, day: 2 });
     if (Y.wrap === 'manual') mine.push({ who: who('me'), what: 'Check in with each owner on Wednesday', hrs: Math.max(0.5, Math.round(0.25 * Y.items.filter((x) => x.kind === 'finding').length * 2) / 2), day: 2 });
     for (const x of Y.tasks) if (x.kind === 'self') mine.push({ who: who('me'), what: x.what, hrs: 3, day: 1 });
     if (Y.trackerHours) mine.push({ who: who('me'), what: 'Build the tracker and send it round', hrs: Y.trackerHours, day: 1 });
@@ -89,7 +101,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
       { at: '10:15 AM', what: 'Decisions, owners and due dates sent to ' + Wk.people + (Wk.people === 1 ? ' person' : ' people') },
       { at: '10:15 AM', what: Wk.items.length + ' tasks in owners\' queues, each with its number to watch' },
       { at: '10:16 AM', what: Wk.items.length + ' measures on daily watch, with alerts to each owner' },
-      { at: '10:16 AM', what: thu.charAt(0).toUpperCase() + thu.slice(1) + ' brief for ' + boss + ' updated with today\'s decisions' },
+      { at: '10:16 AM', what: thu.charAt(0).toUpperCase() + thu.slice(1) + ' brief for ' + (LC ? LC.L.first + ' at ' + LC.L.bank : boss) + (LC ? ' sent, with today\'s numbers' : ' updated with today\'s decisions') },
     ].concat(holds.map((h) => { const hh = parseInt(h.start, 10); return { at: h.start + (hh >= 7 && hh < 12 ? ' AM' : ' PM'), what: t(h.title) + ', on the calendar' }; }));
     return { mine, done, hours: round1(mine.reduce((n, x) => n + x.hrs, 0)) };
   }
@@ -289,7 +301,7 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     // every row says how far ahead the week ran with Wake, in the row's own units
     const dur = (m) => (m >= 60 ? Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min');
     const AHEAD = {
-      ready: (d) => dur(Math.round(d)) + ' sooner', found: (d) => '+' + d + ' found', room: (d) => round1(d) + ' hrs back', owned: (d) => '+' + d + ' owned',
+      ready: (d) => dur(Math.round(d)) + ' sooner', call: (d) => Math.round(d) + ' min shorter', found: (d) => '+' + d + ' found', room: (d) => round1(d) + ' hrs back', owned: (d) => '+' + d + ' owned',
       tta: (d) => round1(d) + (d === 1 ? ' day' : ' days') + ' sooner', resolved: (d) => '+' + d + ' resolved', hours: (d) => round1(d) + ' hrs back', profit: (d) => '+' + money(d), run: (d) => '+' + money(d),
     };
     const row = (id, label, you, wake, yv, wv, lower, gap) => {
@@ -301,7 +313,8 @@ export function createFinaleEngine({ world, state, rec, person, insight }) {
     const rows = [
       row('ready', 'Briefing ready', fmt(state.submittedAt || 600), fmt(state.wakeDoneAt || 468), state.submittedAt, state.wakeDoneAt, true),
       row('found', 'Problems found', found + ' of ' + n, n + ' of ' + n, found, n),
-      row('room', 'Leadership hours in the meeting', hrs(Y.hours), hrs(Wk.hours), Y.hours, Wk.hours, true),
+      LC ? row('call', 'Time on the call with the bank', Y.minutes + ' min', Wk.minutes + ' min', Y.minutes, Wk.minutes, true)
+        : row('room', 'Leadership hours in the meeting', hrs(Y.hours), hrs(Wk.hours), Y.hours, Wk.hours, true),
       row('owned', 'Decisions with an owner and a start date', Y.ownerDate + ' of ' + Y.items.length, Wk.ownerDate + ' of ' + Wk.items.length, Y.ownerDate / Math.max(1, Y.items.length), Wk.ownerDate / Math.max(1, Wk.items.length), false, Wk.ownerDate - Y.ownerDate),
       row('tta', 'Time to action', fmtT(W.tta.you), fmtT(W.tta.wake), W.tta.you === null ? 99 : W.tta.you, W.tta.wake === null ? 99 : W.tta.wake, true),
       row('resolved', 'Problems resolved by Friday', fy.resolved + ' of ' + n, fw.resolved + ' of ' + n, fy.resolved, fw.resolved),

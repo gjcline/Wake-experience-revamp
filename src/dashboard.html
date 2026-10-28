@@ -99,7 +99,7 @@ function render() {
   };
   const rows = runs.slice(0, 500).map((r) => `<tr>
     <td>${new Date(r.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-    <td>${esc(r.company || '')}<div class="sub">${esc([r.role, r.shell].filter(Boolean).join(' · '))}</div></td>
+    <td>${esc(r.company || '')}<div class="sub">${esc([r.role, r.shell, r.moment === 'lender' ? 'lender call' : null].filter(Boolean).join(' · '))}</div></td>
     <td>${esc(LABEL[r.stepName] || r.stepName || '')}</td>
     <td>${mins(r.activeSeconds)}</td>
     <td>${r.finished ? '<span class="yes">Yes</span>' : '<span class="no">No</span>'}</td>
@@ -131,8 +131,8 @@ function render() {
   R.onchange = () => { range = R.value; render(); };
   document.getElementById('refresh').onclick = load;
   document.getElementById('csv').onclick = () => {
-    const cols = ['startedAt', 'company', 'role', 'shell', 'stepName', 'activeSeconds', 'finished', 'name', 'email', 'phone', 'hasMeeting', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
-    const line = (r) => [r.startedAt, r.company, r.role, r.shell, r.stepName, r.activeSeconds, r.finished, r.name, r.email, r.phone, r.hasMeeting, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
+    const cols = ['startedAt', 'company', 'role', 'shell', 'moment', 'stepName', 'activeSeconds', 'finished', 'name', 'email', 'phone', 'hasMeeting', 'bookClicked', 'booked', 'bookingTime', 'source', 'referrer', 'device', 'country', 'id'];
+    const line = (r) => [r.startedAt, r.company, r.role, r.shell, r.moment, r.stepName, r.activeSeconds, r.finished, r.name, r.email, r.phone, r.hasMeeting, r.bookClicked, !!r.booking, r.booking && r.booking.startTime, r.utm && (r.utm.source || r.utm.ref), r.referrer, r.device, r.country, r.id].map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([cols.join(',') + '\n' + runs.map(line).join('\n')], { type: 'text/csv' }));
     a.download = 'wake-experience-runs.csv'; a.click();

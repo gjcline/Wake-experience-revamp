@@ -20,15 +20,15 @@ export const MIN_FLAGS = 3, MAX_FLAGS = 5;
 const SECONDARY = ['email', 'message', 'calendar', 'note'];
 const hash = (s) => { let x = 2166136261; for (const ch of String(s)) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; };
 
-export function createGame({ shellId, roleId, seed = 1, now = () => Date.now(), sessionId } = {}) {
-  const world = buildWorld(shellId, roleId, seed);
+export function createGame({ shellId, roleId, seed = 1, moment = 'meeting', now = () => Date.now(), sessionId } = {}) {
+  const world = buildWorld(shellId, roleId, seed, moment);
   const signals = createSignalEngine(world);
   const events = createEventEngine(world);
   const tracker = createTracker(now);
   const D = world.day;
 
   const state = {
-    sessionId: sessionId || 'wx-' + now().toString(36), shell: shellId, role: roleId, seed,
+    sessionId: sessionId || 'wx-' + now().toString(36), shell: shellId, role: roleId, seed, moment: world.moment,
     phase: 'entry', clock: D.start,
     sources: {}, signals: {}, events: {},
     flags: [], flagSeq: 0, submittedAt: null, submittedMs: null, round1StartMs: null,

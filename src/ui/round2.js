@@ -25,6 +25,7 @@ const WAKE = { name: 'Wake', icon: 'wake' };
 
 export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   const w = game.world, M = w.shell.multi, V = w.shell.vocab;
+  const MT = w.moment === 'lender' ? 'call with the bank' : 'meeting';
   const btn = (label, onclick, cls = 'ob') => h('button', { class: cls, type: 'button', onclick }, label);
   const person = (k) => game.person(k);
   const n = (x) => x.toLocaleString('en-US');
@@ -68,7 +69,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       shown = r.clock; pc.setClock(clockLabel());
       if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (app === 'messages') renderMessages(); }
       if (app === 'calendar') { const nl = document.querySelector('.gc-now'); if (nl) nl.style.top = ((shown - 7 * 60) / 60 * 48) + 'px'; }
-      if (r.atTen && strip.alert.hidden) { strip.alert.hidden = false; strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, ' Your meeting is starting. Lock in your briefing when you\'re ready.')); }
+      if (r.atTen && strip.alert.hidden) { strip.alert.hidden = false; strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, ' Your ' + MT + ' is starting. Lock in your briefing when you\'re ready.')); }
     }, reduced ? 600 : CLOCK_MS);
   }
   function start() {
@@ -565,7 +566,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back to Reports', force: true, when: doc },
         { text: 'Now open your income statement.', target: '.ns-rli.stmt', wait: 'doc:exec', hint: 'Open it', force: true, skipIf: () => !statements.length },
         { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc, skipIf: () => !statements.length },
-        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your meeting is at 10:00 AM.', target: '.wake-tray', next: 'START THE CLOCK ▶', modal: true, onNext: startClock },
+        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your ' + MT + ' is at 10:00 AM.', target: '.wake-tray', next: 'START THE CLOCK ▶', modal: true, onNext: startClock },
       ],
       messages: [
         { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'GOT IT ▶', once: true },

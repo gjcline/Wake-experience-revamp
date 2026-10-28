@@ -123,7 +123,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
 
   // The room asks; you answer with what you brought. It plays through on its own, and after the
   // first exchange on each item the rest of the back-and-forth is summed up in one line.
-  function meeting() { meetingIntro(() => runMeeting()); }
+  function meeting() { if (w().moment === 'lender') return callIntro(() => runCall('you')); meetingIntro(() => runMeeting()); }
   function runMeeting() {
     sfx.ambience(0.6);
     const S = stage('you');
@@ -255,13 +255,143 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     })();
   }
 
+  // ============================================================ THE OTHER 10:00 AM: the call with your lender
+  // The engine writes the call (engine/lender.js) from the same outcomes as the meeting. These
+  // screens play it: the banker on the line, your controller listening in, your notes, the transcript.
+  function callIntro(go) {
+    const W = w(), A = game.meetingAgenda(), L = W.lender, ctrl = W.characters.controller;
+    show('day', 'cl-screen mi',
+      h('div', { class: 'mi-page' },
+        h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · phone call'),
+        h('h1', {}, 'Your call with ' + L.bank),
+        h('p', { class: 'mi-lead' }, L.name + ', your relationship manager, is calling ahead of the covenant check. They\'ll go down what you brought, then ask what every lender asks: will you stay inside the covenant this quarter?'),
+        h('div', { class: 'mi-why' }, h('b', {}, 'A simulated call · you listen'), h('p', {}, 'You don\'t need to do anything here. The call plays on its own with what you found this morning. Then it runs again with what you prepared with Wake. Watch the difference: what you can answer on the spot, and what you end up owing the bank.')),
+        h('div', { class: 'mi-cols' },
+          h('section', {}, h('p', { class: 'mi-l' }, 'What you\'ll walk the bank through'), h('ol', { class: 'mi-ag' }, A.map((it) => h('li', {}, h('b', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('span', {}, '"' + it.text + '"'))))),
+          h('section', {}, h('p', { class: 'mi-l' }, 'On the line'), h('div', { class: 'mi-ppl' },
+            h('span', {}, face(L.name, 26), h('em', {}, L.name, h('i', {}, L.title + ', ' + L.bank))),
+            h('span', {}, fc('controller', 26), h('em', {}, ctrl.name, h('i', {}, ctrl.title))),
+            h('span', {}, fc('me', 26), h('em', {}, 'You', h('i', {}, W.role.label)))),
+            h('p', { class: 'mi-l' }, 'What to watch'), h('ul', { class: 'mi-watch' }, h('li', {}, h('b', { class: 'dec' }, 'Answered'), ' on the call, with the numbers'), h('li', {}, h('b', { class: 'owed' }, 'Owed to the bank'), ' when you have to get back to them'), h('li', {}, h('b', {}, 'The bank\'s read'), ' when they hang up')))),
+        h('div', { class: 'mi-go' }, btn('Listen to the call', go, 'cb primary big'))));
+    own();
+  }
+
+  // the call screen: the banker's card and your notes on the left, the transcript on the right
+  function callStage(side) {
+    const W = w(), L = W.lender, ctrl = W.characters.controller;
+    const screenBody = h('div', { class: 'mt-scr-body' });
+    const paper = h('div', { class: 'mt-paper call ' + side },
+      h('div', { class: 'mt-scr-bar' }, side === 'wake' ? mark('wake', 'fm sm') : mark('docs', 'fm sm'), h('b', {}, side === 'wake' ? 'Your notes · prepared with Wake' : 'Your notes'), h('span', {}, side === 'wake' ? 'Printed 9:52 AM' : 'Printed 9:55 AM')),
+      screenBody);
+    const timer = h('b', { class: 'cv-time' }, '0:00');
+    const lineOf = (k, name, sub) => h('span', { class: 'cv-who' }, k === 'bank' ? face(name, 30) : fc(k, 30), h('em', {}, name, h('i', {}, sub)));
+    const caller = h('div', { class: 'cv-card' },
+      h('div', { class: 'cv-top' }, h('span', { class: 'cv-live' }, h('i'), 'On a call'), timer),
+      h('div', { class: 'cv-main' }, face(L.name, 76), h('div', {}, h('b', {}, L.name), h('span', {}, L.title + ' · ' + L.bank))),
+      h('div', { class: 'cv-line' }, lineOf('controller', ctrl.name, ctrl.title), lineOf('me', 'You', W.role.label)),
+      h('div', { class: 'cv-btns', 'aria-hidden': 'true' }, h('i', { html: GLYPH.mic || '' }), h('i', { class: 'end', html: GLYPH.phone || '' })));
+    const clock = h('b', {}, '10:00 AM'), elapsed = h('span', {}, '0 min');
+    const pips = h('div', { class: 'mt-pips' });
+    const cnt = (label, cls) => { const b = h('b', {}, '0'); return { el: h('div', { class: 'mt-cnt ' + cls }, b, h('span', {}, label)), b }; };
+    const C = { min: cnt('call minutes', 'ans'), owed: cnt('owed to the bank', 'owed'), dec: cnt('answered', 'dec') };
+    const log = h('div', { class: 'mt-log', 'aria-live': 'polite' });
+    const choices = h('div', { class: 'mt-choices' });
+    const ctl = h('div', { class: 'mt-ctl2' });
+    const el = show(side === 'wake' ? 'wake' : 'day', 'cl-screen mt call ' + side,
+      h('div', { class: 'mt-main' },
+        h('div', { class: 'mt-stage' },
+          h('div', { class: 'mt-head' }, h('span', { class: 'mt-tag ' + side }, side === 'wake' ? 'Prepared with Wake' : 'On your own'), h('div', { class: 'mt-agenda' }, h('span', {}, 'Your list'), pips), C.min.el, C.owed.el, C.dec.el),
+          h('div', { class: 'cv' }, caller, paper)),
+        h('aside', { class: 'mt-panel' },
+          h('div', { class: 'mt-ph' }, h('b', {}, 'On the call'), h('span', {}, L.bank + ' · phone')),
+          log, choices, ctl)),
+      h('footer', { class: 'mt-bar' },
+        h('div', { class: 'mt-bl' }, clock, h('i'), h('span', {}, 'Call with your lender'), h('i'), elapsed),
+        h('div', { class: 'mt-bc' }, h('span', { class: 'mt-loc' }, W.shell.company + ' · your office')),
+        h('div', { class: 'mt-br' }, glyph('people'), h('span', {}, '3 on the line'))));
+    own();
+    let used = 0;
+    const show_ = (m) => { clock.textContent = clockAt(Math.round(m)); elapsed.textContent = Math.round(m) + ' min'; C.min.b.textContent = String(Math.round(m)); const t = Math.round(m * 60); timer.textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+    const nameFor = (k) => (k === 'bank' ? L.name : k === 'ctrl' ? ctrl.name : 'You');
+    const S = {
+      el, screen: screenBody, log, choices, ctl, C, pips,
+      set(m) { used = m; show_(m); },
+      async to(m, fast) { if (m <= used) return; const steps = fast ? 1 : Math.max(1, Math.round((m - used) * 4)); const d = (m - used) / steps; for (let i = 0; i < steps; i++) { used += d; show_(used); if (!fast) await wait(50); } },
+      count(k, v) { C[k].b.textContent = String(v); C[k].el.classList.remove('bump'); void C[k].el.offsetWidth; C[k].el.classList.add('bump'); },
+      say(k, text, cls = '') {
+        caller.classList.toggle('talk', k === 'bank');
+        const who = k === 'bank' ? face(L.name, 28) : k === 'ctrl' ? fc('controller', 28) : fc('me', 28);
+        const line = h('div', { class: 'mt-msg ' + cls + (k === 'me' ? ' me' : '') }, who, h('div', {}, h('b', {}, nameFor(k)), h('p', {}, text)));
+        log.appendChild(line); log.scrollTop = log.scrollHeight; sfx.blip();
+        return line;
+      },
+      note(node) { log.appendChild(node); log.scrollTop = log.scrollHeight; return node; },
+      agenda(n, i) { pips.replaceChildren(...Array.from({ length: n }, (_, j) => h('i', { class: j < i ? 'done' : j === i ? 'on' : '' }, String(j + 1)))); },
+    };
+    return S;
+  }
+  const callStamp = (st) => h('div', { class: 'mt-stamp s-' + st.tone }, h('b', {}, st.label));
+
+  // one call, played from its script; on your own first, then with Wake
+  function runCall(side) {
+    sfx.ambience(0.4);
+    const R = side === 'wake' ? game.meetingWake() : game.meetingYours(), C = R.call;
+    const A = side === 'wake' ? null : game.meetingAgenda();
+    const S = callStage(side);
+    let fast = reduced, skipped = false, owed = 0, answered = 0, item = 0;
+    const ff = btn('Fast forward', () => { fast = true; ff.disabled = true; }, 'cb small ghost');
+    const sk = btn(side === 'wake' ? 'Skip to result' : 'Skip to the end', () => { fast = true; skipped = true; ff.disabled = true; sk.disabled = true; }, 'cb small ghost');
+    S.ctl.replaceChildren(ff, sk);
+    const pause = (ms) => wait(fast ? 25 : ms);
+    const total = R.items.length;
+    const notes = (n) => {
+      if (side === 'wake') { const it = R.items[n - 1]; S.screen.replaceChildren(h('p', { class: 'mt-sn' }, 'Insight ' + n + ' of ' + total + (it.place ? ' · ' + it.place : '')), h('h2', {}, it.headline), h('p', { class: 'mt-sdo' }, h('b', {}, 'Recommended'), it.action), h('p', { class: 'mt-src' }, it.signals + ' lines from ' + it.systems + (it.systems === 1 ? ' system' : ' systems'))); return; }
+      const it = A[n - 1]; S.screen.replaceChildren(h('p', { class: 'mt-sn' }, 'Item ' + n + ' of ' + total), h('h2', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('p', { class: 'mt-sq' }, '"' + it.text + '"'), h('p', { class: 'mt-sm' }, it.ev ? 'Backed by: ' + it.ev : 'Nothing attached'));
+    };
+    S.agenda(total, 0);
+    S.screen.replaceChildren(h('h2', {}, side === 'wake' ? 'Your notes for the bank' : 'Your notes'), h('p', { class: 'mt-sq' }, side === 'wake' ? total + ' items, ranked, prepared with Wake this morning. Every one with the numbers behind it.' : total + ' things you found this morning.'));
+    (async () => {
+      for (const l of C.lines) {
+        if (!alive) return;
+        if (l.at !== undefined) await S.to(l.at, fast);
+        if (l.item && l.item !== item) { item = l.item; S.agenda(total, item - 1); notes(item); }
+        if (l.kind === 'stamp') {
+          await S.to(l.at, fast);
+          if (['decided', 'guess', 'pilot', 'agreed'].includes(l.stamp.tone)) { answered += 1; S.count('dec', answered); sfx.coin(); } else sfx.back();
+          S.note(callStamp(l.stamp)); await pause(600); continue;
+        }
+        if (skipped && l.kind !== 'q' && !l.owe) continue;
+        const m = S.say(l.who, l.text, l.kind === 'q' ? 'q' : l.kind === 'present' ? 'pres' : l.kind === 'a' ? 'a' + (l.ok ? ' ok' : '') + (side === 'wake' ? ' prep' : '') : '');
+        if (l.chips) m.querySelector('div').appendChild(h('div', { class: 'mt-chips' }, h('em', {}, 'From your notes'), l.chips.map((c) => h('span', {}, h('b', {}, c.sys), ' ' + c.label))));
+        if (l.owe) { owed += 1; S.count('owed', owed); S.note(h('div', { class: 'mt-iou' }, h('b', {}, 'Owed to the bank'), h('span', {}, l.owe))); }
+        await pause(l.kind === 'q' ? 800 : 700);
+      }
+      if (!alive) return;
+      S.set(R.minutes); S.agenda(total, total); S.count('dec', C.answered); S.count('owed', C.owed);
+      game.presented(side === 'wake' ? 'wake' : 'yours');
+      await pause(500);
+      if (side === 'wake') { result(); return; }
+      S.ctl.replaceChildren();
+      S.choices.replaceChildren(h('div', { class: 'mt-done' },
+        h('p', { class: 'mt-dk' }, 'Call over · ' + clockAt(R.minutes)),
+        h('div', { class: 'mt-drow' },
+          h('div', {}, h('b', {}, R.minutes + ' min'), h('span', {}, 'on the call')),
+          h('div', {}, h('b', {}, C.full + '/' + C.real), h('span', {}, 'answered with numbers')),
+          h('div', {}, h('b', {}, String(C.owed)), h('span', {}, 'owed to the bank'))),
+        h('p', {}, 'The bank\'s read: ' + C.read.label + '. Same banker, same 10:00 AM. Now take the call again, with what you prepared with Wake.'),
+        btn('Take it again with Wake', () => runCall('wake'), 'cb wake')));
+      sfx.credit();
+    })();
+  }
+
   // ------------------------------------------------------------ the result
   function result() {
-    const Y = game.meetingYours(), K = game.meetingWake(), A = game.afterMeeting();
+    const Y = game.meetingYours(), K = game.meetingWake(), A = game.afterMeeting(), CALL = w().moment === 'lender';
     const max = Math.max(Y.minutes, K.minutes, 15);
     const axis = h('div', { class: 'rs-axis' }, [0, 15, 30, 45, 60, 75, 90].filter((m) => m <= max + 4).map((m) => h('span', { style: { left: (m / max * 100) + '%' } }, clockAt(m).replace(' AM', ''))));
     const seg = (min, cls, label) => h('i', { class: 'seg ' + cls, style: { width: (min / max * 100) + '%' }, title: label }, h('span', {}, label));
-    const yBar = h('div', { class: 'rs-tl y' }, seg(3, 'open', ''), Y.items.map((it) => seg(it.minutes, it.decision, String(it.n))), seg(Y.minutes - 3 - Y.items.reduce((n, x) => n + x.minutes, 0), 'open', ''));
+    const yBar = h('div', { class: 'rs-tl y' }, seg(3, 'open', ''), Y.items.map((it) => seg(it.minutes, CALL && it.decision === 'agreed' ? 'guess' : it.decision, String(it.n))), seg(Y.minutes - 3 - Y.items.reduce((n, x) => n + x.minutes, 0), 'open', ''));
     const kBar = h('div', { class: 'rs-tl w' }, seg(3, 'open', ''), K.items.map((it) => seg(it.minutes, 'decided', String(it.n))), seg(1, 'open', ''));
     const duel = ([label, sub], yv, kv, yb, kb) => h('tr', {}, h('th', {}, label, h('small', {}, sub)), h('td', { class: 'y' + (yb ? ' win' : '') }, yv), h('td', { class: 'w' + (kb ? ' win' : '') }, kv));
     const P = game.meetingPrep(), T = game.week().tta;
@@ -270,23 +400,31 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const task = (x) => h('li', {}, fc(x.who.key, 28), h('div', {}, h('b', {}, x.who.key === 'me' ? 'You' : x.who.name), h('p', {}, x.what)), h('em', {}, hrs(x.hrs)));
     show('wake', 'cl-screen rs',
       h('div', { class: 'rs-page' },
-        h('p', { class: 'rs-k' }, 'The meeting · result · ' + w().shell.company),
-        h('h1', {}, 'Same room. Two meetings.'),
+        h('p', { class: 'rs-k' }, (CALL ? 'The call' : 'The meeting') + ' · result · ' + w().shell.company),
+        h('h1', {}, CALL ? 'Same bank. Two calls.' : 'Same room. Two meetings.'),
         h('section', { class: 'rs-card' },
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk y' }, 'On your own', h('b', {}, Y.minutes + ' min')), yBar),
           h('div', { class: 'rs-tlrow' }, h('p', { class: 'rs-tlk w' }, 'Prepared with Wake', h('b', {}, K.minutes + ' min')), kBar),
           h('div', { class: 'rs-tlrow' }, h('span'), axis),
-          h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided, details to firm up'), h('span', { class: 'parked' }, h('i'), 'Needs a follow-up'), h('span', { class: 'dropped' }, h('i'), 'Set aside for now'))),
+          CALL ? h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Answered on the call'), h('span', { class: 'guess' }, h('i'), 'Answered, number to follow'), h('span', { class: 'parked' }, h('i'), 'Owed to the bank'), h('span', { class: 'dropped' }, h('i'), 'Not a concern'))
+            : h('div', { class: 'rs-legend' }, h('span', { class: 'decided' }, h('i'), 'Decided'), h('span', { class: 'guess' }, h('i'), 'Decided, details to firm up'), h('span', { class: 'parked' }, h('i'), 'Needs a follow-up'), h('span', { class: 'dropped' }, h('i'), 'Set aside for now'))),
         h('section', { class: 'rs-card' }, h('table', { class: 'rs-duel' },
           h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'))),
-          h('tbody', {},
+          CALL ? h('tbody', {},
+            duel(['Prep before the call', '7:48 AM to briefing locked'], dur(P.you), dur(P.wake), P.you <= P.wake, P.wake <= P.you),
+            duel(['Time on the call', '3 people on the line'], Y.minutes + ' min', K.minutes + ' min', Y.minutes <= K.minutes, K.minutes <= Y.minutes),
+            duel(['Answered with the numbers', 'Out of every item you raised'], Y.call.full + ' of ' + Y.call.real, K.call.full + ' of ' + K.call.real, Y.call.full >= Y.call.real, true),
+            duel(['Numbers owed to the bank', 'Promised after the call'], String(Y.call.owed), '0', Y.call.owed === 0, true),
+            duel(['The bank\'s read', 'When they hung up'], Y.call.read.label, K.call.read.label, Y.call.read.key === 'confident', true),
+            duel(['Time to first action', 'Average, from Monday\'s call'], fmtT(T.you), fmtT(T.wake), T.you !== null && T.you <= T.wake, true))
+          : h('tbody', {},
             duel(['Prep before the meeting', '7:48 AM to briefing locked'], dur(P.you), dur(P.wake), P.you <= P.wake, P.wake <= P.you),
             duel(['Leadership hours in the room', Y.attendees + ' people × meeting length'], Y.hours.toFixed(1) + ' hrs', K.hours.toFixed(1) + ' hrs', Y.hours <= K.hours, K.hours <= Y.hours),
             duel(['Decisions with an owner and a start date', 'Out of every item on the agenda'], Y.ownerDate + ' of ' + Y.items.length, K.ownerDate + ' of ' + K.items.length, Y.ownerDate / Y.items.length >= 1, true),
             duel(['Items carried to another meeting', 'Parked, or waiting on numbers'], String(Y.deferred), '0', Y.deferred === 0, true),
             duel(['Time to first action', 'Average, from Monday\'s meeting'], fmtT(T.you), fmtT(T.wake), T.you !== null && T.you <= T.wake, true)))),
         h('div', { class: 'rs-after' },
-          h('section', { class: 'rs-card y' }, h('h2', {}, 'Your afternoon'), h('p', { class: 'rs-sub' }, hrs(A.hours) + ' of work the meeting created'), h('ul', { class: 'rs-tasks' }, A.mine.map(task))),
+          h('section', { class: 'rs-card y' }, h('h2', {}, 'Your afternoon'), h('p', { class: 'rs-sub' }, hrs(A.hours) + ' of work the ' + (CALL ? 'call' : 'meeting') + ' created'), h('ul', { class: 'rs-tasks' }, A.mine.map(task))),
           h('section', { class: 'rs-card w' }, h('h2', {}, 'With Wake, by 10:16 AM'), h('p', { class: 'rs-sub' }, 'Done before anyone was back at their desk'), h('ul', { class: 'rs-done' }, A.done.map((d) => h('li', {}, h('i', {}, '✓'), h('div', {}, h('b', {}, d.at), h('p', {}, d.what))))))),
         h('div', { class: 'rs-next' }, btn('Back to your office', onWalkBack, 'cb primary big'))));
     own(); sfx.credit();
@@ -325,7 +463,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
       const el = h('div', { class: 'sl ' + side },
         h('aside', { class: 'sl-side' }, h('div', { class: 'sl-ws' }, W.shell.company.split(' ').map((x) => x[0]).join('').slice(0, 2)),
           h('p', { class: 'sl-h' }, 'Channels'), h('span', { class: 'sl-ch on' }, '# leadership'), h('span', { class: 'sl-ch' }, '# ops'), h('span', { class: 'sl-ch' }, '# general')),
-        h('section', { class: 'sl-main' }, h('header', { class: 'sl-top' }, h('b', {}, '# leadership'), h('span', {}, side === 'w' ? 'The plan that left Wake\'s meeting' : 'The plan that left your meeting')), feed));
+        h('section', { class: 'sl-main' }, h('header', { class: 'sl-top' }, h('b', {}, '# leadership'), h('span', {}, w().moment === 'lender' ? (side === 'w' ? 'The plan you gave the bank with Wake' : 'The plan you gave the bank') : side === 'w' ? 'The plan that left Wake\'s meeting' : 'The plan that left your meeting')), feed));
       return { el, feed };
     };
     const SY = slack('y'), SW = slack('w');

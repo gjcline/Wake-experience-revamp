@@ -17,6 +17,7 @@ const CLOCK_MS = 2000; // one minute of the morning every two seconds
 
 export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const w = game.world, D = w.day, M = w.shell.multi, V = w.shell.vocab;
+  const MT = w.moment === 'lender' ? 'call with the bank' : 'meeting';
   const btn = (label, onclick, cls = 'ob') => h('button', { class: cls, type: 'button', onclick }, label);
   const first = (name) => String(name).split(' ')[0];
   const person = (k) => game.person(k);
@@ -40,7 +41,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   ];
   const pc = createComputer({ apps: APPS, user: USER, company: w.shell.company, onOpen: (id) => openApp(id), onHome: () => { closeDoc(); app = null; docId = null; history = []; badges(); sfx.back(); coach.emit('desk'); coach.context('desk'); } });
   const overlay = h('div', { class: 'overlay os-ov', hidden: true });
-  const strip = gameStrip({ round: 'Step 2 of 6 · On your own', task: 'Find ' + game.MIN_FLAGS + ' things that look off before your 10:00 AM meeting. Click a row to flag it.', onRules: rulesCard });
+  const strip = gameStrip({ round: 'Step 2 of 6 · On your own', task: 'Find ' + game.MIN_FLAGS + ' things that look off before your 10:00 AM ' + MT + '. Click a row to flag it.', onRules: rulesCard });
 
   show('day', 'os-screen round1', strip.el, pc.el, overlay);
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
@@ -57,7 +58,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     if (app === 'calendar') { const now = document.querySelector('.gc-now'); if (now) now.style.top = ((shown - 7 * 60) / 60 * 48) + 'px'; }
     if (r.atTen && strip.alert.hidden) {
       strip.alert.hidden = false;
-      strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, game.state.flags.length >= game.MIN_FLAGS ? ' Your meeting is starting. Lock in your briefing when you\'re ready.' : ' Your meeting is starting. Flag at least ' + game.MIN_FLAGS + ' figures, then lock in your briefing.'));
+      strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, game.state.flags.length >= game.MIN_FLAGS ? ' Your ' + MT + ' is starting. Lock in your briefing when you\'re ready.' : ' Your ' + MT + ' is starting. Flag at least ' + game.MIN_FLAGS + ' figures, then lock in your briefing.'));
       sfx.credit();
     }
   }, reduced ? 600 : CLOCK_MS);
@@ -431,7 +432,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       return;
     }
     const draw = () => card('attach-card', h('h2', {}, 'Add to a finding'),
-      h('p', {}, 'Attach this as supporting context. It travels with the finding into your meeting.'),
+      h('p', {}, 'Attach this as supporting context. It travels with the finding into your ' + MT + '.'),
       h('p', { class: 'att-item' }, item.label),
       h('ul', { class: 'att-list' }, game.flags().map((f) => { const on = f.attached.some((a) => a.key === item.key);
         return h('li', {}, h('button', { class: 'att-f' + (on ? ' on' : ''), type: 'button', onclick: () => { if (on) game.detach(f.id, item.key); else game.attach(f.id, item); sfx[on ? 'back' : 'coin'](); draw(); drawTray(); render(); coach.emit('attached'); } },
@@ -526,7 +527,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       look('Calendar: today\'s meetings, including your ' + w.role.meetingName + ' at 10:00 AM.', '.dock-app[data-app="calendar"]'),
       look('Messages: texts from your managers. They aren\'t in any system.', '.dock-app[data-app="messages"]'),
       look('Contacts: who everyone is and what they own.', '.dock-app[data-app="contacts"]'),
-      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your meeting is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'START THE CLOCK ▶', onNext: startClock }),
+      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your ' + MT + ' is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'START THE CLOCK ▶', onNext: startClock }),
     ],
     erp: [
       { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },

@@ -48,7 +48,7 @@ export function createTracker({ host }) {
     begin() {
       if (run) send(true);
       activeMs = 0; lastInput = Date.now();
-      run = { id: uid(), visitor, startedAt: new Date().toISOString(), step: 0, stepName: 'home', steps: [{ name: 'home', at: 0 }], mode: null, shell: null, role: null, company: null, finished: false, name: null, email: null, phone: null, hasMeeting: null, bookClicked: false, utm, referrer, device, result: null };
+      run = { id: uid(), visitor, startedAt: new Date().toISOString(), step: 0, stepName: 'home', steps: [{ name: 'home', at: 0 }], mode: null, moment: null, shell: null, role: null, company: null, finished: false, name: null, email: null, phone: null, hasMeeting: null, bookClicked: false, utm, referrer, device, result: null };
       send();
     },
     step(name, extra) {

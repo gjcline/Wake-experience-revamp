@@ -549,3 +549,31 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 .mt-stamp.s-dropped { border-color: #BDC1C6; background: #F1F3F4; } .mt-stamp.s-dropped b { color: #5F6368; }
 .seg.guess, .seg.pilot { background: #4ADE80; } .seg.agreed, .seg.parked, .seg.next, .seg.busy { background: #F59E0B; } .seg.dropped { background: #CBD5E1; color: #475569; }
 .rs-legend .guess i { background: #4ADE80; } .rs-legend .parked i { background: #F59E0B; } .rs-legend .dropped i { background: #CBD5E1; }
+
+/* ---------------------------------------------------------------- the call with your lender */
+.wx .cl-screen.mt.call { background: #14151A; }
+.mt.call .mt-bar { display: flex; justify-content: space-between; gap: 16px; }
+.mt.call .mt-bc { margin-left: auto; }
+.cv { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 12px; }
+.cv-card { display: flex; flex-direction: column; gap: 18px; padding: 18px; border-radius: 12px; background: linear-gradient(160deg, #1E2A3A 0%, #121821 100%); border: 1px solid rgba(255,255,255,.06); }
+.cv-top { display: flex; justify-content: space-between; align-items: center; }
+.cv-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: #8AB4F8; letter-spacing: .02em; }
+.cv-live i { width: 8px; height: 8px; border-radius: 50%; background: #34A853; box-shadow: 0 0 0 0 rgba(52,168,83,.6); animation: cvPulse 1.8s ease-out infinite; }
+@keyframes cvPulse { to { box-shadow: 0 0 0 8px rgba(52,168,83,0); } }
+.cv-time { font: 600 15px/1 'Roboto Mono', ui-monospace, monospace; color: #E8EAED; font-variant-numeric: tabular-nums; }
+.cv-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.cv-main .face { box-shadow: 0 0 0 6px rgba(138,180,248,.12); transition: box-shadow .2s; }
+.cv-card.talk .cv-main .face { box-shadow: 0 0 0 6px rgba(138,180,248,.35), 0 0 0 14px rgba(138,180,248,.12); }
+.cv-main b { display: block; font: 600 20px/1.2 'Inter', system-ui, sans-serif; color: #fff; }
+.cv-main span { font-size: 13px; color: #9AA0A6; }
+.cv-line { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.cv-who { display: flex; align-items: center; gap: 10px; }
+.cv-who em { font-style: normal; display: flex; flex-direction: column; font-size: 13.5px; color: #E8EAED; }
+.cv-who em i { font-style: normal; font-size: 12px; color: #9AA0A6; }
+.cv-btns { display: flex; justify-content: center; gap: 14px; }
+.cv-btns i { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.08); color: #E8EAED; }
+.cv-btns i.end { background: #EA4335; color: #fff; }
+.cv-btns svg { width: 22px; height: 22px; }
+.mt-paper.call { position: static; width: auto; max-height: none; transform: none; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.mt-paper.call .mt-scr-body { padding: 22px 26px; }
+@media (max-width: 900px) { .cv { grid-template-columns: 1fr; } .cv-main { flex-direction: row; text-align: left; justify-content: flex-start; } .cv-btns { display: none; } }

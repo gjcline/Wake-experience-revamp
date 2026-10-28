@@ -3,6 +3,7 @@
 // company (scenario.js); the shell supplies vocabulary; the role supplies perspective.
 // Engines downstream only ever see the world. They never see a shell, a seed or a token.
 
+import { lenderFor } from './lender.js';
 import { SHELLS } from '../content/shells.js';
 import { ROLES } from '../content/roles.js';
 import { generateScenario } from '../content/scenario.js';
@@ -37,10 +38,13 @@ function deep(value, t) {
 
 export const randomSeed = () => (Math.floor(Math.random() * 2 ** 31) ^ Date.now()) >>> 0;
 
-export function buildWorld(shellId, roleId, seed = 1) {
+// The 10:00 AM a player can choose: the role's own meeting, or a call with the bank.
+export const MOMENTS = ['meeting', 'lender'];
+export function buildWorld(shellId, roleId, seed = 1, moment = 'meeting') {
   const shell = SHELLS[shellId];
-  const role = ROLES[roleId];
-  if (!shell || !role) throw new Error('Unknown shell or role');
+  const base = ROLES[roleId];
+  if (!shell || !base) throw new Error('Unknown shell or role');
+  const role = moment === 'lender' ? { ...base, meetingName: 'call with your lender', meetingPlace: 'Phone call' } : base;
   const sc = generateScenario(shell, role, seed);
   const vocab = { ...shell.vocab, ...sc.vocabExtra };
   const t = makeResolver(vocab);
@@ -48,6 +52,8 @@ export function buildWorld(shellId, roleId, seed = 1) {
 
   const world = { t, seed, shell: { id: shell.id, label: shell.label, company: sc.company, headcount: sc.headcount, vocab, size: sc.N, multi: sc.M, monday: sc.monday, mondayLong: sc.mondayLong, weekEnd: sc.weekEnd } };
   world.role = r;
+  world.moment = moment === 'lender' ? 'lender' : 'meeting';
+  if (world.moment === 'lender') world.lender = lenderFor(seed);
   world.locations = deep(sc.locations, t);
   world.pins = sc.pins;
   world.characters = deep(sc.characters, t);
