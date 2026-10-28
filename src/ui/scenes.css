@@ -249,11 +249,12 @@
 /* ------------------------------------------------------------ the start screen, before the intro */
 .wx .sc-screen.st { display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 15% 10%, #DCEBFA 0%, rgba(220,235,250,0) 45%), radial-gradient(ellipse at 90% 95%, #DDE6FB 0%, rgba(221,230,251,0) 40%), #F7F9FC; color: #111; }
 .st-body { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 24px; text-align: center; animation: suIn .5s ease both; }
-.st-mark { display: block; width: min(260px, 56vw); color: #111; }
-.st-mark svg { display: block; width: 100%; height: auto; }
-.st-h { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 16px; }
-.st-h span { font: 500 20px/1.2 'Inter', sans-serif; color: #475569; }
-.st-h b { font: 750 clamp(34px, 6vw, 52px)/1.05 'Inter', sans-serif; letter-spacing: -.03em; color: #111; }
+.st-h { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 0 18px; }
+.st-word { display: inline-flex; align-items: baseline; font: 800 clamp(64px, 13vw, 168px)/1 'Inter', sans-serif; letter-spacing: -.045em; color: #111; white-space: nowrap; }
+/* the mark stands in for the W: cap height tall, sitting on the baseline */
+.st-mark { display: inline-block; height: .74em; margin-right: -.01em; color: #111; }
+.st-mark svg { display: block; height: 100%; width: auto; }
+.st-sub { font: 600 clamp(18px, 2.4vw, 26px)/1.2 'Inter', sans-serif; letter-spacing: -.01em; color: #475569; }
 .wx .sc-screen .st-go { min-width: 180px; padding: 16px 40px; border-radius: 999px; border: 0; background: #111; color: #fff; font: 700 18px/1 'Inter', sans-serif; letter-spacing: .02em; box-shadow: 0 10px 30px rgba(17,17,17,.18); transition: transform .12s, box-shadow .12s; }
 .wx .sc-screen .st-go:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(17,17,17,.24); }
 .wx .sc-screen .st-go:focus-visible { outline: 3px solid #7FB3F5; outline-offset: 3px; }

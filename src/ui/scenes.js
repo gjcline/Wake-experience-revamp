@@ -88,7 +88,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   }
 
   // ------------------------------------------------------------ 0. start, then the intro video
-  // A plain start screen: the Wake mark, "Welcome to the Wake Experience", Start. Its Start click is what lets the browser play the
+  // A plain start screen: "Welcome" written large with the Wake mark as its W, "The Wake
+  // Experience" under it, and Start. Its Start click is what lets the browser play the
   // intro full screen with sound; when the video ends (or is skipped) the title screen follows.
   // `?intro=0` goes straight to the title, and so does the single-file artifact build, which has
   // no video next to it.
@@ -112,8 +113,10 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     let gone = false;
     const go = () => { if (gone) return; gone = true; sfx.unlock(); intro(); };
     screen('st', h('div', { class: 'st-body' },
-      h('span', { class: 'st-mark', role: 'img', 'aria-label': 'Wake', html: WAKE_MARK }),
-      h('h1', { class: 'st-h' }, h('span', {}, 'Welcome to the'), h('b', {}, 'Wake Experience')),
+      // "Welcome", with the Wake mark as its W
+      h('h1', { class: 'st-h', 'aria-label': 'Welcome to the Wake Experience' },
+        h('span', { class: 'st-word', 'aria-hidden': 'true' }, h('span', { class: 'st-mark', html: WAKE_MARK }), 'elcome'),
+        h('span', { class: 'st-sub', 'aria-hidden': 'true' }, 'The Wake Experience')),
       h('button', { class: 'st-go', type: 'button', onclick: go }, 'Start')));
     setTimeout(() => { const b = document.querySelector('.st-go'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
