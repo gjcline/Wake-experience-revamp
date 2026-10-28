@@ -14,6 +14,8 @@ export async function POST(request) {
   }
   let b;
   try { b = JSON.parse(raw); } catch (e) { return json({ ok: false }, 400); }
+  // Cal.com's "Ping test" is not a booking: say OK and keep nothing
+  if (/PING/i.test(String(b.triggerEvent || ''))) return json({ ok: true });
   const p = b.payload || {};
   const runId = p.metadata && ID.test(String(p.metadata.runId || '')) ? p.metadata.runId : null;
   const att = (p.attendees || [])[0] || {};
