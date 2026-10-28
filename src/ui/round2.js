@@ -59,9 +59,10 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   sfx.ambience(1);
 
   // ------------------------------------------------------------ the morning runs
-  function start() {
-    live = true;
-    badges(); drawTray();
+  // the clock holds at 7:48 while the guide shows you Wake, and starts when the tour is done
+  let clockOn = false;
+  function startClock() {
+    if (clockOn) return; clockOn = true;
     ticker = setInterval(() => {
       const r = game.tickWake();
       shown = r.clock; pc.setClock(clockLabel());
@@ -69,6 +70,10 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       if (app === 'calendar') { const nl = document.querySelector('.gc-now'); if (nl) nl.style.top = ((shown - 7 * 60) / 60 * 48) + 'px'; }
       if (r.atTen && strip.alert.hidden) { strip.alert.hidden = false; strip.alert.replaceChildren(h('b', {}, '10:00 AM'), h('span', {}, ' Your meeting is starting. Lock in your briefing when you\'re ready.')); }
     }, reduced ? 600 : CLOCK_MS);
+  }
+  function start() {
+    live = true;
+    badges(); drawTray();
     tour();
   }
 
@@ -174,6 +179,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     if (!had && game.state.picked.length === before) { note('You can hand off up to ' + game.MAX_PICKS + '. Unassign one to swap it.'); return; }
     sfx[had ? 'back' : 'coin']();
     rerender(); drawTray(); badges();
+    if (game.state.picked.length >= 2) startClock();
     coach.emit('pick');
   }
 
@@ -402,7 +408,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const page = id === 'note_role'
       ? [h('p', { class: 'doc-meta' }, 'From ' + boss.name + ', ' + boss.title), h('h2', {}, 'Before Monday'), v.body.map((x) => h('p', {}, x))]
       : [h('p', { class: 'doc-meta' }, 'Your notes · last week\'s 1:1s'), h('h2', {}, '1:1 notes'), h('ul', {}, v.list.map((x) => h('li', {}, x)))];
-    frame('documents', h('div', {}, docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), page, aside: wakeBar(id) })));
+    frame('documents', h('div', {}, docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), backTo: 'Documents', page, aside: wakeBar(id) })));
     pc.url(ERP_HOST + '/core/media/media.nl?id=' + hashOf(id) % 9000);
   }
 
@@ -530,20 +536,15 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     // One guided path everybody goes through, in order: the dashboard explained, the Wake tab, a
     // trace, an assignment, then the Wake reports (the drafted brief and a statement). Each step
     // holds the screen until it's done (`modal` waits for NEXT, `force` for the one click it asks
-    // for). Then a short look at the rest of the dock, and the computer is yours.
+    // for). The rest of the computer was toured in round 1; Gmail, Messages and Calendar each
+    // explain their Wake part when opened. Then the clock starts and the computer is yours.
     const boss = w.characters.boss.name.split(' ')[0];
-    const after = () => coach.seen('erp:reports') && coach.seen('desk:back');
-    const step = (text, target, next = 'NEXT ▶') => ({ text, target, next, modal: true, when: after });
     const doc = () => !!document.querySelector('.ns-doc');
     const memo = !!wakeDocs().find((id) => w.sources[id].memo);
     coach.chapters({
       desk: [
         { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'NEXT ▶', modal: true },
         { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
-        step('Texts still land in Messages, and they aren\'t in any system. Send one to Wake and it goes straight to the insight it belongs to.', '.dock-app[data-app="messages"]'),
-        step('Gmail is connected too. Wake has read every email, and each one is labeled with the insight it feeds.', '.dock-app[data-app="gmail"]'),
-        step('Your calendar carries Wake\'s suggested holds: the time today\'s decisions will need.', '.dock-app[data-app="calendar"]'),
-        step('That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights, then lock in your briefing. Your meeting is at 10:00 AM. The computer is yours.', '.wake-tray', 'LET\'S GO ▶'),
       ],
       erp: [
         { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'NEXT ▶', modal: true },
@@ -561,10 +562,10 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         { text: 'Every standard report is still here, now tagged with what Wake found in it. At the top: your income statement, cash flow and balance sheet, current to this morning instead of month end, and the reports Wake prepared.', target: '.ns-rlg', next: 'NEXT ▶', modal: true },
         { text: memo ? 'Start with this one: Thursday\'s brief for ' + boss + ', already drafted by Wake.' : 'Open one of the reports Wake prepared.', target: memo ? '.ns-rli.memo' : '.ns-rli.wk', wait: ['doc:brief', 'doc:exec'], hint: 'Open it', force: true },
         { text: (memo ? 'Every figure in this draft comes from this morning\'s data, so you review it instead of writing it. ' : 'Wake builds these from the same lines as your insights. ') + 'Nothing to gather, reconcile or format.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc },
-        { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back', force: true, when: doc },
+        { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back to Reports', force: true, when: doc },
         { text: 'Now open your income statement.', target: '.ns-rli.stmt', wait: 'doc:exec', hint: 'Open it', force: true, skipIf: () => !statements.length },
         { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc, skipIf: () => !statements.length },
-        { text: 'Close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, skipIf: () => coach.seen('desk:back') },
+        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your meeting is at 10:00 AM.', target: '.wake-tray', next: 'START THE CLOCK ▶', modal: true, onNext: startClock },
       ],
       messages: [
         { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'GOT IT ▶', once: true },

@@ -15,12 +15,14 @@ export function playIntro({ mount, onDone }) {
   const sound = h('button', { class: 'iv-btn', type: 'button', hidden: true }, 'Sound on');
   const skip = h('button', { class: 'iv-btn', type: 'button' }, 'Skip intro');
   const bar = h('i');
-  mount(h('main', { class: 'sc-screen iv' }, video, h('div', { class: 'iv-ctl' }, sound, skip), h('div', { class: 'iv-prog' }, bar)));
+  const screen = h('main', { class: 'sc-screen iv' }, video, h('div', { class: 'iv-ctl' }, sound, skip), h('div', { class: 'iv-prog' }, bar));
+  mount(screen);
 
   let done = false;
   const key = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); finish(); } };
   const stop = () => { done = true; window.removeEventListener('keydown', key); try { video.pause(); } catch (e) { /* fine */ } };
-  function finish() { if (done) return; stop(); if (onDone) onDone(); }
+  // fade to dark, then the title screen fades in over it
+  function finish() { if (done) return; stop(); screen.classList.add('out'); setTimeout(() => { if (onDone) onDone(); }, 450); }
   window.addEventListener('keydown', key);
   skip.onclick = finish;
   sound.onclick = () => { video.muted = false; sound.hidden = true; video.play().catch(() => {}); };

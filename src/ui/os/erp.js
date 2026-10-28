@@ -46,9 +46,9 @@ export function portlet(title, body, { cls = '', sub, tools = true } = {}) {
 }
 
 // A page title row with a few buttons the suites always have.
-export function pageHead(title, { sub, actions = ['Customize', 'Export', 'Print'], back } = {}) {
+export function pageHead(title, { sub, actions = ['Customize', 'Export', 'Print'], back, backTo = 'Reports' } = {}) {
   return h('div', { class: 'ns-ph' },
-    back ? h('button', { class: 'ns-back', type: 'button', onclick: back }, glyph('chevL'), 'Back') : null,
+    back ? h('button', { class: 'ns-back', type: 'button', onclick: back }, glyph('chevL'), 'Back to ' + backTo) : null,
     h('div', { class: 'ns-pht' }, h('h1', {}, title), sub ? h('p', {}, sub) : null),
     h('span', { class: 'ns-pha' }, actions.map((a) => h('span', { class: 'ns-btn dead' }, a))));
 }
@@ -90,9 +90,9 @@ export function fileCabinet({ folders, folder, files, onOpen }) {
 }
 
 // A document opened from the File Cabinet, or a brief.
-export function docPage({ title, by, back, page, aside }) {
+export function docPage({ title, by, back, backTo, page, aside }) {
   return h('div', { class: 'ns-docw' },
-    pageHead(title, { sub: by, actions: ['Download', 'Share'], back }),
+    pageHead(title, { sub: by, actions: ['Download', 'Share'], back, backTo }),
     h('div', { class: 'ns-docb' }, h('article', { class: 'ns-doc' }, page), aside || null));
 }
 
@@ -137,7 +137,7 @@ export function homePage({ w, model, fig, onOpen, rolled, wake, top }) {
   const recent = ['Invoice', 'Purchase order', 'Bill', 'Sales order', 'Journal', 'Item receipt'].map((t, i) => h('li', {}, h('span', { class: 'ns-link dead' }, t + ' #' + recs[i]), h('em', {}, ['6:52 AM', '6:40 AM', 'Fri', 'Fri', 'Fri', 'Thu'][i])));
   return h('div', { class: 'ns-dash' },
     h('div', { class: 'ns-dh' }, h('h1', {}, 'Home'), h('p', {}, w.shell.mondayLong + ' · ' + w.role.label + ' dashboard · data as of 6:00 AM')),
-    h('div', { class: 'ns-cols' },
+    h('div', { class: 'ns-cols' + (wake ? ' wk' : '') },
       h('div', { class: 'ns-col ns-side' },
         portlet('Reminders', h('ul', { class: 'ns-rem' }, rem.map(([n, t]) => h('li', {}, h('b', {}, String(n)), h('span', { class: 'dead' }, t))))),
         portlet('Saved searches', h('ul', { class: 'ns-list' }, saved)),

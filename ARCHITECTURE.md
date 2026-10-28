@@ -9,9 +9,11 @@ and narrates the player through it with a live guide.
 Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
 anyone asks, and never waits for a prompt.
 
-0. A Start screen with the Wake logo; Start plays the 15-second intro video (intro.js, media/)
+0. A Start screen: the Wake mark, "Welcome to the Wake Experience" and Start, all centered. Start plays the 15-second intro video (intro.js, media/)
    full screen with sound, then the title. Skip is always there; the title has
-   "Watch the 15-second intro" to replay it.
+   "Watch the 15-second intro" to replay it. The video fades to dark into the title. The Wake
+   mark is traced from media/wake-logo.png into a vector (os/icons.js) and used for every Wake
+   app icon (black on a white tile).
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Then the pixel office: the car pulls up and you walk to your desk.
@@ -23,8 +25,12 @@ anyone asks, and never waits for a prompt.
    there and nothing explains itself. Gmail, Messages, Google Calendar and Google Contacts hold
    the inbox, texts, calendar and team. The
    clock runs 7:48 to 10:00 by itself (one minute every two seconds). Nothing costs time.
-   The guide walks the player from the dashboard into Reports and one report before the first
-   flag (flagging is held until then). The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
+   The clock holds at 7:48 while the guide shows the player around and starts when the tour
+   ends (or at the second finding). The guide walks the player from the dashboard into Reports and
+   one report, then lets them pick their own first finding (nothing is filled in for them). After
+   it, the guide closes the ERP for a short look at the rest of the desktop (Gmail, Calendar,
+   Messages, Contacts) before the clock starts. Sample ERP is introduced on the arrival card as a
+   stand-in for the ERP the business already runs on. The player flags 3 to 5 data points. Each finding is four short steps, each its own color:
    pick one of four reads (with the action beneath it), say it in their own words, name an
    owner, say how sure they are. Words and confidence are kept for the sales team.
 3. Rewind to 7:48, then about ten seconds of Wake at work (wakeworks.js): the ERP's modules,
@@ -37,7 +43,8 @@ anyone asks, and never waits for a prompt.
    prepared (briefs and the drafted Thursday brief). Gmail is labeled by insight, the calendar
    carries Wake's holds, and texts can be sent to Wake from Messages. Round 2 opens with a guided tour
    everybody goes through (forced guide steps block every other click): the Wake portlet and KPI
-   column, the Wake tab, a trace, an assignment, the drafted brief and a statement in Reports. Wake reads every system, then hands over five ranked
+   column, the Wake tab, a trace, an assignment, the drafted brief and a statement in Reports. The
+   clock holds until the tour's last step; the rest of the desktop was toured in Round 1. Wake reads every system, then hands over five ranked
    cards with cross-system evidence, an action, an owner and a check. The player reorders,
    assigns, and can put phone texts (not connected to Wake) through Wake to sharpen cards.
 4. The meeting, twice, in person in the pixel conference room (no video call). Wake never

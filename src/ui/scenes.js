@@ -12,6 +12,7 @@ import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { icon } from './os/shell.js';
+import { WAKE_MARK } from './os/icons.js';
 import { playIntro } from './intro.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
@@ -36,13 +37,14 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
 
   // ------------------------------------------------------------ the step card
   // One per step: where you are, what you're doing, why it matters, one button.
-  function card({ step, kicker, title, what, why, wake, cta, onGo, body, tone }) {
+  function card({ step, kicker, title, what, note, why, wake, cta, onGo, body, tone }) {
     const go = btn(cta, () => onGo(), 'ab primary' + (tone === 'wake' ? ' wake' : ''));
     const el = h('section', { class: 'mc' + (tone ? ' ' + tone : ''), role: 'dialog', 'aria-label': title },
       step ? h('div', { class: 'mc-steps' }, STEPS.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
       kicker ? h('p', { class: 'mc-k' }, kicker) : null,
       h('h1', {}, title),
       what ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'What you\'re doing'), h('p', {}, what)) : null,
+      note ? h('p', { class: 'mc-note' }, note) : null,
       why ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'Why it matters'), h('p', {}, why)) : null,
       // every step says how Wake does it: it doesn't wait to be asked
       wake ? h('div', { class: 'mc-wake' }, icon('wake', 'ico mc-wk'), h('div', {}, h('p', { class: 'mc-l' }, 'How Wake does it'), h('p', {}, wake))) : null,
@@ -81,7 +83,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   }
 
   // ------------------------------------------------------------ 0. start, then the intro video
-  // A plain start screen with the Wake logo. Its Start click is what lets the browser play the
+  // A plain start screen: the Wake mark, "Welcome to the Wake Experience", Start. Its Start click is what lets the browser play the
   // intro full screen with sound; when the video ends (or is skipped) the title screen follows.
   // `?intro=0` goes straight to the title, and so does the single-file artifact build, which has
   // no video next to it.
@@ -105,7 +107,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     let gone = false;
     const go = () => { if (gone) return; gone = true; sfx.unlock(); intro(); };
     screen('st', h('div', { class: 'st-body' },
-      h('img', { class: 'st-logo', src: 'media/wake-logo.png', alt: 'Wake', width: 871, height: 197 }),
+      h('span', { class: 'st-mark', role: 'img', 'aria-label': 'Wake', html: WAKE_MARK }),
+      h('h1', { class: 'st-h' }, h('span', {}, 'Welcome to the'), h('b', {}, 'Wake Experience')),
       h('button', { class: 'st-go', type: 'button', onclick: go }, 'Start')));
     setTimeout(() => { const b = document.querySelector('.st-go'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
@@ -256,6 +259,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     await office(sim, { day: w.shell.mondayLong, time: '7:42 AM', preset: 'office', arrive: true,
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
         what: 'Walking in on a Monday. ' + w.shell.company + ' runs on Sample ERP: every report, scorecard and number in one place. Your ' + meeting + ' starts at 10:00 AM.',
+        note: 'Sample ERP is made up. It stands in for the ERP your business already runs on, like NetSuite, QuickBooks, Sage or Dynamics.',
         why: 'You built a business that tracks everything. The problems that cost you money this week are already in there. The question is whether you find them by ten.',
         wake: 'Wake reads every system the business runs on overnight. Nobody has to ask it a question first: by the time you walk in, it already knows what changed.',
         cta: 'Walk in' },

@@ -46,7 +46,11 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
   pc.setClock(clockLabel());
 
+  // the clock holds at 7:48 while the guide shows you around, and starts when the tour is done
+  let clockOn = false;
+  const startClock = () => { if (!clockOn) { clockOn = true; sfx.blip(); } };
   const ticker = setInterval(() => {
+    if (!clockOn) return;
     const r = game.tickClock();
     shown = r.clock; pc.setClock(clockLabel());
     if (r.fired.length) { arrivals(r.fired); badges(); if (app === 'gmail' && !mailId) renderGmail(); if (app === 'messages') renderMessages(); }
@@ -152,20 +156,16 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     };
   }
   // Every row with a figure in it is clickable, not just the number. The row's figure is the one
-  // that matters most (part of a real problem), else its first. Before your first finding, one
-  // row in the report is marked for the guide to point at: "This one looks off."
+  // that matters most (part of a real problem), else its first.
   const CORE = new Set(w.findings.flatMap((f) => f.core || []));
-  function rowify(mark) {
-    let tut = null, firstRow = null;
+  function rowify() {
     pc.body.querySelectorAll('.ns-grid tbody tr').forEach((tr) => {
       const figs = [...tr.querySelectorAll('.figbtn')]; if (!figs.length) return;
       const main = figs.find((b) => CORE.has(b.dataset.s)) || figs[0];
-      tr.classList.add('flagrow'); firstRow = firstRow || tr;
+      tr.classList.add('flagrow');
       tr.title = 'Click to flag';
       tr.addEventListener('click', (e) => { if (!e.target.closest('.figbtn')) main.click(); });
-      if (mark && !tut && !game.state.flags.length && CORE.has(main.dataset.s)) tut = tr;
     });
-    if (mark && !game.state.flags.length && (tut || firstRow)) (tut || firstRow).classList.add('tut-row');
   }
   function figure(sid, srcId) {
     const f = game.state.flags.find((x) => x.signals.includes(sid));
@@ -227,7 +227,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
 
   function erpHome() {
     frame('home', homePage({ w, model, fig, rolled, onOpen: (id) => openErp(id) }));
-    rowify(false);
+    rowify();
     pc.url(ERP_HOST + '/app/center/card.nl?sc=-29');
   }
 
@@ -249,7 +249,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('div', { class: 'ns-blocks' }, v.blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, b.note ? h('p', { class: 'ns-bnote' }, b.note) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(v.id), cls: 'ns-grid' }))))),
       h('p', { class: 'ns-foot' }, 'Owner: ' + v.from.name + ', ' + v.from.title + ' · synced from ' + sysOf(id))));
     pc.url(ERP_HOST + '/app/common/search/searchresults.nl?searchid=' + hashOf(id) % 900);
-    rowify(true); scrollHl(pc.body); badges();
+    rowify(); scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:report');
   }
   function openScorecards(tab, quiet) {
@@ -267,7 +267,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('p', { class: 'ns-intro' }, intro),
       h('div', { class: 'ns-blocks' }, blocks.map((b) => h('section', { class: 'ns-block' }, b.title ? h('h3', {}, b.title) : null, h('div', { class: 'dscroll' }, dataTable(b, { cell: figCell(tab), cls: 'ns-grid' })))))));
     pc.url(ERP_HOST + '/app/center/scorecard.nl?loc=' + (locIds.indexOf(tab) + 1));
-    rowify(false); scrollHl(pc.body); badges();
+    rowify(); scrollHl(pc.body); badges();
     if (!quiet) coach.emit('doc:location');
   }
   function erpFiles() {
@@ -285,7 +285,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const page = id === 'note_role'
       ? [h('p', { class: 'doc-meta' }, 'From ' + boss.name + ', ' + boss.title), h('h2', {}, 'Before Monday'), v.body.map((x) => h('p', {}, x)), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_role', source: 'note_role', label: 'Note from ' + boss.name }, v.attachedTo))]
       : [h('p', { class: 'doc-meta' }, 'Your notes · last week\'s 1:1s'), h('h2', {}, '1:1 notes'), h('ul', {}, v.list.map((x) => h('li', {}, x))), h('div', { class: 'attach-row' }, attachBtn({ key: 'note_mine', source: 'note_mine', label: 'Your notes from last week' }, v.attachedTo))];
-    frame('documents', docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), page }));
+    frame('documents', docPage({ title: id === 'note_role' ? 'Note from ' + boss.name : '1:1 notes - last week', by: id === 'note_role' ? 'Shared by ' + boss.name : 'Last edited last week', back: () => erpTo('documents'), backTo: 'Documents', page }));
     pc.url(ERP_HOST + '/core/media/media.nl?id=' + hashOf(id) % 9000);
     badges();
   }
@@ -383,15 +383,6 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const n = existing ? game.state.flags.indexOf(existing) + 1 : game.state.flags.length + 1;
     let choice = existing ? existing.choice : null, owner = existing ? existing.owner : null, sure = existing ? existing.confidence : null;
     const answers = game.answers(sid);
-    // the first finding is filled in for you: a sensible read (dig into it), its natural owner,
-    // fairly sure. You only have to add it. The rest are yours.
-    const prefill = !existing && !game.state.flags.length;
-    if (prefill) {
-      const a = answers.find((x) => x.intent === 'investigate') || answers.find((x) => x.style === 'analyze') || answers[0];
-      const f = w.findings.find((x) => (x.core || []).concat(x.evidence || []).includes(sid));
-      const nat = f && w.briefing[f.id] ? w.briefing[f.id].owner[0] : null;
-      choice = a ? a.id : null; owner = nat && game.owners().some((o) => o.key === nat) ? nat : null; sure = 'fair';
-    }
     const steps = h('ol', { class: 'cprog' });
     const progress = () => steps.replaceChildren(...[['Your read', !!choice], ['Owner', !!owner], ['How sure', !!sure]].map(([t, done], i) => h('li', { class: 'cp' + i + (done ? ' done' : '') }, h('i', {}, done ? '✓' : String(i + 1)), t)));
     const opts = h('div', { class: 'answers', role: 'radiogroup', 'aria-label': 'Your read' });
@@ -414,13 +405,13 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       if (existing) game.editFlag(existing.id, { choice, note: noteText, owner, confidence: sure }); else game.flag({ signals, source, choice, owner, confidence: sure });
       closeCard(); sfx.coin(); drawTray(); render();
       coach.emit('flagged'); coach.pop();
+      if (!existing && game.state.flags.length >= 2) startClock();
       if (!existing && game.state.flags.length === game.MIN_FLAGS && !doneShown) { doneShown = true; doneScreen(); }
       else if (!existing && game.state.flags.length > 1) saved();
     }, 'ob primary');
     const step = (k, title, help, ...body) => h('section', { class: 'cstep2 s' + k }, h('div', { class: 'cs-head' }, h('b', {}, String(k)), h('div', {}, h('p', { class: 'label' }, title), help ? h('p', { class: 'help' }, help) : null)), ...body);
     card('composer',
       h('p', { class: 'stamp' }, existing ? 'Edit finding #' + n : 'New finding #' + n),
-      prefill ? h('p', { class: 'prefill' }, glyph('check'), 'We filled in your first one. Just click Add to findings.') : null,
       h('blockquote', { class: 'flagged' }, h('span', { class: 'fl-src' }, (src ? src.title : '') + (w.system[src && src.id] ? ' · ' + w.system[src.id] : '')), h('strong', {}, s.label), h('span', { class: 'fl-v' }, [s.value, s.delta].filter(Boolean).join(' · '))),
       steps,
       step(1, 'What do you think is going on?', 'Pick one.', opts),
@@ -521,28 +512,36 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   }
 
   badges(); drawTray();
-  // The guide, in chapters. Each plays where it belongs; leave and it waits for you.
+  // The guide, in chapters. Each plays where it belongs; leave and it waits for you. It shows the
+  // way to the first report and lets you pick your own first finding; then it closes the ERP for
+  // a quick look at the rest of the computer, and the clock starts.
   const flagged = () => game.state.flags.length >= 1;
+  const toured = () => flagged() && coach.seen('desk');
+  const look = (text, target, extra) => ({ text, target, next: 'NEXT ▶', modal: true, when: toured, ...extra });
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. Everything about your company is in ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
       { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
+      look('That\'s the rest of your computer. Gmail: email from your team, vendors and customers.', '.dock-app[data-app="gmail"]'),
+      look('Calendar: today\'s meetings, including your ' + w.role.meetingName + ' at 10:00 AM.', '.dock-app[data-app="calendar"]'),
+      look('Messages: texts from your managers. They aren\'t in any system.', '.dock-app[data-app="messages"]'),
+      look('Contacts: who everyone is and what they own.', '.dock-app[data-app="contacts"]'),
+      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your meeting is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'START THE CLOCK ▶', onNext: startClock }),
     ],
     erp: [
       { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
       { text: 'Click Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
-      { text: 'This one looks off. Click it.', target: '.tut-row', wait: 'compose', hint: 'Click the row', force: true, skipIf: flagged, when: () => !!document.querySelector('.tut-row') },
+      { text: 'Look down the list. When a number looks off to you, click its row to flag it. Your call.', target: '.ns-grid', wait: 'compose', hint: 'Click a row that looks off', skipIf: flagged, when: () => !!document.querySelector('.ns-grid .flagrow') },
       { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'GOT IT ▶', modal: true, when: flagged },
-      { text: 'Now find ' + (game.MIN_FLAGS - 1) + ' more on your own. Click any row that looks off. Other reports are under Reports.', target: '.ns-tab[data-tab="reports"]', next: 'GOT IT ▶', modal: true, when: flagged },
+      { text: 'Before you find more: close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, when: flagged, skipIf: () => coach.seen('desk') && flagged() },
     ],
     compose: [
-      { text: 'We filled this one in for you. Click Add to findings.', target: '.composer .ob.primary', wait: 'flagged', hint: 'Click Add to findings', force: true, allow: '.composer', skipIf: () => game.state.flags.length > 0 },
-      { text: 'Your turn. Pick what you think is going on, then click Add to findings.', target: '.composer', inline: true, wait: 'flagged', skipIf: () => game.state.flags.length !== 1 },
+      { text: 'Pick what you think is going on, and who should handle it if you like. Then click Add to findings.', target: '.composer', inline: true, wait: 'flagged', skipIf: () => game.state.flags.length > 0 },
     ],
     secondary: [
       { text: 'An email or text can back up a finding. Click Add to a finding to attach it.', target: '.attach-btn', next: 'GOT IT ▶', once: true },
     ],
     _alias: { gmail: 'secondary', messages: 'secondary', calendar: 'secondary' },
-  }, 'desk'), reduced ? 0 : 500);
+}, 'desk'), reduced ? 0 : 500);
 }

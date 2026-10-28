@@ -112,13 +112,12 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · conference room'),
         h('h1', {}, 'Your weekly ' + name),
         h('p', { class: 'mi-lead' }, 'Every Monday the leadership team meets to decide what happens this week: what matters, who owns it, and by when. ' + (room.length + 1) + ' people including you, one hour on the calendar.'),
-        h('div', { class: 'mi-why' }, h('b', {}, 'Why this meeting'), h('p', {}, 'We chose the weekly ' + name + ' for this demo because it\'s where a morning of data turns into decisions. It\'s the clearest place to see what preparation is worth: every answer you have in the room is a decision made today; every answer you don\'t is a follow-up and a lost day.')),
+        h('div', { class: 'mi-why' }, h('b', {}, 'A simulated meeting · you watch'), h('p', {}, 'You don\'t need to do anything here. The meeting plays on its own with what you brought this morning. Then it runs again with the briefing you prepared with Wake. Watch the difference: what gets decided in the room, and what turns into follow-ups.')),
         h('div', { class: 'mi-cols' },
           h('section', {}, h('p', { class: 'mi-l' }, 'Your agenda · what you brought'), h('ol', { class: 'mi-ag' }, A.map((it) => h('li', {}, h('b', {}, it.what.label + (it.what.value ? ': ' + it.what.value : '')), h('span', {}, '"' + it.text + '"'))))),
           h('section', {}, h('p', { class: 'mi-l' }, 'In the room'), h('div', { class: 'mi-ppl' }, room.map((k) => h('span', {}, fc(k, 26), h('em', {}, nameOf(k), h('i', {}, (W.characters[k] || {}).title || ''))))),
             h('p', { class: 'mi-l' }, 'What to watch'), h('ul', { class: 'mi-watch' }, h('li', {}, h('b', { class: 'dec' }, 'Decided'), ' on the spot, with an owner and a start date'), h('li', {}, h('b', { class: 'owed' }, 'Follow-ups'), ' owed when an answer isn\'t in the room'), h('li', {}, h('b', {}, 'Leadership hours'), ': people in the room × minutes')))),
-        h('p', { class: 'mi-note' }, 'The meeting plays on its own. You answer with what you brought this morning. Then you run it again, prepared with Wake.'),
-        h('div', { class: 'mi-go' }, btn('Start the ' + Name.toLowerCase(), go, 'cb primary big'))));
+        h('div', { class: 'mi-go' }, btn('Watch the ' + Name.toLowerCase(), go, 'cb primary big'))));
     own();
   }
 

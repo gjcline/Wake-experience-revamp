@@ -230,10 +230,20 @@ function round2() {
 async function walkToMeeting() {
   track.step('meeting');
   leave();
+  const name = game.world.role.meetingName;
+  const watch = h('div', { class: 'mc-box' },
+    h('p', { class: 'mc-l' }, 'Why this meeting'),
+    h('p', {}, 'We picked the weekly ' + name + ' because it\'s where a morning of data turns into decisions. Every answer you have in the room is a decision made today; every answer you don\'t is a follow-up and a lost day.'),
+    h('p', { class: 'mc-l' }, 'Watch for'),
+    h('ul', { class: 'mc-watch' },
+      h('li', {}, h('b', { class: 'dec' }, 'Decided'), ' on the spot, with an owner and a start date'),
+      h('li', {}, h('b', { class: 'owed' }, 'Follow-ups'), ' owed when an answer isn\'t in the room'),
+      h('li', {}, h('b', {}, 'Leadership hours'), ': people in the room × minutes')));
   world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
-      what: 'Everyone is in the conference room. You\'ll run this meeting twice: first with the briefing you built on your own, then with the one you prepared with Wake.',
-      why: 'A meeting is only as good as what you bring to it. Watch each item: decided on the spot, or pushed off into follow-ups.',
+      what: 'Everyone is in the conference room. The meeting runs twice: first with the briefing you built on your own, then with the one you prepared with Wake.',
+      note: 'These meetings are simulated. You don\'t play them: they run on their own, and you watch the difference Wake makes.',
+      body: watch,
       wake: 'Wake isn\'t in the room and doesn\'t speak. It did its work before the meeting: every item you bring has its evidence, an owner and the number to watch.',
       cta: 'Take your seat' },
     done: () => finale().meeting() });

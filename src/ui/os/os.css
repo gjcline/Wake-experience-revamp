@@ -469,6 +469,16 @@
 .os-screen .dialog .stamp { font: 600 12px/1 var(--ui); letter-spacing: .06em; text-transform: uppercase; color: #B06000; }
 .os-screen .dialog .row { gap: 12px 16px; margin-top: 4px; }
 .os-screen .composer { width: min(760px, 100%); }
+/* dialogs always fit the screen: centered when they fit, scrolling inside when they don't, with
+   the buttons pinned to the bottom so Add to findings is always in reach */
+.os-screen .overlay { display: flex; padding: 16px; }
+.os-screen .dialog { margin: auto; max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+.os-screen .dialog > .row:last-child { position: sticky; bottom: -26px; margin: 4px -28px -26px; padding: 14px 28px 18px; background: #fff; border-top: 1px solid #E8EAED; z-index: 1; }
+@media (max-height: 760px) {
+  .os-screen .dialog { padding: 18px 22px; gap: 10px; }
+  .os-screen .dialog > .row:last-child { bottom: -18px; margin: 2px -22px -18px; padding: 12px 22px 14px; }
+  .os-screen .composer .answer { padding-top: 8px; padding-bottom: 8px; }
+}
 .os-screen .flagged { margin: 0; padding: 12px 16px; border-radius: 12px; background: #FEF7E0; display: flex; flex-direction: column; gap: 2px; box-shadow: none; }
 .os-screen .flagged .fl-src { font-size: 12px; color: #8A5300; }
 .os-screen .flagged strong { font-size: 17px; font-weight: 600; font-family: var(--ui); color: var(--g-ink); }

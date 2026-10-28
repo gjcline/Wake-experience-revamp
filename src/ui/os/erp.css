@@ -43,7 +43,12 @@
 .ns-dh p { color: var(--ns-dim); font-size: 12.5px; }
 .ns-cols { display: grid; grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(200px, 250px); gap: 12px; align-items: start; }
 @media (max-width: 1180px) { .ns-cols { grid-template-columns: minmax(190px, 230px) minmax(0, 1fr); } .ns-cols > .ns-side:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; } .ns-cols > .ns-side:last-child .ns-pt { margin: 0; } }
-@media (max-width: 760px) { .ns-cols { grid-template-columns: 1fr; } }
+/* with Wake the indicator table carries a Wake column, so the right-hand portlets move below it
+   and the table gets the room it needs instead of being cut off */
+.ns-cols.wk { grid-template-columns: minmax(190px, 230px) minmax(0, 1fr); }
+.ns-cols.wk > .ns-side:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.ns-cols.wk > .ns-side:last-child .ns-pt { margin: 0; }
+@media (max-width: 760px) { .ns-cols, .ns-cols.wk { grid-template-columns: 1fr; } }
 
 .ns-rem li { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px dotted #E3E7EC; }
 .ns-rem li:last-child { border: 0; }
@@ -92,8 +97,10 @@ button.ns-link:hover { text-decoration: underline; }
 
 /* page head, filters, reports */
 .ns-ph { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin: 0 0 10px; }
-.ns-back { flex-basis: 100%; display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 0; color: var(--ns-link) !important; font-size: 12.5px; }
-.os-screen .ns-back .gl { width: 16px; height: 16px; color: var(--ns-link); }
+/* Back is a real button, easy to spot above the page title */
+.os-screen .ns-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px; padding: 7px 14px 7px 9px; border-radius: 8px; border: 1px solid #C9D3E0; background: #fff; color: #1F3A5C !important; font-size: 13.5px; font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,.08); cursor: pointer; }
+.os-screen .ns-back:hover { background: #EEF3F9; border-color: #9FB2C9; }
+.os-screen .ns-back .gl { width: 18px; height: 18px; color: #1F3A5C; }
 .ns-pht h1 { font-size: 20px !important; font-weight: 600 !important; }
 .ns-pht p { color: var(--ns-dim); font-size: 12.5px; }
 .ns-pha { margin-left: auto; display: inline-flex; gap: 6px; }
@@ -190,7 +197,7 @@ button.ns-rli:hover span { text-decoration: underline; }
 .ns-cmt p:first-child span { color: var(--ns-dim); font-size: 12px; margin-left: auto; }
 .ns-doc blockquote { border-left: 3px solid var(--wk); padding: 4px 12px; margin: 0 0 12px; color: #334155; }
 .ns-exec { margin: 10px 0; }
-.ns-kpi td.ns-wcell { min-width: 300px; }
+.ns-kpi td.ns-wcell { min-width: 240px; }
 .ns-wnote.hit span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ns-rli .ns-tag { white-space: nowrap; }
 @media (max-width: 600px) {
@@ -204,11 +211,7 @@ button.ns-rli:hover span { text-decoration: underline; }
   .ns-pha { display: none; }
 }
 
-/* Round 1: whole rows are clickable, and the guide's first row glows */
+/* Round 1: whole rows are clickable */
 .os-screen .ns-grid tr.flagrow { cursor: pointer; }
 .os-screen .ns-grid tr.flagrow:hover td { background: #FEF7E0 !important; }
 .os-screen .ns-grid tr.flagrow:hover td:first-child { box-shadow: inset 3px 0 0 #F9AB00; }
-.os-screen .ns-grid tr.tut-row td { background: #FFF4CC !important; }
-.os-screen .ns-grid tr.tut-row td:first-child { box-shadow: inset 4px 0 0 #F29900; font-weight: 600; }
-.os-screen .composer .prefill { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; padding: 10px 12px; border-radius: 10px; background: #E6F4EA; color: #0D652D; font-size: 14px; font-weight: 600; }
-.os-screen .composer .prefill .gl { width: 18px; height: 18px; color: #188038; }
