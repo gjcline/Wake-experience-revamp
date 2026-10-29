@@ -1,5 +1,5 @@
 // ROUND 2: WITH WAKE
-// The same computer, the same Monday, the same Sample ERP. The difference is that Wake is built into
+// The same computer, the same Monday, the same the ERP. The difference is that Wake is built into
 // the ERP now, and it read everything before you sat down: the ERP's modules, the inbox, the
 // calendar. The dashboard looks the same, but every indicator says why it moved and which insight it
 // feeds; a Wake portlet ranks what needs you; the Wake tab holds every insight with the lines behind
@@ -139,7 +139,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         h('p', { class: 'wk-nfoot' }, 'Your ERP is one source. Wake connects natively to the rest of your stack too.')),
       h('section', { class: 'wk-main' },
         h('header', { class: 'wa-head' },
-          h('div', {}, h('p', { class: 'wa-k' }, 'Wake in ' + ERP_NAME + ' · ' + w.shell.mondayLong + ' · read at 7:48 AM'), h('h1', {}, 'Good morning. Here\'s what needs you.'),
+          h('div', {}, h('p', { class: 'wa-k' }, 'Wake in the ' + ERP_NAME + ' · ' + w.shell.mondayLong + ' · read at 7:48 AM'), h('h1', {}, 'Good morning. Here\'s what needs you.'),
             h('p', { class: 'wa-sum' }, n(B.funnel.records) + ' records from ' + B.systems.length + ' systems. ' + B.funnel.material + ' signals connected into ' + list.length + ' insights, ranked.')),
           h('div', { class: 'wa-pick' + (picked >= game.MIN_PICKS ? ' ok' : '') }, h('b', {}, picked + ' / ' + game.MIN_PICKS + (picked > game.MIN_PICKS ? '+' : '')), h('span', {}, 'assigned · up to ' + game.MAX_PICKS))),
         h('ol', { class: 'wi-list' }, list.map(insightRow)),
@@ -256,7 +256,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
       h('div', { class: 'dscroll' }, dataTable(b, { cell: (c) => (c.spark ? h('span', { class: 'xsp' }, spark(c.spark, c.tone), c.t ? h('span', {}, c.t) : null) : null), cls: 'fin' })));
     return v.blocks.map((b) => (b.type === 'kpis' ? kpis(b) : b.type === 'text' ? text(b) : table(b)));
   }
-  // ------------------------------------------------------------ Sample ERP, with Wake built in
+  // ------------------------------------------------------------ the ERP, with Wake built in
   // The same dashboard, reports and scorecards as Round 1. Wake adds what was missing: what each
   // number means, which insight it feeds, and who owns it.
   const insOf = (sid) => game.insights().filter((it) => it.sources.some((x) => x.key === sid));
@@ -509,7 +509,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const list = game.insights().filter((x) => x.picked);
     sfx.blip();
     card('findings-card', h('h2', {}, 'Your briefing'),
-      h('p', {}, list.length ? 'This is what you\'ll hand your team at 10:00, in Wake\'s priority order.' : 'Nothing assigned yet. Open the Wake tab in ' + ERP_NAME + ' and assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights.'),
+      h('p', {}, list.length ? 'This is what you\'ll hand your team at 10:00, in Wake\'s priority order.' : 'Nothing assigned yet. Open the Wake tab in the ' + ERP_NAME + ' and assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights.'),
       h('ol', { class: 'finding-list' }, list.map((it) => h('li', { class: 'finding-row' }, h('span', { class: 'fnum cy' }, String(it.rank)),
         h('div', {}, h('span', { class: 'fr-src' }, it.place), h('strong', {}, it.headline), h('p', {}, it.action), h('span', { class: 'quiet' }, 'Owner: ' + it.owners.map((o) => o.name).join(' and '))),
         h('div', { class: 'row-tools' }, btn('Remove', () => { game.pick(it.id); briefCard(); drawTray(); rerender(); badges(); }, 'chip'))))),

@@ -1,5 +1,5 @@
 // ROUND 1: ON YOUR OWN
-// Your computer on Monday morning. The company runs on one ERP (Sample ERP): the dashboard,
+// Your computer on Monday morning. The company runs on one ERP (the ERP): the dashboard,
 // every report and saved search, each location's scorecard and the shared notes are all in it.
 // The data is all in one place; what it means is up to you. Any figure on the dashboard, in a
 // report or a scorecard can be flagged as a finding. Gmail, Messages, Calendar and the notes
@@ -197,7 +197,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     badges();
   }
 
-  // ------------------------------------------------------------ Sample ERP, the ERP
+  // ------------------------------------------------------------ the ERP, the ERP
   // Every report, scorecard and number is in one place. That was never the problem.
   const rolled = (id) => (game.state.sources[id] || {}).opened;
   const model = erpModel(w), { where, sysOf } = model;
@@ -428,7 +428,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
     const fl = game.flags();
     sfx.select();
     if (!fl.length) {
-      card('attach-card', h('h2', {}, 'Add to a finding'), h('p', {}, 'You haven\'t stored a finding yet. Flag a figure in ' + ERP_NAME + ' first, then attach this to it as supporting context.'), h('div', { class: 'row' }, btn('Got it', () => { closeCard(); sfx.back(); }, 'ob primary')));
+      card('attach-card', h('h2', {}, 'Add to a finding'), h('p', {}, 'You haven\'t stored a finding yet. Flag a figure in the ' + ERP_NAME + ' first, then attach this to it as supporting context.'), h('div', { class: 'row' }, btn('Got it', () => { closeCard(); sfx.back(); }, 'ob primary')));
       return;
     }
     const draw = () => card('attach-card', h('h2', {}, 'Add to a finding'),
@@ -465,7 +465,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       h('div', { class: 'row-tools' }, btn('▲', () => { game.moveFlag(f.id, -1); findingsCard(); drawTray(); }, 'chip'), btn('▼', () => { game.moveFlag(f.id, 1); findingsCard(); drawTray(); }, 'chip'), btn('Edit', () => compose({ existing: game.state.flags.find((x) => x.id === f.id) }), 'chip'))));
     card('findings-card',
       h('h2', {}, 'Your findings'),
-      h('p', {}, fl.length ? 'This is exactly what you\'ll hand your team at 10:00. Edit, reorder, or remove anything. Attach context from Gmail, Messages, Calendar or your notes with Add to a finding.' : 'Nothing stored yet. Click a figure in ' + ERP_NAME + ' to flag it.'),
+      h('p', {}, fl.length ? 'This is exactly what you\'ll hand your team at 10:00. Edit, reorder, or remove anything. Attach context from Gmail, Messages, Calendar or your notes with Add to a finding.' : 'Nothing stored yet. Click a figure in the ' + ERP_NAME + ' to flag it.'),
       h('ol', { class: 'finding-list' }, rows),
       h('div', { class: 'row' }, ok ? btn('Lock in my briefing', () => { closeCard(); submit(); }, 'ob primary') : h('span', { class: 'quiet' }, 'Store at least ' + game.MIN_FLAGS + ' to lock in.'), btn('Keep working', () => { closeCard(); sfx.back(); coach.emit('closed'); }, 'link')));
     coach.emit('findings');
@@ -504,7 +504,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   function rulesCard() {
     card('rules-card', h('h2', {}, 'How this works'),
       h('ul', { class: 'mini-rules' },
-        h('li', {}, 'This is your computer on Monday morning. Your company runs on ' + ERP_NAME + ': the dashboard, every report, each ' + V.unit + '\'s scorecard and your notes are in it. Your inbox, texts, calendar and directory are in the dock.'),
+        h('li', {}, 'This is your computer on Monday morning. Your company runs on the ' + ERP_NAME + ': the dashboard, every report, each ' + V.unit + '\'s scorecard and your notes are in it. Your inbox, texts, calendar and directory are in the dock.'),
         h('li', {}, 'Click any figure on the dashboard, in a report or a scorecard to flag it. Pick your read on it and name an owner if you like.'),
         h('li', {}, 'Emails, texts, calendar entries and notes are context. Attach them to a finding with Add to a finding.'),
         h('li', {}, 'Connected data jumps you to other places the same numbers show up, and back.'),
@@ -521,7 +521,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const look = (text, target, extra) => ({ text, target, next: 'NEXT ▶', modal: true, when: toured, ...extra });
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in the ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
       { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
       look('That\'s the rest of your computer. Gmail: email from your team, vendors and customers.', '.dock-app[data-app="gmail"]'),
       look('Calendar: today\'s meetings, including your ' + w.role.meetingName + ' at 10:00 AM.', '.dock-app[data-app="calendar"]'),
@@ -535,7 +535,7 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
       { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Look down the list. When a number looks off to you, click its row to flag it. Your call.', target: '.ns-grid', wait: 'compose', hint: 'Click a row that looks off', skipIf: flagged, when: () => !!document.querySelector('.ns-grid .flagrow') },
       { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'GOT IT ▶', modal: true, when: flagged },
-      { text: 'Before you find more: close ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, when: flagged, skipIf: () => coach.seen('desk') && flagged() },
+      { text: 'Before you find more: close the ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, when: flagged, skipIf: () => coach.seen('desk') && flagged() },
     ],
     compose: [
       { text: 'Pick what you think is going on, and who should handle it if you like. Then click Add to findings.', target: '.composer', inline: true, wait: 'flagged', skipIf: () => game.state.flags.length > 0 },

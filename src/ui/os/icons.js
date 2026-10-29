@@ -1,5 +1,5 @@
 // App marks for the simulated computer. Drawn here as simple SVG so the desk reads as the
-// tools a real team uses: the company's ERP (Sample ERP), Gmail, Google Calendar, Messages,
+// tools a real team uses: the company's ERP (the ERP), Gmail, Google Calendar, Messages,
 // Contacts, and Wake. No image files.
 
 const svg = (vb, body) => '<svg viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + body + '</svg>';

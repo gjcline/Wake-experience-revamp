@@ -212,7 +212,7 @@ async function resetDay() {
     card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Same Monday. Same 7:48 AM.', body: clock,
       what: 'Same Monday, same data, same ' + ERP_NAME + '. The only difference: Wake gets there first. It reads every report, email and text and hands you what matters, ranked, with the evidence and an owner for each.',
       why: 'Deciding is the part only you can do. Wake takes the digging off your plate, so you walk into ten o\'clock ready.',
-      wake: 'Nothing to set up and nothing to ask. Wake is already connected to ' + ERP_NAME + ', the inbox and the calendar, and it has been reading all morning.',
+      wake: 'Nothing to set up and nothing to ask. Wake is already connected to the ' + ERP_NAME + ', the inbox and the calendar, and it has been reading all morning.',
       cta: 'Watch Wake work' },
     done: async () => { game.startRound2(); await wakeAtWork({ mount: (el) => { leave(); root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, game, reduced, sfx, erpName: ERP_NAME }); round2(); } });
   const go = layer.querySelector('.mc-go .ab'); if (go) go.disabled = true;
