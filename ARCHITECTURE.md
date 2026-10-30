@@ -62,7 +62,7 @@ anyone asks, and never waits for a prompt.
    rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
 4b. Or a call. After both rounds are locked, the player picks where to see Wake work: the role's
-   meeting, or one of four calls (engine/moments.js): the lender ahead of the covenant check, the
+   meeting (featured as "Start here"), or one of four calls (engine/moments.js): the lender ahead of the covenant check, the
    monthly update to the board, the biggest supplier before next quarter's pricing, or a buyer
    doing due diligence. The person calling comes from the seed (the supplier's account rep is the
    one already in the company's data). What each item comes to is decided exactly as in the
@@ -71,6 +71,8 @@ anyone asks, and never waits for a prompt.
    and how they leave the call (the supplier call lands on whether you recover the overbilling).
    Three people on the line, shorter than a meeting. The call screens, the result, the scorecard
    row, the week and the report all take their words from the spec.
+   After the final score, "See Wake somewhere else" lists the moments not played yet; picking one
+   runs that moment, the week and a new score from the same two briefings (setMoment again).
 5. The week. Both plans run Monday afternoon to Friday on a dashboard, each with its own Slack
    channel of daily updates, and a
    six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,
