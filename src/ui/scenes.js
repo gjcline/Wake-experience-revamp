@@ -90,22 +90,14 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   // ------------------------------------------------------------ 0. start, then the intro video
   // A plain start screen: "Welcome" written large with the Wake mark as its W, "The Wake
   // Experience" under it, and Start. Its Start click is what lets the browser play the
-  // intro full screen with sound; when the video ends (or is skipped) the title screen follows.
+  // intro with sound (in the page, not full screen); when the video ends (or is skipped) the title screen follows.
   // `?intro=0` goes straight to the title, and so does the single-file artifact build, which has
   // no video next to it.
   const introParam = (() => { try { return new URLSearchParams(window.location.search).get('intro'); } catch (e) { return null; } })();
-  const full = (on) => {
-    try {
-      const d = document;
-      if (on && !d.fullscreenElement && d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(() => {});
-      if (!on && d.fullscreenElement && d.exitFullscreen) d.exitFullscreen().catch(() => {});
-    } catch (e) { /* fullscreen is a nicety */ }
-  };
   // called straight from a click, so the video may play with sound
   function intro() {
     clear();
-    full(true);
-    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => { full(false); home(); } });
+    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => home() });
     teardown.push(stop);
   }
   function first() {
