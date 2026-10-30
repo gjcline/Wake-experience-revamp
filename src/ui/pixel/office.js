@@ -75,6 +75,15 @@ function person(g, at, px, fx, fy, pal, { dir = 'down', frame = 0, seated = fals
   for (const [c, r, k] of cells) { const [x, y] = at(left + c, top + r); g.fillStyle = pal[k]; g.fillRect(x, y, px + 0.5, px + 0.5); }
 }
 
+// One person standing, facing you, as a small canvas: the role portraits on the setup screens.
+export function sprite(av, shirt, px = 4) {
+  const cv = document.createElement('canvas');
+  cv.width = 12 * px; cv.height = 16 * px; cv.className = 'px-sprite';
+  const g = cv.getContext('2d');
+  person(g, (x, y) => [x * px, y * px], px, 6, 14.5, personPal(av, shirt), { dir: 'down' });
+  return cv;
+}
+
 // ------------------------------------------------------------------ the building
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
@@ -233,7 +242,7 @@ export function createOffice(holder, { company, playerShirt, npcs = [], reduced 
   function frame(t) {
     if (dead) return;
     if (cam.follow) { cam.tx = player.x; cam.ty = player.y - 6; }
-    const k = reduced || skipping ? 1 : 0.07;
+    const k = reduced || skipping ? 1 : cam.k || 0.07;
     cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; cam.z += (cam.tz - cam.z) * k;
     clampCam();
     const scale = base() * cam.z;
@@ -242,9 +251,9 @@ export function createOffice(holder, { company, playerShirt, npcs = [], reduced 
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#0B0A14'; ctx.fillRect(0, 0, W, H);
     if (off) ctx.drawImage(off, left * S, top * S, (W / scale) * S, (H / scale) * S, 0, 0, W, H);
-    if (carState.visible) car(ctx, at, scale, carState.x, carState.y, '#3E6FB0');
+    if (carState.visible) car(ctx, at, scale, carState.x, carState.y, carState.color || '#3E6FB0', carState.dir);
     const bob = Math.floor(t / 600) % 2;
-    for (const n of walkers) person(ctx, at, scale, n.x, n.y - bob * 0.3, personPal(n.av), { dir: n.facing || 'down', frame: 0 });
+    for (const n of walkers) { if (n.path && !reduced) patrol(n, t); person(ctx, at, scale, n.x, n.y - (n.moving ? 0 : bob * 0.3), personPal(n.av), { dir: n.facing || 'down', frame: n.moving ? Math.floor(t / 150) : 0 }); }
     if (player.visible) {
       person(ctx, at, scale, player.x, player.y, player.pal, { dir: player.dir, frame: player.frame, seated: player.seated });
       // the 1P marker
@@ -265,6 +274,17 @@ export function createOffice(holder, { company, playerShirt, npcs = [], reduced 
       ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.text, bx, by - fs * 0.62);
     }
     raf = requestAnimationFrame(frame);
+  }
+
+  // A walker with a `path` goes back and forth along it, pausing at each end.
+  function patrol(n, t) {
+    if (!n.leg) Object.assign(n, { leg: 1, from: n.path[0], t0: t, x: n.path[0][0], y: n.path[0][1] });
+    const a = n.from, b = n.path[n.leg], dist = Math.hypot(b[0] - a[0], b[1] - a[1]), dur = (dist / 18) * 1000;
+    const p = Math.min(1, (t - n.t0) / dur);
+    n.moving = p < 1;
+    n.x = a[0] + (b[0] - a[0]) * p; n.y = a[1] + (b[1] - a[1]) * p;
+    if (n.moving) n.facing = Math.abs(b[0] - a[0]) > Math.abs(b[1] - a[1]) ? (b[0] < a[0] ? 'left' : 'right') : (b[1] < a[1] ? 'up' : 'down');
+    if (t - n.t0 > dur + 1400) { n.from = b; n.leg = (n.leg + 1) % n.path.length; n.t0 = t; }
   }
 
   // Friday evening: the building after dark, lamps and screens still glowing
@@ -343,12 +363,34 @@ export function createOffice(holder, { company, playerShirt, npcs = [], reduced 
   const fontReady = (document.fonts && document.fonts.load) ? Promise.race([document.fonts.load('16px "Press Start 2P"'), new Promise((r) => setTimeout(r, 1200))]) : Promise.resolve();
   const ready = fontReady.then(() => { off = drawStatic(company, npcs, night); raf = requestAnimationFrame(frame); });
 
+  // Between the action: the camera glides from room to room on its own, and now and then a car
+  // goes by out front. Stops when the map is destroyed.
+  const TOUR = [[150, 56, 2], [304, 52, 2.1], [250, 140, 1.7], [104, 150, 1.9], [192, 190, 1.5], [200, 100, 1.25]];
+  function ambient(tour = TOUR) {
+    if (reduced) { camTo(...tour[0]); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz; return; }
+    cam.k = 0.006; carState.visible = false;
+    let i = Math.floor(Math.random() * tour.length);
+    const next = () => { if (dead) return; const [x, y, z] = tour[i % tour.length]; i += 1; camTo(x, y, z); };
+    next(); cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz; next();
+    const timer = setInterval(next, 6500);
+    const drive = () => {
+      if (dead || carState.visible) return;
+      const t0 = performance.now(), dir = Math.random() < 0.5 ? 1 : -1, color = ['#3E6FB0', '#C0504D', '#F2C14E', '#5BD66B'][Math.floor(Math.random() * 4)];
+      Object.assign(carState, { visible: true, color, dir: dir > 0 ? 'right' : 'left', y: dir > 0 ? 208 : 196 });
+      const tick = (now) => { const p = (now - t0) / 5200; carState.x = dir > 0 ? -40 + p * (MW + 80) : MW + 40 - p * (MW + 80); if (p < 1 && !dead) requestAnimationFrame(tick); else carState.visible = false; };
+      requestAnimationFrame(tick);
+    };
+    const cars = setInterval(drive, 9000); setTimeout(drive, 1500);
+    stops.push(() => { clearInterval(timer); clearInterval(cars); });
+  }
+  const stops = [];
+
   return {
-    ready, arrive, say, sit, face,
+    ready, arrive, say, sit, face, ambient, resize: size,
     skip() { skipping = true; },
     walk: (name, opts) => walk(ROUTES[name], opts),
     follow: (z) => camTo(player.x, player.y, z, true),
     view: (x, y, z) => camTo(x, y, z, false),
-    destroy() { dead = true; cancelAnimationFrame(raf); window.removeEventListener('resize', size); canvas.remove(); },
+    destroy() { dead = true; stops.forEach((f) => f()); cancelAnimationFrame(raf); window.removeEventListener('resize', size); canvas.remove(); },
   };
 }

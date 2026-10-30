@@ -103,13 +103,32 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
 
   // ------------------------------------------------------------ meeting 1: on your own
   // The engine directs the room one beat at a time; this screen plays each beat as it comes.
+  // Before the meeting or a call, the page sits on the living office (like every screen between
+  // the action): the conference room with the team seated, or your office for a call.
+  function introOffice(el, where) {
+    const W = w(), holder = h('div', { class: 'px-map bg-map' });
+    let npcs = [];
+    if (where === 'meeting') {
+      const room = W.central.concat(W.locations.map((l) => l.manager)), seat = {}; let o = 0;
+      for (const k of room) seat[k] = SEATS[k] || OPEN[o++] || [76, 52, 'right'];
+      npcs = room.map((k) => ({ av: W.characters[k].av, x: seat[k][0], y: seat[k][1], facing: seat[k][2], seated: true }));
+    }
+    const at = SEAT[where];
+    el.prepend(holder);
+    const map = createOffice(holder, { company: W.shell.company, playerShirt: ROLE_COLOR[W.role.id] || ROLE_COLOR.gm, npcs, reduced,
+      start: { x: at.x, y: at.y, dir: where === 'meeting' ? 'left' : 'down', seated: true, z: 2.4 } });
+    map.ready.then(() => { map.resize(); map.ambient(where === 'meeting' ? [[110, 48, 2.6], [128, 56, 2.2], [96, 44, 2.8]] : [[318, 44, 2.6], [300, 52, 2.2], [334, 40, 2.8]]); holder.classList.add('in'); });
+    return () => map.destroy();
+  }
+
   // What the meeting is, before it starts: a full-screen agenda, unlike anything that pops up in
   // the game, so nobody mistakes it for another notification.
   function meetingIntro(go) {
     const W = w(), A = game.meetingAgenda(), room = W.central.concat(W.locations.map((l) => l.manager));
     const name = W.role.meetingName, Name = name[0].toUpperCase() + name.slice(1);
-    show('day', 'cl-screen mi',
+    const el = show('day', 'cl-screen mi',
       h('div', { class: 'mi-page' },
+        h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, 'Your 10:00 AM')),
         h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · conference room'),
         h('h1', {}, 'Your weekly ' + name),
         h('p', { class: 'mi-lead' }, 'Every Monday the leadership team meets to decide what happens this week: what matters, who owns it, and by when. ' + (room.length + 1) + ' people including you, one hour on the calendar.'),
@@ -119,7 +138,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           h('section', {}, h('p', { class: 'mi-l' }, 'In the room'), h('div', { class: 'mi-ppl' }, room.map((k) => h('span', {}, fc(k, 26), h('em', {}, nameOf(k), h('i', {}, (W.characters[k] || {}).title || ''))))),
             h('p', { class: 'mi-l' }, 'What to watch'), h('ul', { class: 'mi-watch' }, h('li', {}, h('b', { class: 'dec' }, 'Decided'), ' on the spot, with an owner and a start date'), h('li', {}, h('b', { class: 'owed' }, 'Follow-ups'), ' owed when an answer isn\'t in the room'), h('li', {}, h('b', {}, 'Leadership hours'), ': people in the room × minutes')))),
         h('div', { class: 'mi-go' }, btn('Watch the ' + Name.toLowerCase(), go, 'cb primary big'))));
-    own();
+    own(introOffice(el, 'meeting'));
   }
 
   // The room asks; you answer with what you brought. It plays through on its own, and after the
@@ -262,8 +281,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
   // Every word that differs by moment comes from its spec (moments.js).
   function callIntro(go) {
     const W = w(), A = game.meetingAgenda(), L = W.caller, ctrl = W.characters.controller, CS = specOf(W.moment);
-    show('day', 'cl-screen mi',
+    const el = show('day', 'cl-screen mi',
       h('div', { class: 'mi-page' },
+        h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, 'Your 10:00 AM')),
         h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · ' + CS.medium.toLowerCase()),
         h('h1', {}, CS.intro.h1(L)),
         h('p', { class: 'mi-lead' }, CS.intro.lead(L)),
@@ -276,7 +296,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
             h('span', {}, fc('me', 26), h('em', {}, 'You', h('i', {}, W.role.label)))),
             h('p', { class: 'mi-l' }, 'What to watch'), h('ul', { class: 'mi-watch' }, h('li', {}, h('b', { class: 'dec' }, 'Answered'), ' ' + CS.card.watch[0]), h('li', {}, h('b', { class: 'owed' }, CS.owedShort), ' ' + CS.card.watch[1]), h('li', {}, h('b', {}, CS.readName), ' ' + CS.card.watch[2])))),
         h('div', { class: 'mi-go' }, btn('Listen to the call', go, 'cb primary big'))));
-    own();
+    own(introOffice(el, 'office'));
   }
 
   // the call screen: the caller's card and your notes on the left, the transcript on the right

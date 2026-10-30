@@ -11,9 +11,9 @@ import { ROLES, ROLE_ORDER } from '../content/roles.js';
 import { randomSeed } from '../engine/config.js';
 import { previewScenario } from '../content/scenario.js';
 import { sfx } from './arcade/sound.js';
-import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
+import { createOffice, SEAT, ROLE_COLOR, sprite } from './pixel/office.js';
 import { icon } from './os/shell.js';
-import { WAKE_MARK, GLYPH } from './os/icons.js';
+import { WAKE_MARK, GLYPH, ICONS } from './os/icons.js';
 import { specOf, CALL_MOMENTS } from '../engine/moments.js';
 import { playIntro } from './intro.js';
 
@@ -35,16 +35,49 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     clear();
     root.className = 'wx sc-root';
     const el = h('main', { class: 'sc-screen ' + cls }, ...kids);
+    if (/\b(su|ti)\b/.test(cls)) el.prepend(backdrop()); else dropBackdrop();
     root.replaceChildren(el);
     window.scrollTo(0, 0);
     return el;
   }
+
+  // ------------------------------------------------------------ the backdrop
+  // Every screen between the action (the title, sign-up, setup, the pick of the 10:00 AM) sits on
+  // the living office: the camera drifts from room to room, people walk the hall, cars go by.
+  // One map is kept across those screens so the camera never jumps; `scene` names the company.
+  const scene = { company: 'Your company', shirt: ROLE_COLOR.gm };
+  let bg = null;
+  function backdrop() {
+    if (bg && bg.company === scene.company && bg.shirt === scene.shirt) return bg.holder;
+    dropBackdrop();
+    const holder = h('div', { class: 'px-map bg-map' });
+    const npcs = [[80, 141, true, 'down'], [168, 146, true, 'up'], [254, 146, true, 'up'], [226, 170, true, 'up'], [114, 42, true, 'down']]
+      .map(([x, y, seated, facing], i) => ({ av: EXTRAS[i], x, y, seated, facing }))
+      .concat([
+        { av: EXTRAS[4], x: 90, y: 104, path: [[90, 104], [350, 104]] },
+        { av: EXTRAS[2], x: 104, y: 160, path: [[104, 160], [104, 106], [230, 106], [104, 106]] },
+        { av: EXTRAS[3], x: 186, y: 52, path: [[186, 52], [222, 52]] },
+      ]);
+    const map = createOffice(holder, { company: scene.company, playerShirt: scene.shirt, npcs, reduced });
+    // measured once it's on the page
+    const ready = map.ready.then(() => { map.resize(); map.ambient(); holder.classList.add('in'); });
+    bg = { holder, map, ready, company: scene.company, shirt: scene.shirt };
+    return holder;
+  }
+  function dropBackdrop() { if (bg) { bg.map.destroy(); bg.holder.remove(); bg = null; } }
+  // the Wake logo, where the word used to be
+  const logo = (cls = 'su-logo') => h('span', { class: cls, role: 'img', 'aria-label': 'Wake', html: ICONS.wake });
+  // a retro game window: a title bar with a label, then the content
+  const win = (label, ...kids) => h('section', { class: 'rw' },
+    h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, label)),
+    h('div', { class: 'rw-in' }, ...kids));
 
   // ------------------------------------------------------------ the step card
   // One per step: where you are, what you're doing, why it matters, one button.
   function card({ step, kicker, title, what, note, why, wake, cta, onGo, body, tone }) {
     const go = btn(cta, () => onGo(), 'ab primary' + (tone === 'wake' ? ' wake' : ''));
     const el = h('section', { class: 'mc' + (tone ? ' ' + tone : ''), role: 'dialog', 'aria-label': title },
+      h('div', { class: 'rw-bar mc-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, step ? 'Stage ' + step + ' of ' + steps.length : '')),
       step ? h('div', { class: 'mc-steps' }, steps.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
       kicker ? h('p', { class: 'mc-k' }, kicker) : null,
       h('h1', {}, title),
@@ -70,19 +103,17 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function home() {
     const start = () => { if (gone) return; gone = true; sfx.unlock(); sfx.start(); signup(); };
     let gone = false;
-    const holder = h('div', { class: 'px-map' });
-    const el = screen('ti', holder,
+    scene.company = 'Your company'; scene.shirt = ROLE_COLOR.gm;
+    const el = screen('ti',
       h('div', { class: 'ti-body' },
-        h('b', { class: 'ti-brand' }, 'Wake'),
+        logo('ti-logo'),
+        h('p', { class: 'ti-k' }, 'The Wake Experience'),
         h('h1', {}, 'Run a company for one Monday morning.'),
         h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
         h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
-        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 15-second intro')));
-    const npcs = [[80, 141, true, 'down'], [168, 146, true, 'up'], [254, 146, true, 'up'], [226, 170, true, 'up'], [200, 76, false, 'up']]
-      .map(([x, y, seated, facing], i) => ({ av: EXTRAS[i], x, y, seated, facing }));
-    const map = createOffice(holder, { company: 'Your company', playerShirt: ROLE_COLOR.gm, npcs, reduced });
-    teardown.push(() => map.destroy());
-    map.ready.then(() => el.classList.add('in'));
+        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 15-second intro'),
+        h('p', { class: 'ti-press', 'aria-hidden': 'true' }, 'Press Enter')));
+    bg.ready.then(() => el.classList.add('in'));
     setTimeout(() => { const b = el.querySelector('.ab.primary'); if (b) b.focus({ preventScroll: true }); }, 60);
     keys((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); } });
   }
@@ -96,7 +127,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   const introParam = (() => { try { return new URLSearchParams(window.location.search).get('intro'); } catch (e) { return null; } })();
   // called straight from a click, so the video may play with sound
   function intro() {
-    clear();
+    clear(); dropBackdrop();
     const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => home() });
     teardown.push(stop);
   }
@@ -138,12 +169,12 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
       try { localStorage.setItem(KNOWN, JSON.stringify(c)); } catch (err) { /* fine */ }
       sfx.select(); onSignup(c); setup();
     };
-    screen('su sg', h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'), h('span'), h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); home(); } }, '\u2190 Back')),
-      h('div', { class: 'su-body' },
+    screen('su sg', h('header', { class: 'su-top' }, logo(), h('span'), h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); home(); } }, '◀ Back')),
+      h('div', { class: 'su-body' }, win('New player',
         h('h1', {}, 'Before you start'),
         h('p', { class: 'su-sub' }, 'Tell us who\'s playing. We\'ll follow up after you play.'),
         h('form', { class: 'sg-form', onsubmit: submit, novalidate: true }, fName, fEmail, fPhone, note,
-          h('div', { class: 'su-go' }, h('button', { class: 'ab primary big', type: 'submit' }, 'Start the game'), h('span', { class: 'mc-key' }, 'Enter')))));
+          h('div', { class: 'su-go' }, h('button', { class: 'ab primary big', type: 'submit' }, 'Start the game'), h('span', { class: 'mc-key' }, 'Enter'))))));
     setTimeout(() => name.focus({ preventScroll: true }), 60);
   }
 
@@ -153,19 +184,19 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   const urlSeed = () => { try { const x = new URLSearchParams(window.location.search).get('seed'); return x && /^\d+$/.test(x) ? Number(x) : 0; } catch (e) { return 0; } };
   const TOTAL = 3;
   const head = (n, onBack) => h('header', { class: 'su-top' },
-    h('b', { class: 'su-brand' }, 'Wake'),
+    logo(),
     h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
-    onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '← Back') : h('span'));
+    onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '◀ Back') : h('span'));
 
   // `soon` items are shown but can't be picked yet: they say what else Wake does
-  function select({ n, title, sub, items, onPick, onBack, note, top }) {
+  function select({ n, title, sub, items, onPick, onBack, note, top, label = 'Select' }) {
     const all = items.map((it) => it.heading ? h('p', { class: 'su-grp' }, it.heading) : it.soon
       ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
       : h('button', { class: 'su-row' + (it.featured ? ' feat' : ''), type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
-        it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name, it.badge ? h('small', {}, it.badge) : null), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
+        it.art ? h('span', { class: 'su-art' }, it.art) : it.icon ? h('span', { class: 'su-ic', html: it.icon }) : it.num ? h('span', { class: 'su-num' }, it.num) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name, it.badge ? h('small', {}, it.badge) : null), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
     const rows = all.filter((r) => r.tagName === 'BUTTON');
     screen('su', top || head(n, onBack),
-      h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null));
+      h('div', { class: 'su-body' }, win(label, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null)));
     rows[0].focus({ preventScroll: true });
     keys((e) => {
       const i = rows.indexOf(document.activeElement);
@@ -177,13 +208,16 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
 
   function setup() {
     onStep('select');
+    scene.company = 'Your company'; scene.shirt = ROLE_COLOR.gm;
     select({ n: 1, title: 'What kind of business do you want to simulate?', sub: 'Pick one. The game builds a company of that kind, with its own people, numbers and problems.',
-      items: SHELL_ORDER.map((id) => ({ id, name: SHELLS[id].label, line: TAGS[id] })),
+      label: 'Select a business',
+      items: SHELL_ORDER.map((id, i) => ({ id, num: String(i + 1).padStart(2, '0'), name: SHELLS[id].label, line: TAGS[id] })),
       onPick: (id) => { pick.shell = id; pick.seed = urlSeed() || randomSeed(); setupRole(); }, onBack: home });
   }
   function setupRole() {
     select({ n: 2, title: 'Who do you want to play?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
-      items: ROLE_ORDER.map((id) => ({ id, name: ROLES[id].label, line: ROLES[id].blurb })),
+      label: 'Select your player',
+      items: ROLE_ORDER.map((id) => ({ id, art: sprite({ hair: '#2A1C14', skin: '#D9A07A' }, ROLE_COLOR[id], 4), name: ROLES[id].label, line: ROLES[id].blurb })),
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
   // ------------------------------------------------------------ the 10:00 AM: where to see Wake work
@@ -192,9 +226,10 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   // first; the calls are there too, and any of them can be played after the final score.
   function moment(game, onPick) {
     const r = game.world.role, G = (k) => GLYPH[k] || '';
-    const top = h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'),
+    scene.company = game.world.shell.company; scene.shirt = ROLE_COLOR[r.id] || ROLE_COLOR.gm;
+    const top = h('header', { class: 'su-top' }, logo(),
       h('div', { class: 'su-prog' }, h('span', {}, 'Step 4 of 6 · Your 10:00 AM')), h('span'));
-    select({ top, title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
+    select({ top, label: 'Your 10:00 AM', title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
       items: [
         { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, badge: 'Start here', featured: true, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
         { heading: 'Or see it on a call' },
@@ -208,11 +243,12 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     onStep('ready');
     const s = SHELLS[pick.shell], r = ROLES[pick.role];
     const pv = previewScenario(s, r, pick.seed);
+    scene.company = pv.company; scene.shirt = ROLE_COLOR[r.id] || ROLE_COLOR.gm;
     const go = () => { sfx.start(); onPicked(pick.shell, pick.role, pick.seed); };
     const tenAm = r.meetingName;
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
     screen('su', head(3, setupRole),
-      h('div', { class: 'su-body' },
+      h('div', { class: 'su-body' }, win('Your company',
         h('h1', {}, 'Your company for this game'),
         h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + tenAm + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
         h('section', { class: 'su-card' },
@@ -220,7 +256,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
           h('dl', {}, fact('Business', s.label), fact('Your role', r.label), fact('Size', (pv.N > 1 ? pv.N + ' ' + s.vocab.units : '1 ' + s.vocab.unit) + ', ' + pv.headcount + ' people'), fact('Runs on', 'An ERP, with every report in one place'), fact('10:00 AM', cap(tenAm)))),
         h('p', { class: 'su-q' }, 'How it works'),
         h('ol', { class: 'su-how' }, h('li', {}, 'Round 1: play the morning on your own, with your ERP, inbox and texts.'), h('li', {}, 'Round 2: play the same morning again, with Wake.'), h('li', {}, 'Then watch both weeks play out and see your score.')),
-        h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter'))));
+        h('div', { class: 'su-go' }, btn('Start the game', go, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')))));
     keys((e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') setupRole(); });
   }
 

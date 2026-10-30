@@ -16,6 +16,10 @@ anyone asks, and never waits for a prompt.
    app icon (black on a white tile).
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
+   Every screen between the action (title, sign-up, setup, the 10:00 AM pick, the meeting and call
+   intros, the step cards) wears one retro theme: the living office behind it (the camera drifts
+   room to room, people walk the hall, cars go by), game windows with a title bar, arcade buttons,
+   a blinking cursor on options, and the Wake logo in place of the word.
    Then the pixel office: the car pulls up and you walk to your desk.
 2. Round 1, on your own. The pitch is not "replace your ERP": the company already runs on one,
    and all its data is in one place. The desk is a realistic computer whose main app is
@@ -145,6 +149,8 @@ anyone asks, and never waits for a prompt.
                    pixel/office.js  the building in three-quarter top-down pixel art: street, lobby, operations
                                     floor, hallway, meeting room, break room, your office. People walk fixed
                                     routes (arrival, to the meeting, back); Friday is the same map after dark.
+                                    ambient() glides the camera between rooms for the screens
+                                    between the action; sprite() draws one person for portraits.
                    scenes.css       styles for the title screen, the setup questions, the office scenes and the step card
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
