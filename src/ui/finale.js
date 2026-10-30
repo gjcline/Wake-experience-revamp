@@ -11,7 +11,7 @@ import { ICONS, GLYPH } from './os/icons.js';
 import { face, glyph } from './os/shell.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { autoPick } from '../engine/meeting.js';
-import { specOf } from '../engine/moments.js';
+import { specOf, CALL_MOMENTS } from '../engine/moments.js';
 
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
@@ -26,7 +26,7 @@ const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' 
 const SEATS = { controller: [86, 42, 'down'], opsdir: [100, 42, 'down'], trainer: [114, 42, 'down'], hr: [100, 70, 'up'], analyst: [114, 70, 'up'], marketing: [128, 70, 'up'] };
 const OPEN = [[128, 42, 'down'], [86, 70, 'up'], [72, 47, 'right'], [72, 58, 'right']];
 
-export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onMeeting }) {
+export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onMeeting, onAnother, played = [] }) {
   const w = () => game.world;
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const btn = (label, onclick, cls = 'cb') => h('button', { class: cls, type: 'button', onclick }, label);
@@ -642,7 +642,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           seen && meant ? h('div', { class: 'mo2-grid' }, seen, h('div', { class: 'mo2-arrow' }, '→'), meant) : h('div', { class: 'mo2-card meant' }, h('h3', {}, m.title), m.lines.map((l) => h('p', {}, l)))),
         h('p', { class: 'fs2-closer' }, R.closer),
         lives(),
-        ...[meetingAsk(), nextStep()].filter(Boolean),
+        ...[meetingAsk(), nextStep(), another()].filter(Boolean),
         h('div', { class: 'fs2-actions' }, view, actions, status),
         h('div', { class: 'fs2-end' }, btn('Play again', onRestart, 'cb ghost'), h('a', { class: 'cl-link', href: 'https://wakepe.com', target: '_blank', rel: 'noopener' }, 'wakepe.com')));
       rest.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
@@ -663,6 +663,24 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
           tile('receipt', 'Month-end and close', 'Statements current every morning, reconciled across accounting, payroll and operations, not a month late.'),
           tile('file', 'Board, lender and owner updates', 'Briefs and covenant checks drafted from live numbers. You review them; you don\'t build them.'),
           tile('people', 'Across the whole team', 'Managers see their own numbers and what to do about them. Leadership sees the whole picture.')));
+    }
+
+    // The same morning, somewhere else: every 10:00 AM they haven't played yet. Picking one runs
+    // that moment with the same two briefings, then the week and a new score.
+    function another() {
+      if (!onAnother) return null;
+      const W = w(), left = ['meeting', ...CALL_MOMENTS].filter((m) => !played.includes(m));
+      if (!left.length) return null;
+      const row = (m) => {
+        const sp = m === 'meeting' ? null : specOf(m);
+        const name = sp ? sp.pick.name : 'Your weekly ' + W.role.meetingName, line = sp ? sp.pick.line : 'Your leadership team, in the conference room. Decide what happens this week.';
+        return h('button', { class: 'an-row', type: 'button', onclick: () => { sfx.select(); onAnother(m); } },
+          h('span', { class: 'lv-i' }, glyph(sp ? sp.icon : 'people')), h('span', { class: 'an-t' }, h('b', {}, name), h('span', {}, line)), h('i', { 'aria-hidden': 'true' }, '→'));
+      };
+      return h('section', { class: 'rs-card fs2-another' },
+        h('h2', {}, 'See Wake somewhere else'),
+        h('p', { class: 'rs-sub' }, 'Same morning, same two briefings, different people asking. Pick another 10:00 AM and watch it play out, then get a new score.'),
+        h('div', { class: 'an-list' }, left.map(row)));
     }
 
     // The last question: do they already have a meeting with the Wake team? No opens the booking

@@ -340,6 +340,26 @@ test('every call moment plays through, with its own script and clock', () => {
   const g = mk(5, 'service', 'gm'); assert.equal(g.world.moment, 'meeting'); assert.ok(!g.world.lender);
 });
 
+test('after the final score, another 10:00 AM plays with the same briefings and matches a fresh game', () => {
+  const run = (first, second, seed, shell, role) => {
+    const g = mk(seed, shell, role); g.startRound1();
+    for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[2].id }); }
+    g.setMoment(first); finish(g, { through: g.world.phone });
+    if (!second) return g;
+    g.setMoment(second);
+    if (second === 'meeting') meet(g);
+    const d = { yours: g.meetingYours(), wake: g.meetingWake(), after: g.afterMeeting() };
+    g.week(); g.recap(); g.complete();
+    return Object.assign(g, { d });
+  };
+  for (const [a, b, seed, shell, role] of [['meeting', 'board', 3, 'service', 'coo'], ['lender', 'meeting', 9, 'multi', 'gm'], ['vendor', 'buyer', 14, 'field', 'partner']]) {
+    const g = run(a, b, seed, shell, role), fresh = run(b, null, seed, shell, role);
+    assert.equal(g.world.moment, b);
+    assert.deepEqual(g.finale(), fresh.finale(), a + ' then ' + b + ' scores like ' + b + ' alone');
+    assert.equal(g.d.yours.minutes, fresh.meetingYours().minutes);
+  }
+});
+
 test('round 2: picks, trace, arrivals, and the inbox Wake already read', () => {
   const g = mk(12, 'multi', 'coo'); g.startRound1();
   for (const f of g.world.findings.slice(0, 3)) { const s = coreSig(g, f); g.flag({ signals: [s], source: flaggable(g, s), choice: g.answers(s)[0].id }); }

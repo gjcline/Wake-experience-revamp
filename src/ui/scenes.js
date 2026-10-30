@@ -159,10 +159,10 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
 
   // `soon` items are shown but can't be picked yet: they say what else Wake does
   function select({ n, title, sub, items, onPick, onBack, note, top }) {
-    const all = items.map((it) => it.soon
+    const all = items.map((it) => it.heading ? h('p', { class: 'su-grp' }, it.heading) : it.soon
       ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
-      : h('button', { class: 'su-row', type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
-        it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
+      : h('button', { class: 'su-row' + (it.featured ? ' feat' : ''), type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
+        it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name, it.badge ? h('small', {}, it.badge) : null), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
     const rows = all.filter((r) => r.tagName === 'BUTTON');
     screen('su', top || head(n, onBack),
       h('div', { class: 'su-body' }, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null));
@@ -188,17 +188,19 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   }
   // ------------------------------------------------------------ the 10:00 AM: where to see Wake work
   // After both rounds, where the meeting would start. The briefing is ready two ways; the player
-  // picks the moment to see the difference in. More moments are listed as coming, to show range.
+  // picks the moment to see the difference in. The leadership meeting is the one we recommend
+  // first; the calls are there too, and any of them can be played after the final score.
   function moment(game, onPick) {
     const r = game.world.role, G = (k) => GLYPH[k] || '';
     const top = h('header', { class: 'su-top' }, h('b', { class: 'su-brand' }, 'Wake'),
       h('div', { class: 'su-prog' }, h('span', {}, 'Step 4 of 6 · Your 10:00 AM')), h('span'));
     select({ top, title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
       items: [
-        { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
+        { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, badge: 'Start here', featured: true, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
+        { heading: 'Or see it on a call' },
         ...CALL_MOMENTS.map((id) => { const sp = specOf(id); return { id, icon: G(sp.icon), name: sp.pick.name, line: sp.pick.line, meta: sp.medium }; }),
       ],
-      note: 'Every moment uses the same morning and the same two briefings. Only the people asking the questions change.',
+      note: 'Every moment uses the same morning and the same two briefings. Only the people asking the questions change. After your final score you can play any of the others.',
       onPick });
   }
 

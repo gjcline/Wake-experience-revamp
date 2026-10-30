@@ -231,9 +231,17 @@ function round2() {
 // ------------------------------------------------------------------ your 10:00 AM
 // Both briefings are locked. Now the player picks where to see the difference: the meeting, or
 // one of the calls (moments.js).
+let played = [];
 function pickMoment() {
   leave();
-  world.moment(game, (m) => { game.setMoment(m); world.setMoment(game.world.moment); track.set({ moment: game.world.moment }); walkToMeeting(); });
+  played = [];
+  world.moment(game, (m) => playMoment(m));
+}
+function playMoment(m) {
+  game.setMoment(m); world.setMoment(game.world.moment);
+  played.push(game.world.moment);
+  track.set(played.length === 1 ? { moment: game.world.moment } : { also: played.slice(1).join(',') });
+  walkToMeeting();
 }
 
 // ------------------------------------------------------------------ the meeting
@@ -317,9 +325,10 @@ function friday(then) {
 // The finale: meeting, week, final score. Built per game so it reads the current one.
 function finale() {
   return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
-    onFinished: (result) => track.step('score', { finished: true, result }),
+    onFinished: (result) => track.step('score', played.length > 1 ? null : { finished: true, result }),
     onEmail: contact ? null : (email) => track.set({ email }),
-    onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); } });
+    onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); },
+    onAnother: (m) => playMoment(m), played: played.slice() });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.

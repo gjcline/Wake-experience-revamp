@@ -136,6 +136,13 @@
 .su-row.soon:hover { border-color: var(--line); }
 .su-soon { font-style: normal; font-size: 11.5px !important; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line2); color: var(--dim); }
 .su-note { font-size: 13.5px; color: var(--faint); margin-top: 4px; }
+/* the recommended moment stands out; the rest sit under a small heading */
+.wx .sc-screen .su-row.feat { padding: 20px 20px; border-color: rgba(34,211,238,.55); background: linear-gradient(135deg, rgba(34,211,238,.10), rgba(255,255,255,.02)); }
+.wx .sc-screen .su-row.feat:hover, .wx .sc-screen .su-row.feat:focus-visible { border-color: var(--cy); background: linear-gradient(135deg, rgba(34,211,238,.16), rgba(255,255,255,.03)); }
+.su-row.feat .su-rt b { font-size: 17.5px; }
+.su-row.feat .su-rt b small { color: #0B1215; background: var(--cy); border-color: var(--cy); }
+.su-row.feat .su-ic { background: rgba(34,211,238,.18); }
+.su-grp { margin: 14px 0 2px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
 @media (max-width: 560px) { .su-row > em:not(.su-soon) { display: none; } .su-ic { width: 30px; height: 30px; } }
 /* who's playing: name, email, phone */
 .sg-form { display: flex; flex-direction: column; gap: 14px; }
