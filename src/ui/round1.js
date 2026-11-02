@@ -518,30 +518,30 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   // a quick look at the rest of the computer, and the clock starts.
   const flagged = () => game.state.flags.length >= 1;
   const toured = () => flagged() && coach.seen('desk');
-  const look = (text, target, extra) => ({ text, target, next: 'NEXT ▶', modal: true, when: toured, ...extra });
+  const look = (text, target, extra) => ({ text, target, next: 'Next', modal: true, when: toured, ...extra });
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in the ' + ERP_NAME + '.', target: '.os-dock', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in the ' + ERP_NAME + '.', target: '.os-dock', next: 'Next', modal: true, once: true },
       { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
       look('That\'s the rest of your computer. Gmail: email from your team, vendors and customers.', '.dock-app[data-app="gmail"]'),
       look('Calendar: today\'s meetings, including your ' + w.role.meetingName + ' at 10:00 AM.', '.dock-app[data-app="calendar"]'),
       look('Messages: texts from your managers. They aren\'t in any system.', '.dock-app[data-app="messages"]'),
       look('Contacts: who everyone is and what they own.', '.dock-app[data-app="contacts"]'),
-      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your ' + MT + ' is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'START THE CLOCK ▶', onNext: startClock }),
+      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your ' + MT + ' is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'Start the clock', onNext: startClock }),
     ],
     erp: [
-      { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'NEXT ▶', modal: true, once: true },
+      { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'Next', modal: true, once: true },
       { text: 'Click Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Look down the list. When a number looks off to you, click its row to flag it. Your call.', target: '.ns-grid', wait: 'compose', hint: 'Click a row that looks off', skipIf: flagged, when: () => !!document.querySelector('.ns-grid .flagrow') },
-      { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'GOT IT ▶', modal: true, when: flagged },
+      { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'Got it', modal: true, when: flagged },
       { text: 'Before you find more: close the ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, when: flagged, skipIf: () => coach.seen('desk') && flagged() },
     ],
     compose: [
       { text: 'Pick what you think is going on, and who should handle it if you like. Then click Add to findings.', target: '.composer', inline: true, wait: 'flagged', skipIf: () => game.state.flags.length > 0 },
     ],
     secondary: [
-      { text: 'An email or text can back up a finding. Click Add to a finding to attach it.', target: '.attach-btn', next: 'GOT IT ▶', once: true },
+      { text: 'An email or text can back up a finding. Click Add to a finding to attach it.', target: '.attach-btn', next: 'Got it', once: true },
     ],
     _alias: { gmail: 'secondary', messages: 'secondary', calendar: 'secondary' },
 }, 'desk'), reduced ? 0 : 500);

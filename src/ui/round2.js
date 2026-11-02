@@ -544,38 +544,38 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const memo = !!wakeDocs().find((id) => w.sources[id].memo);
     coach.chapters({
       desk: [
-        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'NEXT ▶', modal: true },
+        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'Next', modal: true },
         { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
       ],
       erp: [
-        { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'NEXT ▶', modal: true },
-        { text: 'And every indicator now says why it moved: the insight it feeds, or why it needs nothing from you. Marked figures open the insight.', target: '.ns-kpi', next: 'NEXT ▶', modal: true },
+        { text: 'Your dashboard, exactly as you left it. One new portlet: what needs you this morning, ranked, out of ' + n(B0.funnel.records) + ' records.', target: '.ns-wkp', next: 'Next', modal: true },
+        { text: 'And every indicator now says why it moved: the insight it feeds, or why it needs nothing from you. Marked figures open the insight.', target: '.ns-kpi', next: 'Next', modal: true },
         { text: 'You can assign right from the dashboard. For the full picture, open the Wake tab.', target: '.ns-tab[data-tab="wake"]', wait: 'erp:wake', hint: 'Open the Wake tab', force: true, skipIf: () => coach.seen('erp:wake') },
       ],
       wake: [
-        { text: 'These are your insights, ranked. Each one starts with the data behind it: lines from your ERP, inbox and phone, already connected.', target: '.wi', next: 'NEXT ▶', modal: true },
+        { text: 'These are your insights, ranked. Each one starts with the data behind it: lines from your ERP, inbox and phone, already connected.', target: '.wi', next: 'Next', modal: true },
         { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', force: true, skipIf: () => coach.seen('trace') },
         { text: 'That\'s the original line, where it lives in your systems, and how Wake read it. Close it when you\'re done.', target: '.wk-drawer', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', force: true, when: () => !!document.querySelector('.wk-dbody') },
         { text: 'Your call now. Assign this one: it goes to its owner with the numbers attached. Each insight already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', force: true, skipIf: () => coach.seen('pick') },
         { text: 'Now the reports Wake prepared for you. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: () => coach.seen('erp:reports') },
       ],
       reports: [
-        { text: 'Every standard report is still here, now tagged with what Wake found in it. At the top: your income statement, cash flow and balance sheet, current to this morning instead of month end, and the reports Wake prepared.', target: '.ns-rlg', next: 'NEXT ▶', modal: true },
+        { text: 'Every standard report is still here, now tagged with what Wake found in it. At the top: your income statement, cash flow and balance sheet, current to this morning instead of month end, and the reports Wake prepared.', target: '.ns-rlg', next: 'Next', modal: true },
         { text: memo ? 'Start with this one: Thursday\'s brief for ' + boss + ', already drafted by Wake.' : 'Open one of the reports Wake prepared.', target: memo ? '.ns-rli.memo' : '.ns-rli.wk', wait: ['doc:brief', 'doc:exec'], hint: 'Open it', force: true },
-        { text: (memo ? 'Every figure in this draft comes from this morning\'s data, so you review it instead of writing it. ' : 'Wake builds these from the same lines as your insights. ') + 'Nothing to gather, reconcile or format.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc },
+        { text: (memo ? 'Every figure in this draft comes from this morning\'s data, so you review it instead of writing it. ' : 'Wake builds these from the same lines as your insights. ') + 'Nothing to gather, reconcile or format.', target: '.ns-doc', next: 'Next', modal: true, when: doc },
         { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back to Reports', force: true, when: doc },
         { text: 'Now open your income statement.', target: '.ns-rli.stmt', wait: 'doc:exec', hint: 'Open it', force: true, skipIf: () => !statements.length },
-        { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'NEXT ▶', modal: true, when: doc, skipIf: () => !statements.length },
-        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your ' + MT + ' is at 10:00 AM.', target: '.wake-tray', next: 'START THE CLOCK ▶', modal: true, onNext: startClock },
+        { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'Next', modal: true, when: doc, skipIf: () => !statements.length },
+        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your ' + MT + ' is at 10:00 AM.', target: '.wake-tray', next: 'Start the clock', modal: true, onNext: startClock },
       ],
       messages: [
-        { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'GOT IT ▶', once: true },
+        { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'Got it', once: true },
       ],
       gmail: [
-        { text: 'Each email is labeled with the insight it already feeds, or that it needs nothing from you. Nothing to forward.', target: '.gm-list', next: 'GOT IT ▶', once: true },
+        { text: 'Each email is labeled with the insight it already feeds, or that it needs nothing from you. Nothing to forward.', target: '.gm-list', next: 'Got it', once: true },
       ],
       calendar: [
-        { text: 'The dashed holds are Wake\'s suggestions: the time today\'s decisions will take. Click any meeting to see what it means now.', target: '.gc-pane', next: 'GOT IT ▶', once: true },
+        { text: 'The dashed holds are Wake\'s suggestions: the time today\'s decisions will take. Click any meeting to see what it means now.', target: '.gc-pane', next: 'Got it', once: true },
       ],
     }, 'desk');
   }

@@ -42,7 +42,7 @@ export function wakeAtWork({ mount, game, reduced, sfx, erpName }) {
   const STEPS = [['1', 'Reads everything'], ['2', 'Connects the dots'], ['3', 'Hands you what matters']];
   const pills = STEPS.map(([n, t]) => h('li', {}, h('i', {}, n), h('span', {}, t)));
   const title = h('h1', { class: 'w2-h' }), sub = h('p', { class: 'w2-sub' });
-  const go = h('button', { class: 'w2-go', type: 'button', hidden: true }, 'Open your computer  →');
+  const go = h('button', { class: 'w2-go', type: 'button', hidden: true }, 'Open your computer');
   const skip = h('button', { class: 'w2-skip', type: 'button' }, 'Skip');
   const root = h('main', { class: 'sc-screen w2' },
     h('header', { class: 'w2-top' }, h('ol', { class: 'w2-steps' }, pills), skip),

@@ -154,6 +154,7 @@ anyone asks, and never waits for a prompt.
                                     ambient() glides the camera between rooms for the screens
                                     between the action; sprite() draws one person for portraits.
                    scenes.css       styles for the title screen, the setup questions, the office scenes and the step card
+                   ink.css          the same monochrome look carried to the guide, Wake at work and the final score
                    clean.css        styles for every screen outside the two desks
                    arcade/sound.js  sound
     test/          paths.test.mjs   paths A to J, all 25 shell and role combinations, fairness checks
