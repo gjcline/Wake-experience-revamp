@@ -2969,14 +2969,14 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 }
 
 /* ------------------------------------------------------------ the intro video */
-.iv { display: flex; align-items: center; justify-content: center; background: #F3F6FA; transition: background .45s ease; }
+.iv { display: flex; align-items: center; justify-content: center; background: #000; transition: background .45s ease; }
 .iv.out { background: #0B0A14; }
 .iv.out > * { opacity: 0; transition: opacity .4s ease; }
-.iv-video { width: 100%; height: 100%; object-fit: contain; display: block; background: #F3F6FA; }
+.iv-video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
 .iv-ctl { position: absolute; right: 20px; bottom: 22px; display: flex; gap: 8px; z-index: 2; }
-.wx .sc-screen .iv-btn { padding: 9px 14px; border-radius: 999px; background: rgba(15,23,42,.78); border: 0; color: #fff; font: 600 13px/1 'Inter', sans-serif; backdrop-filter: blur(6px); }
-.wx .sc-screen .iv-btn:hover { background: rgba(15,23,42,.92); }
-.iv-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(15,23,42,.08); }
+.wx .sc-screen .iv-btn { padding: 9px 14px; border-radius: 999px; background: rgba(255,255,255,.14); border: 0; color: #fff; font: 600 13px/1 'Inter', sans-serif; backdrop-filter: blur(6px); }
+.wx .sc-screen .iv-btn:hover { background: rgba(255,255,255,.24); }
+.iv-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.1); }
 .iv-prog i { display: block; height: 100%; width: 0; background: #0891B2; transition: width .25s linear; }
 .ti-intro { margin-top: 4px; background: none; border: 0; padding: 0; color: var(--dim); font: 500 14px/1 'Inter', sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .ti-intro:hover { color: var(--ink); }
