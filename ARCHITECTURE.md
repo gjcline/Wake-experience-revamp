@@ -17,9 +17,11 @@ anyone asks, and never waits for a prompt.
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
    your role, and your company (with a three-line "how it works"). No time estimates anywhere.
    Every screen between the action (title, sign-up, setup, the 10:00 AM pick, the meeting and call
-   intros, the step cards) wears one retro theme: the living office behind it (the camera drifts
-   room to room, people walk the hall, cars go by), game windows with a title bar, arcade buttons,
-   a blinking cursor on options, and the Wake logo in place of the word.
+   intros, the step cards) wears one look (ui/ink.js + the end of scenes.css): the living office
+   faint behind a hatched dark page (the camera drifts room to room, people walk the hall, cars go
+   by), monochrome cards in corner brackets that spread on hover, mono labels, headings with one
+   muted run, a live diagram of your systems flowing through Wake into a brief on each step card,
+   and the Wake logo in place of the word.
    Then the pixel office: the car pulls up and you walk to your desk.
 2. Round 1, on your own. The pitch is not "replace your ERP": the company already runs on one,
    and all its data is in one place. The desk is a realistic computer whose main app is

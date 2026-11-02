@@ -16,6 +16,7 @@ import { icon } from './os/shell.js';
 import { WAKE_MARK, GLYPH, ICONS } from './os/icons.js';
 import { specOf, CALL_MOMENTS } from '../engine/moments.js';
 import { playIntro } from './intro.js';
+import { brackets, tone, flow } from './ink.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
 
@@ -67,17 +68,16 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function dropBackdrop() { if (bg) { bg.map.destroy(); bg.holder.remove(); bg = null; } }
   // the Wake logo, where the word used to be
   const logo = (cls = 'su-logo') => h('span', { class: cls, role: 'img', 'aria-label': 'Wake', html: ICONS.wake });
-  // a retro game window: a title bar with a label, then the content
-  const win = (label, ...kids) => h('section', { class: 'rw' },
-    h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, label)),
-    h('div', { class: 'rw-in' }, ...kids));
+  // a card in corner brackets, with a small tag above the content
+  const win = (label, ...kids) => h('section', { class: 'rw' }, ...brackets(),
+    h('div', { class: 'rw-in' }, h('span', { class: 'ik-tag' }, label), ...kids));
 
   // ------------------------------------------------------------ the step card
   // One per step: where you are, what you're doing, why it matters, one button.
   function card({ step, kicker, title, what, note, why, wake, cta, onGo, body, tone }) {
     const go = btn(cta, () => onGo(), 'ab primary' + (tone === 'wake' ? ' wake' : ''));
     const el = h('section', { class: 'mc' + (tone ? ' ' + tone : ''), role: 'dialog', 'aria-label': title },
-      h('div', { class: 'rw-bar mc-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, step ? 'Stage ' + step + ' of ' + steps.length : '')),
+      ...brackets(),
       step ? h('div', { class: 'mc-steps' }, steps.map((s, i) => h('span', { class: i + 1 < step ? 'done' : i + 1 === step ? 'on' : '' }, h('i', {}, String(i + 1)), h('b', {}, s)))) : null,
       kicker ? h('p', { class: 'mc-k' }, kicker) : null,
       h('h1', {}, title),
@@ -85,7 +85,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
       note ? h('p', { class: 'mc-note' }, note) : null,
       why ? h('div', { class: 'mc-row' }, h('p', { class: 'mc-l' }, 'Why it matters'), h('p', {}, why)) : null,
       // every step says how Wake does it: it doesn't wait to be asked
-      wake ? h('div', { class: 'mc-wake' }, icon('wake', 'ico mc-wk'), h('div', {}, h('p', { class: 'mc-l' }, 'How Wake does it'), h('p', {}, wake))) : null,
+      wake ? h('div', { class: 'mc-wake' }, flow(), h('div', { class: 'mc-wake-t' }, icon('wake', 'ico mc-wk'), h('div', {}, h('p', { class: 'mc-l' }, 'How Wake does it'), h('p', {}, wake)))) : null,
       body || null,
       h('div', { class: 'mc-go' }, go, h('span', { class: 'mc-key' }, 'Enter')));
     let k = null;
@@ -107,8 +107,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     const el = screen('ti',
       h('div', { class: 'ti-body' },
         logo('ti-logo'),
-        h('p', { class: 'ti-k' }, 'The Wake Experience'),
-        h('h1', {}, 'Run a company for one Monday morning.'),
+        h('p', { class: 'ik-tag ti-k' }, 'The Wake Experience'),
+        h('h1', {}, ...tone('Run a company for *one Monday morning.*')),
         h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
         h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
         h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 15-second intro'),
@@ -171,7 +171,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     };
     screen('su sg', h('header', { class: 'su-top' }, logo(), h('span'), h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); home(); } }, '◀ Back')),
       h('div', { class: 'su-body' }, win('New player',
-        h('h1', {}, 'Before you start'),
+        h('h1', {}, ...tone('Before you *start*')),
         h('p', { class: 'su-sub' }, 'Tell us who\'s playing. We\'ll follow up after you play.'),
         h('form', { class: 'sg-form', onsubmit: submit, novalidate: true }, fName, fEmail, fPhone, note,
           h('div', { class: 'su-go' }, h('button', { class: 'ab primary big', type: 'submit' }, 'Start the game'), h('span', { class: 'mc-key' }, 'Enter'))))));
@@ -192,11 +192,11 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function select({ n, title, sub, items, onPick, onBack, note, top, label = 'Select' }) {
     const all = items.map((it) => it.heading ? h('p', { class: 'su-grp' }, it.heading) : it.soon
       ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
-      : h('button', { class: 'su-row' + (it.featured ? ' feat' : ''), type: 'button', onclick: () => { sfx.select(); onPick(it.id); } },
+      : h('button', { class: 'su-row' + (it.featured ? ' feat' : ''), type: 'button', onclick: () => { sfx.select(); onPick(it.id); } }, ...brackets(),
         it.art ? h('span', { class: 'su-art' }, it.art) : it.icon ? h('span', { class: 'su-ic', html: it.icon }) : it.num ? h('span', { class: 'su-num' }, it.num) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name, it.badge ? h('small', {}, it.badge) : null), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
     const rows = all.filter((r) => r.tagName === 'BUTTON');
     screen('su', top || head(n, onBack),
-      h('div', { class: 'su-body' }, win(label, h('h1', {}, title), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null)));
+      h('div', { class: 'su-body' }, win(label, h('h1', {}, ...tone(title)), sub ? h('p', { class: 'su-sub' }, sub) : null, h('div', { class: 'su-list' }, all), note ? h('p', { class: 'su-note' }, note) : null)));
     rows[0].focus({ preventScroll: true });
     keys((e) => {
       const i = rows.indexOf(document.activeElement);
@@ -209,13 +209,13 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   function setup() {
     onStep('select');
     scene.company = 'Your company'; scene.shirt = ROLE_COLOR.gm;
-    select({ n: 1, title: 'What kind of business do you want to simulate?', sub: 'Pick one. The game builds a company of that kind, with its own people, numbers and problems.',
+    select({ n: 1, title: 'What kind of *business* do you want to simulate?', sub: 'Pick one. The game builds a company of that kind, with its own people, numbers and problems.',
       label: 'Select a business',
       items: SHELL_ORDER.map((id, i) => ({ id, num: String(i + 1).padStart(2, '0'), name: SHELLS[id].label, line: TAGS[id] })),
       onPick: (id) => { pick.shell = id; pick.seed = urlSeed() || randomSeed(); setupRole(); }, onBack: home });
   }
   function setupRole() {
-    select({ n: 2, title: 'Who do you want to play?', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
+    select({ n: 2, title: 'Who do you want *to play?*', sub: 'Your role decides what lands on your desk Monday morning and who you answer to.',
       label: 'Select your player',
       items: ROLE_ORDER.map((id) => ({ id, art: sprite({ hair: '#2A1C14', skin: '#D9A07A' }, ROLE_COLOR[id], 4), name: ROLES[id].label, line: ROLES[id].blurb })),
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
@@ -229,7 +229,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     scene.company = game.world.shell.company; scene.shirt = ROLE_COLOR[r.id] || ROLE_COLOR.gm;
     const top = h('header', { class: 'su-top' }, logo(),
       h('div', { class: 'su-prog' }, h('span', {}, 'Step 4 of 6 · Your 10:00 AM')), h('span'));
-    select({ top, label: 'Your 10:00 AM', title: 'Where do you want to see Wake work?', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
+    select({ top, label: 'Your 10:00 AM', title: 'Where do you want to see *Wake work?*', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
       items: [
         { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, badge: 'Start here', featured: true, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
         { heading: 'Or see it on a call' },
@@ -249,7 +249,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     const fact = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
     screen('su', head(3, setupRole),
       h('div', { class: 'su-body' }, win('Your company',
-        h('h1', {}, 'Your company for this game'),
+        h('h1', {}, ...tone('Your company *for this game*')),
         h('p', { class: 'su-sub' }, 'The game starts Monday morning. Your ' + tenAm + ' is at 10:00 AM, and your team expects you to know what matters this week.'),
         h('section', { class: 'su-card' },
           h('div', { class: 'su-co' }, h('b', {}, pv.company), h('button', { class: 'su-link', type: 'button', onclick: () => { pick.seed = randomSeed(); sfx.blip(); ready(); } }, 'Try a different company')),

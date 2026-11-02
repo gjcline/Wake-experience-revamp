@@ -12,6 +12,7 @@ import { face, glyph } from './os/shell.js';
 import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { autoPick } from '../engine/meeting.js';
 import { specOf, CALL_MOMENTS } from '../engine/moments.js';
+import { brackets } from './ink.js';
 
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
@@ -128,7 +129,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const name = W.role.meetingName, Name = name[0].toUpperCase() + name.slice(1);
     const el = show('day', 'cl-screen mi',
       h('div', { class: 'mi-page' },
-        h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, 'Your 10:00 AM')),
+        ...brackets(), h('span', { class: 'ik-tag' }, 'Your 10:00 AM'),
         h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · conference room'),
         h('h1', {}, 'Your weekly ' + name),
         h('p', { class: 'mi-lead' }, 'Every Monday the leadership team meets to decide what happens this week: what matters, who owns it, and by when. ' + (room.length + 1) + ' people including you, one hour on the calendar.'),
@@ -283,7 +284,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const W = w(), A = game.meetingAgenda(), L = W.caller, ctrl = W.characters.controller, CS = specOf(W.moment);
     const el = show('day', 'cl-screen mi',
       h('div', { class: 'mi-page' },
-        h('div', { class: 'rw-bar', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'), h('span', {}, 'Your 10:00 AM')),
+        ...brackets(), h('span', { class: 'ik-tag' }, 'Your 10:00 AM'),
         h('p', { class: 'mi-k' }, 'Monday · 10:00 AM · ' + CS.medium.toLowerCase()),
         h('h1', {}, CS.intro.h1(L)),
         h('p', { class: 'mi-lead' }, CS.intro.lead(L)),
