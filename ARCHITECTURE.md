@@ -9,9 +9,9 @@ and narrates the player through it with a live guide.
 Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
 anyone asks, and never waits for a prompt.
 
-0. A Start screen: the Wake mark, "Welcome to the Wake Experience" and Start, all centered. Start plays the 15-second intro video (intro.js, media/)
+0. A Start screen: the Wake mark, "Welcome to the Wake Experience" and Start, all centered. Start plays the 18-second intro video (intro.js, media/)
    full screen with sound, then the title. Skip is always there; the title has
-   "Watch the 15-second intro" to replay it. The video fades to dark into the title. The Wake
+   "Watch the 18-second intro" to replay it. The video fades to dark into the title. The Wake
    mark is traced from media/wake-logo.png into a vector (os/icons.js) and used for every Wake
    app icon (black on a white tile).
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,

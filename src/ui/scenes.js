@@ -111,7 +111,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
         h('h1', {}, ...tone('Run a company for *one Monday morning.*')),
         h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
         h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
-        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 15-second intro'),
+        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 18-second intro'),
         h('p', { class: 'ti-press', 'aria-hidden': 'true' }, 'Press Enter')));
     bg.ready.then(() => el.classList.add('in'));
     setTimeout(() => { const b = el.querySelector('.ab.primary'); if (b) b.focus({ preventScroll: true }); }, 60);
