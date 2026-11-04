@@ -66,7 +66,7 @@ export function buildRecap(world, state, { score, trace }) {
     : 'On your own, the people on site still handled some of it themselves' + (C.runRate > 0 ? ', ' + kmoney(C.runRate) + ' of yearly run-rate' : '') + '. Your systems and your team got you there.')
     + ' With Wake on top of the same systems, the same Monday went further: it resolved ' + (S.final.wake.resolved === n ? 'all ' + n : S.final.wake.resolved + ' of ' + n) + (S.by && S.by.wake ? ' by ' + S.by.wake : '') + ', added ' + kmoney(S.final.wake.runRate) + ' of run-rate, and gave the team ' + Math.max(0, Math.round((S.final.you.hours - S.final.wake.hours) * 10) / 10) + ' hours back for what comes next.';
   const closer = 'Same ERP, same team, same data. Wake read all ' + W.funnel.records.toLocaleString('en-US') + ' records across ' + W.systems + ' systems before you sat down, and that is what took the week further.';
-  const meta = { company: world.shell.company, role: world.role.label, shell: world.shell.label, date: world.shell.mondayLong, size: world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit, headcount: world.shell.headcount };
+  const meta = { player: world.player || null, company: world.shell.company, role: world.role.label, shell: world.shell.label, date: world.shell.mondayLong, size: world.shell.multi ? world.shell.size + ' ' + world.shell.vocab.units : 'One ' + world.shell.vocab.unit, headcount: world.shell.headcount };
 
   // ---------------------------------------------------------------- pieces
   const pair = (label, yv, wv, yn, wn, lower, ahead) => {
@@ -147,7 +147,7 @@ export function buildRecap(world, state, { score, trace }) {
       : '<div class="mo one"><div class="meant"><h3>' + esc(m.title) + '</h3>' + m.lines.map((l) => '<p>' + esc(l) + '</p>').join('') + '</div></div>';
     const Q = S.quarter;
     return '<article class="wxr">' +
-      '<header class="mast"><div class="brand"><span class="mark" aria-hidden="true"></span>WAKE</div><div class="meta"><span>After-action report</span><span>' + esc(meta.company) + '</span><span>Week of ' + esc(meta.date) + '</span><span>' + esc(meta.role) + '</span></div></header>' +
+      '<header class="mast"><div class="brand"><span class="mark" aria-hidden="true"></span>WAKE</div><div class="meta"><span>After-action report</span>' + (meta.player ? '<span>Prepared for ' + esc(meta.player) + '</span>' : '') + '<span>' + esc(meta.company) + '</span><span>Week of ' + esc(meta.date) + '</span><span>' + esc(meta.role) + '</span></div></header>' +
       '<section class="hero"><h1>' + esc(verdict) + '</h1><p class="lead">One week at ' + esc(meta.company) + ' (' + esc(meta.size.toLowerCase()) + ', ' + meta.headcount + ' people), run twice from the same Monday morning. Once prepared on your own. Once prepared with Wake. Same data, same people, same five days.</p><p class="lead credit">' + esc(credit) + '</p>' +
       '<div class="kpis">' + kpis + '</div></section>' +
       '<section><h2>The week, day by day</h2><p class="sub">Cumulative operating profit impact against doing nothing, Monday afternoon to Friday.' + (fw.oneTime || fy.oneTime ? ' One-time recoveries come on top: ' + money(fw.oneTime) + ' with Wake' + (fy.oneTime ? ', ' + money(fy.oneTime) + ' on your own' : ', none on your own this week') + '.' : '') + '</p><figure class="chart">' + chart() + '</figure></section>' +
@@ -252,6 +252,7 @@ export function buildRecap(world, state, { score, trace }) {
   function toText() {
     const L = [];
     L.push('THE WAKE EXPERIENCE · AFTER-ACTION REPORT');
+    if (meta.player) L.push('Prepared for ' + meta.player);
     L.push(meta.company + ' · ' + meta.role + ' · Week of ' + meta.date, '');
     L.push(verdict, '', credit, '');
     L.push('SCORECARD (on your own / with Wake / ahead by)');

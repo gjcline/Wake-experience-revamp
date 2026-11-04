@@ -588,7 +588,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const status = h('span', { class: 'cl-muted', 'aria-live': 'polite' });
     const reportEl = h('div', { class: 'report-wrap', hidden: true });
     const RT = S.rating, FY = S.final.you, FW = S.final.wake, n = S.n;
-    if (onFinished) onFinished({ profitYou: FY.profit, profitWake: FW.profit, resolvedYou: FY.resolved, resolvedWake: FW.resolved, problems: n });
+    // the result goes to the dashboard; if the report gets emailed, the page says where it went
+    const mailed = onFinished ? onFinished({ profitYou: FY.profit, profitWake: FW.profit, resolvedYou: FY.resolved, resolvedWake: FW.resolved, problems: n, rows: S.rows.map((r) => ({ label: r.label, you: r.you, wake: r.wake, ahead: r.ahead || '' })) }) : null;
+    Promise.resolve(mailed).then((to) => { if (to) status.textContent = 'We emailed this report to ' + to + '.'; }).catch(() => {});
     const stat = (big, label) => h('p', {}, h('b', {}, big), h('span', {}, label));
     const card = (side, title, rating, stats) => h('div', { class: 'fs2-card ' + side }, h('span', { class: 'fs2-ck' }, title), h('strong', {}, rating[0].toUpperCase() + rating.slice(1)), h('div', { class: 'fs2-cs' }, stats));
     // your week is the base; Wake's week is the same bar, carried further
@@ -608,7 +610,7 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     const table = h('section', { class: 'rs-card', hidden: true }, h('table', { class: 'fs2-table' }, h('thead', {}, h('tr', {}, h('th'), h('th', { class: 'y' }, 'On your own'), h('th', { class: 'w' }, 'With Wake'), h('th', { class: 'a' }, 'Ahead by'))), rows));
     show('wake', 'cl-screen fs2',
       h('div', { class: 'rs-page' },
-        h('p', { class: 'rs-k' }, 'Final score · ' + w().shell.company),
+        h('p', { class: 'rs-k' }, (w().player ? 'Prepared for ' + w().player + ' · ' : 'Final score · ') + w().shell.company),
         h('h1', {}, 'Same company. Same data. Same Monday.'),
         cards, stacks, table, verdict, rest, reportEl));
     own();

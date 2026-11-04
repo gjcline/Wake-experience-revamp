@@ -204,12 +204,19 @@ Vercel Blob (`runs/<id>.json`).
 - `api/cal.js` is the Cal.com webhook. Answering "No" to "Do you already have a meeting
   scheduled?" opens `WAKE_BOOK_URL` (https://cal.com/bliztic/wake by default) in a new tab with
   `metadata[runId]=<run id>`, name and email filled in, so each booking lands next to its run.
+- `api/report.js` emails the player their report at the final score, through Resend. It sends
+  only to the email saved with the run at sign-up, once per run and a few times a day per
+  address, in a fixed template (headline numbers, the scorecard, a Book a walkthrough button
+  with the run id). The page then says where it went. Off until `RESEND_API_KEY` is set.
+- The player's name from the sign-up goes on the score page, the Friday card and the report.
 - `/dashboard` (src/dashboard.html) is the team's view: visits, played, finished, median time,
   sign-ups (name, email, phone), meeting answers, bookings, how far people get, quick vs full, every run, CSV export.
 
 Vercel environment variables: `BLOB_READ_WRITE_TOKEN` (the store), `DASHBOARD_KEY` (opens the
 dashboard), `WAKE_BOOK_URL` (the booking page; defaults to https://cal.com/bliztic/wake),
-`CAL_WEBHOOK_SECRET` (optional, checks the Cal.com signature). Tracking is off when opened
+`CAL_WEBHOOK_SECRET` (optional, checks the Cal.com signature). `RESEND_API_KEY` turns on the report email;
+`REPORT_FROM` (default `Wake <experience@wakepe.com>`), `REPORT_REPLY_TO` and `REPORT_BCC` (a copy
+for the team) are optional. Tracking is off when opened
 from a file or as an artifact, or when `WAKE_CONFIG.track` is false.
 
 ## What the sales team gets

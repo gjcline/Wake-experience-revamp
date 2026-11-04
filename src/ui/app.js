@@ -171,6 +171,8 @@ const world = createScenes({
   onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone }); },
   onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
+    // who's playing, from the sign-up: their name goes on the score page and the report
+    if (contact && contact.name) game.world.player = contact.name.trim().slice(0, 80);
     world.setMoment('meeting');
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
     track.step('arrive', { mode: 'full', shell: shellId, role: roleId, company: game.world.shell.company });
@@ -323,7 +325,7 @@ function backToReport() {
 function friday(then) {
   leave();
   world.office(game, { day: 'Friday', time: '6:10 PM', preset: 'night', night: true, view: [192, 120, 1],
-    card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in.',
+    card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in' + (game.world.player ? ', ' + game.world.player.split(/\s+/)[0] : '') + '.',
       what: 'Your final score: both weeks side by side, in your company\'s own numbers, and a report to keep.',
       why: 'One company, one Monday. The only difference was how the morning was run.',
       wake: 'Wake didn\'t wait for Friday\'s report. It tracked every measure daily all week and flagged what slipped while there was still time to act.',
@@ -334,10 +336,24 @@ function friday(then) {
 // The finale: meeting, week, final score. Built per game so it reads the current one.
 function finale() {
   return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
-    onFinished: (result) => track.step('score', fromReport ? null : { finished: true, result }),
+    onFinished: (result) => {
+      if (fromReport) { track.step('score'); return mailedTo; }
+      const { rows, ...summary } = result;
+      track.step('score', { finished: true, result: summary });
+      return (mailedTo = emailReport(result));
+    },
     onEmail: contact ? null : (email) => track.set({ email }),
     onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); },
     onAnother: (m) => { fromReport = true; playMoment(m); }, played: played.slice(), replay: fromReport });
+}
+
+// The report by email, to the address from the sign-up (see api/report.js). Resolves to that
+// address once it's sent, or null: no email, the artifact build, or sending isn't set up.
+let mailedTo = null; // the send, kept so the report says where it went on every return
+function emailReport(result) {
+  if (HOST !== 'web' || !contact || !contact.email || !track.id) return Promise.resolve(null);
+  return fetch('/api/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: track.id, result }) })
+    .then((r) => r.json()).then((j) => (j && j.ok ? j.to : null)).catch(() => null);
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.
