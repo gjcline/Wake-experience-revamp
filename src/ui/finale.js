@@ -13,6 +13,7 @@ import { createOffice, SEAT, ROLE_COLOR } from './pixel/office.js';
 import { autoPick } from '../engine/meeting.js';
 import { specOf, CALL_MOMENTS } from '../engine/moments.js';
 import { brackets } from './ink.js';
+import { MEETING_LINE } from './scenes.js';
 
 const money = (v) => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
 const kmoney = (v) => { const a = Math.abs(v); const s = a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e4 ? '$' + Math.round(a / 1000) + 'k' : money(a); return (v < 0 ? '-' : '') + s.replace('-', ''); };
@@ -27,7 +28,7 @@ const mark = (id, cls) => h('span', { class: cls || 'fm', html: ICONS[id] || '' 
 const SEATS = { controller: [86, 42, 'down'], opsdir: [100, 42, 'down'], trainer: [114, 42, 'down'], hr: [100, 70, 'up'], analyst: [114, 70, 'up'], marketing: [128, 70, 'up'] };
 const OPEN = [[128, 42, 'down'], [86, 70, 'up'], [72, 47, 'right'], [72, 58, 'right']];
 
-export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onMeeting, onAnother, played = [] }) {
+export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFriday, onRestart, post, HOST, onFinished, onEmail, onMeeting, onAnother, played = [], replay = false }) {
   const w = () => game.world;
   const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
   const btn = (label, onclick, cls = 'cb') => h('button', { class: cls, type: 'button', onclick }, label);
@@ -449,7 +450,8 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         h('div', { class: 'rs-after' },
           h('section', { class: 'rs-card y' }, h('h2', {}, 'Your afternoon'), h('p', { class: 'rs-sub' }, hrs(A.hours) + ' of work the ' + (CALL ? 'call' : 'meeting') + ' created'), h('ul', { class: 'rs-tasks' }, A.mine.map(task))),
           h('section', { class: 'rs-card w' }, h('h2', {}, 'With Wake, by 10:16 AM'), h('p', { class: 'rs-sub' }, 'Done before anyone was back at their desk'), h('ul', { class: 'rs-done' }, A.done.map((d) => h('li', {}, h('i', {}, '✓'), h('div', {}, h('b', {}, d.at), h('p', {}, d.what))))))),
-        h('div', { class: 'rs-next' }, btn('Back to your office', onWalkBack, 'cb primary big'))));
+        // another 10:00 AM watched from the report goes straight back to it: the week hasn't changed
+        h('div', { class: 'rs-next' }, btn(replay ? 'Back to your report' : 'Back to your office', onWalkBack, 'cb primary big'))));
     own(); sfx.credit();
   }
 
@@ -574,7 +576,9 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
   }
 
   // ============================================================ THE FINAL SCORE
-  function ending() {
+  // `back`: returning from another 10:00 AM, so no build-up, and it opens on Wake in action elsewhere
+  function ending({ back = false } = {}) {
+    const pace = (ms) => wait(back ? 0 : ms);
     const R = game.recap();
     game.complete(); post();
     const S = R.score;
@@ -609,20 +613,21 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
         cards, stacks, table, verdict, rest, reportEl));
     own();
     (async () => {
-      await wait(400);
-      cards.hidden = false; sfx.blip(); await wait(700);
-      stacks.hidden = false; sfx.coin(); await wait(700);
+      await pace(400);
+      cards.hidden = false; sfx.blip(); await pace(700);
+      stacks.hidden = false; sfx.coin(); await pace(700);
       table.hidden = false;
       for (const r of S.rows) {
         if (!alive) return;
         rows.appendChild(h('tr', { class: r.ahead ? 'up' : '' }, h('th', {}, r.label), h('td', { class: 'y' }, r.you), h('td', { class: 'w' }, r.wake),
           h('td', { class: 'a' + (r.youWins ? ' yours' : '') }, r.ahead ? h('b', {}, r.ahead) : h('span', {}, r.youWins ? 'Yours this time' : 'Even'))));
-        await wait(240);
+        await pace(240);
       }
       verdict.hidden = false;
       verdict.replaceChildren(h('p', { class: 'fs2-v' }, R.verdict), R.credit ? h('p', { class: 'fs2-credit' }, R.credit) : null);
-      sfx.start(); await wait(600);
+      sfx.start(); await pace(600);
       rest.hidden = false; renderRest();
+      if (back) { const a = rest.querySelector('.fs2-another'); if (a) a.scrollIntoView({ block: 'start' }); }
     })();
 
     function renderRest() {
@@ -688,20 +693,26 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
 
     // The same morning, somewhere else: every 10:00 AM they haven't played yet. Picking one runs
     // that moment with the same two briefings, then the week and a new score.
+    // Every 10:00 AM, with what it is. The ones already watched (including the first, picked after
+    // Round 2) are greyed with a Watched label and can still be played again.
     function another() {
       if (!onAnother) return null;
-      const W = w(), left = ['meeting', ...CALL_MOMENTS].filter((m) => !played.includes(m));
-      if (!left.length) return null;
+      const W = w(), all = ['meeting', ...CALL_MOMENTS];
+      const nameOf = (m) => (m === 'meeting' ? 'Your weekly ' + W.role.meetingName : specOf(m).pick.name);
+      const lower = (x) => x.charAt(0).toLowerCase() + x.slice(1);
+      const seen = all.filter((m) => played.includes(m)).map((m) => lower(nameOf(m)));
+      const listOf = (xs) => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]);
       const row = (m) => {
-        const sp = m === 'meeting' ? null : specOf(m);
-        const name = sp ? sp.pick.name : 'Your weekly ' + W.role.meetingName, line = sp ? sp.pick.line : 'Your leadership team, in the conference room. Decide what happens this week.';
-        return h('button', { class: 'an-row', type: 'button', onclick: () => { sfx.select(); onAnother(m); } },
-          h('span', { class: 'lv-i' }, glyph(sp ? sp.icon : 'people')), h('span', { class: 'an-t' }, h('b', {}, name), h('span', {}, line)), h('i', { 'aria-hidden': 'true' }, '→'));
+        const sp = m === 'meeting' ? null : specOf(m), was = played.includes(m);
+        return h('button', { class: 'an-row' + (was ? ' seen' : ''), type: 'button', onclick: () => { sfx.select(); onAnother(m); } },
+          h('span', { class: 'lv-i' }, glyph(sp ? sp.icon : 'people')),
+          h('span', { class: 'an-t' }, h('b', {}, nameOf(m), was ? h('small', { class: 'an-seen' }, 'Watched') : null), h('span', {}, sp ? sp.pick.line : MEETING_LINE)),
+          h('i', { 'aria-hidden': 'true' }, was ? 'Watch again' : '\u2192'));
       };
       return h('section', { class: 'rs-card fs2-another' },
-        h('h2', {}, 'See Wake somewhere else'),
-        h('p', { class: 'rs-sub' }, 'Same morning, same two briefings, different people asking. Pick another 10:00 AM and watch it play out, then get a new score.'),
-        h('div', { class: 'an-list' }, left.map(row)));
+        h('h2', {}, 'Wake in action elsewhere'),
+        h('p', { class: 'rs-sub' }, (seen.length ? 'You already watched ' + listOf(seen) + '. ' : '') + 'We invite you to view the impact Wake had in other areas of the business throughout this week.'),
+        h('div', { class: 'an-list' }, all.map(row)));
     }
 
     // The last question: do they already have a meeting with the Wake team? No opens the booking

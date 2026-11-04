@@ -59,8 +59,8 @@ const SPECS = {
     },
     card: {
       title: 'The bank is calling.',
-      what: (P, ctrl) => P.name + ' from ' + P.org + ' is calling ahead of the covenant check. ' + ctrl.name + ' (' + ctrl.title + ') is on the line with you. The call runs twice: first with what you found on your own, then with what you prepared with Wake.',
-      why: 'A lender asks the hardest questions about your numbers: is it real, is it one-time, what does it do to margin and cash. Every answer you have on the call builds the bank\'s confidence; every "let me get back to you" goes in their file.',
+      what: (P, ctrl) => P.name + ' from ' + P.org + ' is calling ahead of the covenant check. ' + ctrl.name + ' (' + ctrl.title + ') is on the line with you. The call runs twice: on your own, then with Wake.',
+      why: 'A lender asks the hard questions: is it real, is it one-time, what does it do to margin and cash. Every "let me get back to you" goes in their file.',
       watch: ['on the call, with the numbers', 'when you have to get back to them', 'at the end of the call'],
       wake: 'Wake isn\'t on the call. It did its work before ten: every answer you give has its numbers behind it, and the covenant brief for the bank is already drafted.',
       cta: 'Take the call',
@@ -105,8 +105,8 @@ const SPECS = {
     },
     card: {
       title: 'The board is on the line.',
-      what: (P, ctrl) => 'Your monthly update to the board, on video. ' + P.name + ' (' + P.title + ') runs it; ' + ctrl.name + ' (' + ctrl.title + ') joins you. The update runs twice: first with what you found on your own, then with what you prepared with Wake.',
-      why: 'A board wants the month in a few minutes: what moved, why, and what you\'re doing about it. Every answer you have builds confidence; every "I\'ll follow up" lands in next month\'s pack.',
+      what: (P, ctrl) => 'Your monthly update to the board, on video. ' + P.name + ' (' + P.title + ') runs it; ' + ctrl.name + ' (' + ctrl.title + ') joins you. It runs twice: on your own, then with Wake.',
+      why: 'The board wants the month in a few minutes: what moved, why, and what you\'re doing about it. Every "I\'ll follow up" lands in next month\'s pack.',
       watch: ['for the board, with the numbers', 'when you have to follow up', 'at the end of the update'],
       wake: 'Wake isn\'t on the call. It did its work before ten: every number you present has its reason and its owner, and next month\'s pack is already updating.',
       cta: 'Join the call',
@@ -159,8 +159,8 @@ const SPECS = {
     },
     card: {
       title: 'Your supplier is calling.',
-      what: (P, ctrl) => P.name + ', your account rep at ' + P.org + ', is calling before next quarter\'s pricing is set. ' + ctrl.name + ' (' + ctrl.title + ') is on the line with you. The call runs twice: first with what you found on your own, then with what you prepared with Wake.',
-      why: 'A supplier call is money on the table: what they billed, what the contract says, and what next quarter costs. You only recover what you can prove on the call.',
+      what: (P, ctrl) => P.name + ', your account rep at ' + P.org + ', is calling before next quarter\'s pricing is set. ' + ctrl.name + ' (' + ctrl.title + ') is on the line with you. The call runs twice: on your own, then with Wake.',
+      why: 'Money is on the table: what they billed, what the contract says, and what next quarter costs. You only recover what you can prove on the call.',
       watch: ['on the call, with the numbers', 'when you have to get back to them', 'whether you recover the overage'],
       wake: 'Wake isn\'t on the call. It did its work before ten: every invoice is matched against the contract, so you walk in with the overage itemized.',
       cta: 'Take the call',
@@ -205,7 +205,7 @@ const SPECS = {
     },
     card: {
       title: 'The buyer is on the line.',
-      what: (P, ctrl) => P.name + ', a partner at ' + P.org + ', is doing due diligence on the business. ' + ctrl.name + ' (' + ctrl.title + ') is on with you. The call runs twice: first with what you found on your own, then with what you prepared with Wake.',
+      what: (P, ctrl) => P.name + ', a partner at ' + P.org + ', is doing due diligence on the business. ' + ctrl.name + ' (' + ctrl.title + ') is on with you. The call runs twice: on your own, then with Wake.',
       why: 'A buyer pays for earnings they believe. Every number you can explain holds its value; every gap becomes an open item, and open items come off the price.',
       watch: ['with the support behind it', 'when you can\'t back it up yet', 'at the end of the call'],
       wake: 'Wake isn\'t on the call. It did its work before ten: every number you give traces to its source, ready for the data room.',

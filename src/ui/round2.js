@@ -1,5 +1,5 @@
 // ROUND 2: WITH WAKE
-// The same computer, the same Monday, the same the ERP. The difference is that Wake is built into
+// Back at the desk at 7:48 AM. The difference is that Wake is built into
 // the ERP now, and it read everything before you sat down: the ERP's modules, the inbox, the
 // calendar. The dashboard looks the same, but every indicator says why it moved and which insight it
 // feeds; a Wake portlet ranks what needs you; the Wake tab holds every insight with the lines behind
@@ -523,7 +523,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
   function rulesCard() {
     card('rules-card', h('h2', {}, 'How this works'),
       h('ul', { class: 'mini-rules' },
-        h('li', {}, 'Same ' + ERP_NAME + ', with Wake built in. The dashboard shows what needs you, and every indicator says why it moved.'),
+        h('li', {}, 'The ' + ERP_NAME + ', now with Wake built in. The dashboard shows what needs you, and every indicator says why it moved.'),
         h('li', {}, 'The Wake tab has every insight, ranked. Click any source to see exactly what it said and where it came from.'),
         h('li', {}, 'Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights. Owners are already matched.'),
         h('li', {}, 'Reports has your statements current to this morning, plus the reports Wake prepared.'),
@@ -544,7 +544,7 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
     const memo = !!wakeDocs().find((id) => w.sources[id].memo);
     coach.chapters({
       desk: [
-        { text: 'Same computer, same Monday, same 7:48 AM, same data. Same ' + ERP_NAME + '. The difference: Wake is built into it now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'Next', modal: true },
+        { text: 'Back at your desk at 7:48 AM. The difference: Wake is built into your ' + ERP_NAME + ' now, and it read everything before you sat down. A quick tour first.', target: '.os-dock', next: 'Next', modal: true },
         { text: 'Open ' + ERP_NAME + '. It will look familiar.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Open ' + ERP_NAME, force: true, skipIf: () => coach.seen('app:erp') },
       ],
       erp: [
@@ -557,16 +557,16 @@ export function round2({ game, show, coach, reduced, onLock, setCleanup }) {
         { text: 'Click any source to see exactly what it said and where it came from.', target: '.wi .wi-chip', wait: 'trace', hint: 'Click a source', force: true, skipIf: () => coach.seen('trace') },
         { text: 'That\'s the original line, where it lives in your systems, and how Wake read it. Close it when you\'re done.', target: '.wk-drawer', inline: true, wait: 'traceClosed', hint: 'Close it when you\'re done', force: true, when: () => !!document.querySelector('.wk-dbody') },
         { text: 'Your call now. Assign this one: it goes to its owner with the numbers attached. Each insight already has an owner.', target: '.wi .pick', wait: 'pick', hint: 'Assign one', force: true, skipIf: () => coach.seen('pick') },
-        { text: 'Now the reports Wake prepared for you. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: () => coach.seen('erp:reports') },
+        { text: 'Now the reports. Open Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Open Reports', force: true, skipIf: () => coach.seen('erp:reports') },
       ],
       reports: [
-        { text: 'Every standard report is still here, now tagged with what Wake found in it. At the top: your income statement, cash flow and balance sheet, current to this morning instead of month end, and the reports Wake prepared.', target: '.ns-rlg', next: 'Next', modal: true },
+        { text: 'Wake didn\'t just read your reports, it added to them. Every standard report from Round 1 is still here, now marked with what Wake found in it. On top of those, Wake produced new ones: your income statement, cash flow and balance sheet current to this morning, and the briefs it drafted.', target: '.ns-rlg', next: 'Next', modal: true },
         { text: memo ? 'Start with this one: Thursday\'s brief for ' + boss + ', already drafted by Wake.' : 'Open one of the reports Wake prepared.', target: memo ? '.ns-rli.memo' : '.ns-rli.wk', wait: ['doc:brief', 'doc:exec'], hint: 'Open it', force: true },
         { text: (memo ? 'Every figure in this draft comes from this morning\'s data, so you review it instead of writing it. ' : 'Wake builds these from the same lines as your insights. ') + 'Nothing to gather, reconcile or format.', target: '.ns-doc', next: 'Next', modal: true, when: doc },
         { text: 'Back to Reports.', target: '.ns-back', wait: 'erp:reports', hint: 'Click Back to Reports', force: true, when: doc },
         { text: 'Now open your income statement.', target: '.ns-rli.stmt', wait: 'doc:exec', hint: 'Open it', force: true, skipIf: () => !statements.length },
         { text: 'Reconciled by Wake across your accounting, payroll and operations at 7:48 AM. The numbers you\'d normally wait for month end to see, current to this morning.', target: '.ns-doc', next: 'Next', modal: true, when: doc, skipIf: () => !statements.length },
-        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. The clock starts now: your ' + MT + ' is at 10:00 AM.', target: '.wake-tray', next: 'Start the clock', modal: true, onNext: startClock },
+        { text: 'That\'s the tour. Assign ' + game.MIN_PICKS + ' to ' + game.MAX_PICKS + ' insights in the Wake tab, then lock in your briefing. Gmail, Messages and Calendar are connected too. Your ' + MT + ' is at 10:00 AM.', target: '.wake-tray', next: 'Got it', modal: true, onNext: startClock },
       ],
       messages: [
         { text: 'Texts that belong to an insight can be sent to Wake. Send one and watch where it lands.', target: '.im-list', next: 'Got it', once: true },

@@ -19,6 +19,8 @@ import { playIntro } from './intro.js';
 import { brackets, tone, flow } from './ink.js';
 
 export const STEPS = ['Arrive', 'On your own', 'With Wake', 'The meeting', 'The week', 'Your score'];
+// the leadership meeting, wherever it's offered: the all-department view
+export const MEETING_LINE = 'Every department and location in one room: decide this week\'s priorities, who owns them and by when.';
 
 const TAGS = { service: 'Auto, repair, trades', clinical: 'Clinics and practices', consumer: 'Studios and clubs', field: 'Crews and service calls', multi: 'Restaurants and sites' };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
@@ -97,7 +99,7 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   }
 
   // ------------------------------------------------------------ 1. the title screen
-  // The office the game happens in, still and quiet behind a plain title and one button.
+  // The office the game happens in, behind the logo, the name and Play. Nothing else to read.
   const EXTRAS = [['#2A1C14', '#E0B08A', '#4F81BD'], ['#111', '#8D5A3B', '#9BBB59'], ['#C9A46A', '#F0C7A0', '#C0504D'], ['#5A3A28', '#C68A64', '#8064A2'], ['#222', '#F0C7A0', '#F2C14E']]
     .map(([hair, skin, shirt]) => ({ hair, skin, shirt }));
   function home() {
@@ -107,11 +109,9 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     const el = screen('ti',
       h('div', { class: 'ti-body' },
         logo('ti-logo'),
-        h('p', { class: 'ik-tag ti-k' }, 'The Wake Experience'),
-        h('h1', {}, ...tone('Run a company for *one Monday morning.*')),
-        h('p', {}, 'Then run the same morning again with Wake, and see how the week turns out.'),
+        h('h1', { class: 'ti-name' }, 'The Wake Experience'),
         h('div', { class: 'su-go' }, btn('Play', start, 'ab primary big'), h('span', { class: 'mc-key' }, 'Enter')),
-        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Watch the 18-second intro'),
+        h('button', { class: 'ti-intro', type: 'button', onclick: () => intro() }, 'Rewatch intro video'),
         h('p', { class: 'ti-press', 'aria-hidden': 'true' }, 'Press Enter')));
     bg.ready.then(() => el.classList.add('in'));
     setTimeout(() => { const b = el.querySelector('.ab.primary'); if (b) b.focus({ preventScroll: true }); }, 60);
@@ -128,7 +128,8 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
   // called straight from a click, so the video may play with sound
   function intro() {
     clear(); dropBackdrop();
-    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, onDone: () => home() });
+    // laid over the screen it was started from, so that screen stays up until the video is playing
+    const stop = playIntro({ mount: (el) => { root.className = 'wx sc-root'; root.append(el); window.scrollTo(0, 0); }, onDone: () => home() });
     teardown.push(stop);
   }
   function first() {
@@ -188,9 +189,13 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     h('div', { class: 'su-prog' }, h('span', {}, 'Step ' + n + ' of ' + TOTAL), h('i', {}, Array.from({ length: TOTAL }, (_, i) => h('em', { class: i < n ? 'on' : '' })))),
     onBack ? h('button', { class: 'su-back', type: 'button', onclick: () => { sfx.back(); onBack(); } }, '◀ Back') : h('span'));
 
-  // `soon` items are shown but can't be picked yet: they say what else Wake does
+  // `soon` items are shown but can't be picked yet: they say what else Wake does. `locked` items
+  // are a compact menu line that opens later (the other 10:00 AMs open after the final score).
   function select({ n, title, sub, items, onPick, onBack, note, top, label = 'Select' }) {
-    const all = items.map((it) => it.heading ? h('p', { class: 'su-grp' }, it.heading) : it.soon
+    const all = items.map((it) => it.heading ? h('p', { class: 'su-grp' }, it.heading) : it.locked
+      ? h('div', { class: 'su-row soon locked', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name)), it.meta ? h('em', {}, it.meta) : null,
+        h('em', { class: 'su-soon' }, h('span', { class: 'su-lock', html: GLYPH.lock || '' }), it.locked))
+      : it.soon
       ? h('div', { class: 'su-row soon', 'aria-disabled': 'true' }, it.icon ? h('span', { class: 'su-ic', html: it.icon }) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name), h('span', {}, it.line)), h('em', { class: 'su-soon' }, 'Coming soon'))
       : h('button', { class: 'su-row' + (it.featured ? ' feat' : ''), type: 'button', onclick: () => { sfx.select(); onPick(it.id); } }, ...brackets(),
         it.art ? h('span', { class: 'su-art' }, it.art) : it.icon ? h('span', { class: 'su-ic', html: it.icon }) : it.num ? h('span', { class: 'su-num' }, it.num) : null, h('span', { class: 'su-rt' }, h('b', {}, it.name, it.badge ? h('small', {}, it.badge) : null), h('span', {}, it.line)), it.meta ? h('em', {}, it.meta) : null, h('i', { 'aria-hidden': 'true' }, '→')));
@@ -220,22 +225,21 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
       items: ROLE_ORDER.map((id) => ({ id, art: sprite({ hair: '#2A1C14', skin: '#D9A07A' }, ROLE_COLOR[id], 4), name: ROLES[id].label, line: ROLES[id].blurb })),
       onPick: (id) => { pick.role = id; ready(); }, onBack: setup });
   }
-  // ------------------------------------------------------------ the 10:00 AM: where to see Wake work
-  // After both rounds, where the meeting would start. The briefing is ready two ways; the player
-  // picks the moment to see the difference in. The leadership meeting is the one we recommend
-  // first; the calls are there too, and any of them can be played after the final score.
+  // ------------------------------------------------------------ the 10:00 AM: see Wake in action
+  // After both rounds, where the meeting would start. Everyone watches the leadership meeting
+  // first: every department at one glance. The calls are listed as additional options that open
+  // after the final score, so people know they exist without leaving the main path.
   function moment(game, onPick) {
     const r = game.world.role, G = (k) => GLYPH[k] || '';
     scene.company = game.world.shell.company; scene.shirt = ROLE_COLOR[r.id] || ROLE_COLOR.gm;
     const top = h('header', { class: 'su-top' }, logo(),
       h('div', { class: 'su-prog' }, h('span', {}, 'Step 4 of 6 · Your 10:00 AM')), h('span'));
-    select({ top, label: 'Your 10:00 AM', title: 'Where do you want to see *Wake work?*', sub: 'Your briefing is ready two ways: the one you built on your own, and the one you prepared with Wake. Wake isn\'t just for meetings. It reads your business every morning, so the answers are ready wherever the questions come from. Pick the moment to see the difference in.',
+    select({ top, label: 'Your 10:00 AM', title: 'See Wake *in action*', sub: 'Wake\'s intelligence doesn\'t stay in one report. It carries into every conversation where the business gets run. Start with your leadership meeting to see it across every department at once. You can watch the rest after your score.',
       items: [
-        { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, badge: 'Start here', featured: true, line: 'Your leadership team, in the conference room. Decide what happens this week: what matters, who owns it, by when.', meta: 'In person' },
-        { heading: 'Or see it on a call' },
-        ...CALL_MOMENTS.map((id) => { const sp = specOf(id); return { id, icon: G(sp.icon), name: sp.pick.name, line: sp.pick.line, meta: sp.medium }; }),
+        { id: 'meeting', icon: G('people'), name: 'Your weekly ' + r.meetingName, badge: 'Start here', featured: true, line: MEETING_LINE, meta: 'In person' },
+        { heading: 'Additional options' },
+        ...CALL_MOMENTS.map((id) => { const sp = specOf(id); return { id, icon: G(sp.icon), name: sp.pick.name, meta: sp.medium, locked: 'After your score' }; }),
       ],
-      note: 'Every moment uses the same morning and the same two briefings. Only the people asking the questions change. After your final score you can play any of the others.',
       onPick });
   }
 
@@ -318,9 +322,9 @@ export function createScenes({ root, reduced, onPicked, onStep = () => {}, onSig
     await office(sim, { day: w.shell.mondayLong, time: '7:42 AM', preset: 'office', arrive: true,
       before: { step: 1, kicker: w.shell.mondayLong + ' · 7:42 AM', title: 'This is ' + w.shell.company + '. You run it.',
         what: 'Walking in on a Monday. ' + w.shell.company + ' runs on an ERP: every report, scorecard and number in one place. Your ' + meeting + ' starts at 10:00 AM.',
-        note: 'This ERP stands in for the one your business already runs on, like NetSuite, QuickBooks, Sage or Dynamics.',
-        why: 'You built a business that tracks everything. The problems that cost you money this week are already in there. The question is whether you find them by ten.',
-        wake: 'Wake reads every system the business runs on overnight. Nobody has to ask it a question first: by the time you walk in, it already knows what changed.',
+        note: 'This ERP stands in for the one your business already runs on such as NetSuite, QuickBooks, Sage, Dynamics, etc.',
+        why: 'The problems costing you money this week are already in your data. The question is whether you find them by ten.',
+        wake: 'Wake reads every system overnight, without being asked. By the time you walk in, it already knows what changed.',
         cta: 'Walk in' },
       card: { step: 2, kicker: 'Round 1 · on your own · 7:48 AM', title: 'Get ready for ten o\'clock.',
         what: 'Your computer has the ERP, plus Gmail, Calendar and Messages. Every number is in there. Find the ones that matter, flag 3 to 5 of them, and decide who handles each.',

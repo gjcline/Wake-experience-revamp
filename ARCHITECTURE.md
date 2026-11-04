@@ -9,9 +9,10 @@ and narrates the player through it with a live guide.
 Every step card between scenes carries a "How Wake does it" line: Wake reads everything before
 anyone asks, and never waits for a prompt.
 
-0. A Start screen: the Wake mark, "Welcome to the Wake Experience" and Start, all centered. Start plays the 18-second intro video (intro.js, media/)
-   full screen with sound, then the title. Skip is always there; the title has
-   "Watch the 18-second intro" to replay it. The video fades to dark into the title. The Wake
+0. A Start screen: the Wake mark, "Welcome to the Wake Experience" and Start, all centered. Start plays the 16-second intro video (intro.js, media/)
+   with sound, then the title. The video opens on the Start button bursting into the first slide,
+   so it fades in over a page that matches the Start screen. Skip is always there. The title is
+   just the logo, "The Wake Experience", Play and "Rewatch intro video". The Wake
    mark is traced from media/wake-logo.png into a vector (os/icons.js) and used for every Wake
    app icon (black on a white tile).
 1. Intro: a title screen over the pixel office, then three short questions, one per screen: the kind of business,
@@ -67,8 +68,9 @@ anyone asks, and never waits for a prompt.
    history, the data, "what are we doing?"): topics rotate through the meeting, every option set
    rotates its wording and its order, and most of these turns leave someone a follow-up. With Wake, the same questions are answered in the room.
    Then the result: two meeting timelines, the duel, and the work each meeting created.
-4b. Or a call. After both rounds are locked, the player picks where to see Wake work: the role's
-   meeting (featured as "Start here"), or one of four calls (engine/moments.js): the lender ahead of the covenant check, the
+4b. Or a call. After both rounds are locked, "See Wake in action" opens the role's meeting, the
+   all-department view (featured as "Start here"). Four calls are listed under "Additional
+   options" but locked until the final score (engine/moments.js) (engine/moments.js): the lender ahead of the covenant check, the
    monthly update to the board, the biggest supplier before next quarter's pricing, or a buyer
    doing due diligence. The person calling comes from the seed (the supplier's account rep is the
    one already in the company's data). What each item comes to is decided exactly as in the
@@ -77,8 +79,10 @@ anyone asks, and never waits for a prompt.
    and how they leave the call (the supplier call lands on whether you recover the overbilling).
    Three people on the line, shorter than a meeting. The call screens, the result, the scorecard
    row, the week and the report all take their words from the spec.
-   After the final score, "See Wake somewhere else" lists the moments not played yet; picking one
-   runs that moment, the week and a new score from the same two briefings (setMoment again).
+   After the final score, "Wake in action elsewhere" lists every moment with what it is; the ones
+   watched (the first included) are greyed with a Watched label and can be played again. Picking
+   one runs that moment from the same two briefings (setMoment again), then goes straight back to
+   the report, set to the first moment again: the week doesn't change, so it isn't replayed.
 5. The week. Both plans run Monday afternoon to Friday on a dashboard, each with its own Slack
    channel of daily updates, and a
    six-measure scoreboard (profit impact, run-rate added, problems resolved, time to action,

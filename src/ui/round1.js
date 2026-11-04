@@ -47,9 +47,9 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const clockLabel = () => w.shell.monday.replace(',', '') + '  ' + fmtClock(shown);
   pc.setClock(clockLabel());
 
-  // the clock holds at 7:48 while the guide shows you around, and starts when the tour is done
-  let clockOn = false;
-  const startClock = () => { if (!clockOn) { clockOn = true; sfx.blip(); } };
+  // the clock runs from 7:48 the moment you sit down, tour included: digging on your own takes time
+  let clockOn = true;
+  const startClock = () => { clockOn = true; };
   const ticker = setInterval(() => {
     if (!clockOn) return;
     const r = game.tickClock();
@@ -521,18 +521,18 @@ export function round1({ game, show, coach, reduced, onSubmit, setCleanup }) {
   const look = (text, target, extra) => ({ text, target, next: 'Next', modal: true, when: toured, ...extra });
   setTimeout(() => coach.chapters({
     desk: [
-      { text: 'This is your computer. The clock is paused while we show you around. Everything about your company is in the ' + ERP_NAME + '.', target: '.os-dock', next: 'Next', modal: true, once: true },
+      { text: 'This is your computer. Everything about your company is in the ' + ERP_NAME + '.', target: '.os-dock', next: 'Next', modal: true, once: true },
       { text: 'Open ' + ERP_NAME + '.', target: '.dock-app[data-app="erp"]', wait: 'app:erp', hint: 'Click it', force: true, skipIf: () => coach.seen('app:erp') },
-      look('That\'s the rest of your computer. Gmail: email from your team, vendors and customers.', '.dock-app[data-app="gmail"]'),
+      look('Here\'s the rest of your computer. Gmail: email from your team, vendors and customers.', '.dock-app[data-app="gmail"]'),
       look('Calendar: today\'s meetings, including your ' + w.role.meetingName + ' at 10:00 AM.', '.dock-app[data-app="calendar"]'),
       look('Messages: texts from your managers. They aren\'t in any system.', '.dock-app[data-app="messages"]'),
       look('Contacts: who everyone is and what they own.', '.dock-app[data-app="contacts"]'),
-      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more. The clock starts now: your ' + MT + ' is at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'Start the clock', onNext: startClock }),
+      look('Emails and texts can back up a finding: open one and click Add to a finding. Now find ' + (game.MIN_FLAGS - 1) + ' more before your ' + MT + ' at 10:00 AM.', '.dock-app[data-app="erp"]', { next: 'Got it' }),
     ],
     erp: [
       { text: 'Your dashboard. Lots of numbers. Nothing says which ones matter.', target: '.ns-kpi', next: 'Next', modal: true, once: true },
       { text: 'Click Reports.', target: '.ns-tab[data-tab="reports"]', wait: 'erp:reports', hint: 'Click it', force: true, skipIf: flagged },
-      { text: 'Open this report.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
+      { text: 'These are the standard reports your ERP generates. Open this one.', target: '.ns-rli.live', wait: 'doc:report', hint: 'Click it', force: true, skipIf: flagged },
       { text: 'Look down the list. When a number looks off to you, click its row to flag it. Your call.', target: '.ns-grid', wait: 'compose', hint: 'Click a row that looks off', skipIf: flagged, when: () => !!document.querySelector('.ns-grid .flagrow') },
       { text: 'Saved. All your findings are kept up here. You have 1 of ' + game.MIN_FLAGS + '.', target: '.gs-findings', next: 'Got it', modal: true, when: flagged },
       { text: 'Before you find more: close the ' + ERP_NAME + ' for a quick look at the rest of your computer.', target: '.os-window .l-r', wait: 'desk', hint: 'Click the red button', force: true, when: flagged, skipIf: () => coach.seen('desk') && flagged() },

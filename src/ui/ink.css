@@ -110,3 +110,11 @@
 .fs2 .fs2-table tbody tr:hover th, .fs2 .fs2-table tbody tr:hover td { background: rgba(255,255,255,.02); }
 .fs2 .dt.mini th, .fs2 .dt.mini td { color: #c9c9c9; border-color: #262626; background: transparent; }
 .fs2 .dt.mini .wt-hl { background: rgba(251,191,36,.18) !important; color: #FDE68A !important; }
+/* Wake in action elsewhere: the ones already watched, greyed with a label, still playable */
+.fs2 .an-row.seen { opacity: .5; background: #121212 !important; }
+.fs2 .an-row.seen:hover, .fs2 .an-row.seen:focus-visible { opacity: .85; }
+.fs2 .an-row.seen .an-t b { text-decoration: line-through; text-decoration-color: rgba(238,238,238,.35); }
+.fs2 .an-t b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fs2 .an-seen { font: 400 10px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border: 1px solid #5d5d5d; color: #c9c9c9; text-decoration: none; display: inline-block; }
+.fs2 .an-seen::before { content: '\2713 '; }
+.fs2 .an-row.seen > i { font: 400 10.5px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .04em; white-space: nowrap; color: #8d8d8d !important; }
