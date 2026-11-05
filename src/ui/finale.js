@@ -720,15 +720,19 @@ export function createFinale({ game, show, reduced, setCleanup, onWalkBack, onFr
     function meetingAsk() {
       if (!onMeeting) return null;
       const note = h('p', { class: 'fs2-nnote', 'aria-live': 'polite' });
+      // the answer can be changed: picking the other one switches it (and No opens the booking page)
       const answer = (has) => {
-        yes.disabled = no.disabled = true; (has ? yes : no).classList.add('on');
+        for (const [b, on] of [[yes, has], [no, !has]]) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
+        yn.classList.add('has-answer');
         onMeeting(has);
-        note.textContent = has ? 'Great. See you there.' : 'The booking page is open in a new tab. Pick any time that works.';
+        note.textContent = has ? 'Great. See you there. Clicked by mistake? Pick No to book a time.' : 'The booking page is open in a new tab. Pick any time that works.';
       };
-      const yes = btn('Yes, I do', () => answer(true), 'cb ghost'), no = btn('No, not yet', () => answer(false), 'cb wake');
+      const yes = btn('Yes, I do', () => answer(true), 'cb ghost'), no = btn('No, not yet', () => answer(false), 'cb ghost lead');
+      yes.setAttribute('aria-pressed', 'false'); no.setAttribute('aria-pressed', 'false');
+      const yn = h('div', { class: 'fs2-yn' }, no, yes);
       return h('section', { class: 'rs-card fs2-next fs2-ask' },
         h('div', {}, h('h2', {}, 'Do you already have a meeting scheduled with us?'), h('p', { class: 'rs-sub' }, 'If not, pick a time and we\'ll walk you through Wake on your own numbers.')),
-        h('div', { class: 'fs2-nact' }, h('div', { class: 'fs2-yn' }, no, yes), note));
+        h('div', { class: 'fs2-nact' }, yn, note));
     }
 
     // The report by email, when we don't already have their email from the sign-up.

@@ -192,3 +192,93 @@
 .wx .cl-screen.wd .cb.primary::after { content: ' \2192'; content: ' \2192' / ''; }
 .wx .cl-screen.wd .cb.primary:hover { background: #fff; }
 .wx .cl-screen.wd .cb.ghost { background: transparent; }
+/* the meeting question: both answers stay clickable; the chosen one is filled */
+.wx .cl-screen.fs2 .fs2-yn .cb { background: transparent; border-color: #363636; color: #c9c9c9; white-space: nowrap; }
+.wx .cl-screen.fs2 .fs2-yn .cb:hover { border-color: #8d8d8d; color: #eeeeee; }
+.wx .cl-screen.fs2 .fs2-yn .cb.on { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.fs2 .fs2-yn .cb.on::before { content: '\2713  '; content: '\2713  ' / ''; }
+.fs2 .fs2-yn .cb:disabled:not(.on) { opacity: 1; }
+.wx .cl-screen.fs2 .fs2-yn:not(.has-answer) .cb.lead { background: var(--w); border-color: var(--w); color: #fff; }
+
+/* ------------------------------------------------------------ the meeting and the calls, as they play */
+.wx .cl-screen.mt, .wx .cl-screen.mt.room, .wx .cl-screen.mt.call { background: repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 1px, transparent 1px 10px), #0b0b0b !important; color: #eeeeee; font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+/* the top strip: side, agenda, counters */
+.mt .mt-tag { border-radius: 0; background: rgba(217,119,6,.14); color: #FBBF24; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; }
+.mt .mt-tag.wake { background: rgba(8,145,178,.16); color: #67E8F9; }
+.mt .mt-agenda { color: #8d8d8d; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; }
+.mt .mt-pips i { border-radius: 0; background: #181818; border: 1px solid #262626; color: #5d5d5d; }
+.mt .mt-pips i.on { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.mt .mt-pips i.done { background: #363636; border-color: #363636; color: #eeeeee; }
+.mt .mt-cnt { border-radius: 0; background: #121212; border: 1px solid #262626; color: #8d8d8d; }
+.mt .mt-cnt b { color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.mt .mt-cnt.owed b { color: #FBBF24; } .mt .mt-cnt.dec b { color: #4ADE80; }
+/* the room and the people */
+.mt .mt-roomv { border-radius: 0; border: 1px solid #262626; }
+.mt .mt-p { border-radius: 0; background: #181818; border: 1px solid #262626; color: #c9c9c9; }
+.mt .mt-p.talk { background: #222; box-shadow: inset 0 0 0 1px #eeeeee; color: #fff; }
+.mt .cv-card { border-radius: 0; background: linear-gradient(180deg, #1e1e1e, #181818); border: 1px solid #262626; }
+.mt .cv-live { color: #c9c9c9; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.mt .cv-main b { font-family: 'Manrope', 'Inter', sans-serif; font-weight: 600; }
+.mt .cv-main .face { box-shadow: 0 0 0 6px rgba(255,255,255,.05); }
+.mt .cv-card.talk .cv-main .face { box-shadow: 0 0 0 6px rgba(255,255,255,.14), 0 0 0 14px rgba(255,255,255,.05); }
+.mt .cv-line { border-top-color: #262626; }
+/* your notes */
+.mt .mt-paper, .mt .mt-scr { border-radius: 0; background: linear-gradient(180deg, #1e1e1e, #181818); color: #eeeeee; border: 1px solid #363636; box-shadow: 0 18px 40px -18px rgba(0,0,0,.85); }
+.mt .mt-scr-bar, .mt .mt-paper.wake .mt-scr-bar { background: #121212; border-bottom: 1px solid #262626; color: #8d8d8d; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: .02em; }
+.mt .mt-scr-bar b { color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; font-size: 12.5px; letter-spacing: 0; }
+.mt .mt-paper.wake { border-color: rgba(8,145,178,.5); }
+.wx .cl-screen.mt .mt-scr-body h2 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 500 !important; letter-spacing: -.02em; color: #eeeeee !important; }
+.mt .mt-sn { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #8d8d8d; }
+.mt .mt-sq { color: #c9c9c9; }
+.mt .mt-sm, .mt .mt-src { color: #8d8d8d; }
+.mt .mt-sdo { border-radius: 0; background: rgba(8,145,178,.1); border: 1px solid rgba(8,145,178,.35); color: #eeeeee; }
+.mt .mt-sdo b { color: #67E8F9; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+/* the transcript */
+.mt .mt-panel { border-radius: 0; background: linear-gradient(180deg, #1e1e1e, #181818); color: #eeeeee; border: 1px solid #262626; }
+.mt .mt-ph { border-bottom-color: #262626; color: #8d8d8d; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; }
+.mt .mt-ph b { color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; font-weight: 600; font-size: 15px; }
+.mt .mt-msg b { color: #eeeeee; }
+.mt .mt-msg p { color: #c9c9c9; }
+.mt .mt-msg.q p { color: #eeeeee; }
+.mt .mt-msg.me > div, .mt .mt-msg.pres > div { border-radius: 0; background: #222; border: 1px solid #2e2e2e; }
+.mt .mt-msg.ok p { color: #86EFAC; }
+.mt .mt-msg.wake > div, .mt .mt-msg.prep > div { border-radius: 0; background: rgba(8,145,178,.1); border: 1px solid rgba(8,145,178,.3); }
+.mt .mt-chips span { border-radius: 0; background: #121212; border-color: rgba(8,145,178,.4); color: #67E8F9; }
+.mt .mt-chips em { color: #67E8F9; }
+.mt .mt-iou { border-radius: 0; background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.3); color: #FDE68A; }
+.mt .mt-iou b { color: #FBBF24; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; font-size: 10.5px; }
+.mt .mt-stamp { border-radius: 0; border-left-width: 2px; background: rgba(74,222,128,.1); border-left-color: #4ADE80; }
+.mt .mt-stamp b { color: #86EFAC; }
+.mt .mt-stamp span { color: #c9c9c9; }
+.mt .mt-stamp.s-guess, .mt .mt-stamp.s-pilot { border-left-color: #4ADE80; background: rgba(74,222,128,.08); } .mt .mt-stamp.s-guess b, .mt .mt-stamp.s-pilot b { color: #86EFAC; }
+.mt .mt-stamp.s-agreed, .mt .mt-stamp.s-parked, .mt .mt-stamp.s-next, .mt .mt-stamp.s-busy { border-left-color: #FBBF24; background: rgba(251,191,36,.1); }
+.mt .mt-stamp.s-agreed b, .mt .mt-stamp.s-parked b, .mt .mt-stamp.s-next b, .mt .mt-stamp.s-busy b { color: #FBBF24; }
+.mt .mt-stamp.s-dropped { border-left-color: #8d8d8d; background: #1e1e1e; } .mt .mt-stamp.s-dropped b { color: #c9c9c9; }
+.mt .mt-hint, .mt .mt-ask, .mt .mt-dk { color: #8d8d8d; }
+.mt .mt-sum { border-radius: 0; background: #121212; border: 1px solid #262626; color: #8d8d8d; }
+.mt .mt-choices { border-top-color: #262626; }
+.mt .mt-opt { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; }
+.mt .mt-opt:hover { background: #222; border-color: #8d8d8d; }
+.mt .mt-opt i { border-radius: 0; background: #262626; color: #c9c9c9; }
+.mt .mt-opt em { color: #8d8d8d; }
+.mt .mt-opt.ev i { background: rgba(74,222,128,.15); color: #86EFAC; }
+/* when it's over */
+.mt .mt-drow div { border-radius: 0; background: #121212; border: 1px solid #262626; }
+.mt .mt-drow b { color: #eeeeee; font-weight: 500; }
+.mt .mt-drow span { color: #8d8d8d; }
+.mt .mt-done p { color: #c9c9c9; }
+/* the bottom bar */
+.mt .mt-bar { color: #c9c9c9; border-top: 1px solid #1e1e1e; }
+.mt .mt-bl { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; }
+.mt .mt-bl i { background: #363636; }
+.mt .mt-loc { color: #8d8d8d; }
+.mt .mt-b { background: #181818; border: 1px solid #363636; }
+.mt .mt-b.on { background: #eeeeee; color: #121212; }
+.mt .mt-b.end { background: #DC2626; border-color: #DC2626; }
+/* buttons */
+.wx .cl-screen.mt .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.mt .cb:hover { background: #222; }
+.wx .cl-screen.mt .cb.ghost { background: transparent; }
+.wx .cl-screen.mt .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.mt .cb.wake { background: var(--w, #0891B2); border-color: var(--w, #0891B2); color: #fff; }
+.wx .cl-screen.mt .cb.primary::after, .wx .cl-screen.mt .cb.wake::after { content: ' \2192'; content: ' \2192' / ''; }
