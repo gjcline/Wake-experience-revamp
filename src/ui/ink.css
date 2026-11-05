@@ -1,0 +1,194 @@
+/* THE INK LOOK, CARRIED THROUGH
+   The rest of the screens wear the same monochrome look as the setup screens (see the end of
+   scenes.css): the guide that walks you through both rounds, Wake at work between the rounds,
+   and the final score. Amber still means "on your own" and cyan "with Wake". */
+
+/* ------------------------------------------------------------ the guide */
+.coach, .coach-inline { --k-ink: #eeeeee; --k-soft: #c9c9c9; --k-muted: #8d8d8d; --k-line: #262626; --k-strong: #363636; }
+.coach { background: linear-gradient(180deg, #1e1e1e, #181818) !important; color: var(--k-ink) !important; border: 1px solid var(--k-strong); border-radius: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 18px 40px -16px rgba(0,0,0,.85) !important; font: 400 15.5px/1.5 'Manrope', 'Inter', system-ui, sans-serif !important; padding: 16px 18px 15px !important; }
+/* two corner brackets, like every card between the action */
+.coach::before, .coach::after { content: ''; position: absolute; width: 12px; height: 12px; border: 0 solid var(--k-ink); pointer-events: none; }
+.coach::before { top: -6px; left: -6px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.coach::after { bottom: -6px; right: -6px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.coach b, .coach-inline b { font: 400 10.5px/1 'JetBrains Mono', ui-monospace, monospace !important; color: var(--k-muted) !important; letter-spacing: .12em !important; text-transform: uppercase; }
+.coach p, .coach-inline p { color: var(--k-ink); }
+.coach .btn.primary, .coach-inline .btn.primary { background: var(--k-ink) !important; color: #121212 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  font: 600 13.5px/1 'Manrope', 'Inter', sans-serif !important; letter-spacing: 0 !important; text-transform: none !important; padding: 10px 14px !important; }
+.coach .btn.primary::after, .coach-inline .btn.primary::after { content: ' \2192'; content: ' \2192' / ''; }
+.coach .btn.primary:hover, .coach-inline .btn.primary:hover { background: #fff !important; }
+.coach-wait { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; color: var(--k-soft) !important; letter-spacing: .06em; }
+.coach-ring { box-shadow: 0 0 0 2px #eeeeee, 0 0 0 9999px rgba(0,0,0,.5) !important; animation: inkRing 1.6s ease-in-out infinite !important; }
+@keyframes inkRing { 50% { box-shadow: 0 0 0 6px rgba(238,238,238,.3), 0 0 0 9999px rgba(0,0,0,.5); } }
+.coach-inline { background: #181818 !important; border: 1px solid var(--k-strong); box-shadow: none !important; color: var(--k-ink) !important; border-radius: 0; }
+.coach-inline p { font-family: 'Manrope', 'Inter', sans-serif; font-size: 15px !important; }
+
+/* ------------------------------------------------------------ Wake at work, between the rounds */
+.wx .sc-screen.w2 { color: #eeeeee; font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+  background: radial-gradient(ellipse 60% 50% at 50% 45%, rgba(34,211,238,.06), rgba(0,0,0,0) 70%), repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b; }
+.w2-steps li { background: #181818 !important; border: 1px solid #262626 !important; border-radius: 0 !important; color: #5d5d5d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px !important; font-weight: 500 !important; box-shadow: none !important; }
+.w2-steps li i { border-radius: 0 !important; background: #262626 !important; color: #8d8d8d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.w2-steps li.on { color: #eeeeee !important; border-color: #8d8d8d !important; }
+.w2-steps li.on i { background: #eeeeee !important; color: #121212 !important; }
+.w2-steps li.done { color: #c9c9c9 !important; }
+.w2-steps li.done i { background: #363636 !important; color: #eeeeee !important; }
+.wx .sc-screen .w2-skip { border-radius: 0 !important; border: 1px solid #262626 !important; background: #121212 !important; color: #8d8d8d !important; font: 400 11px/1 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase; }
+.w2-h { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 500 !important; letter-spacing: -.03em !important; color: #eeeeee !important; }
+.w2-sub { color: #8d8d8d !important; }
+.w2-wire { stroke: #5d5d5d !important; opacity: .9 !important; }
+.w2-dot.in, .w2-dot.out { fill: #eeeeee !important; }
+.w2-src, .w2-res { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; box-shadow: 0 18px 40px -18px rgba(0,0,0,.8) !important; color: #eeeeee; }
+.w2.s2 .w2-src { border-color: #363636 !important; }
+.w2-sh b, .w2-res b { color: #eeeeee; }
+.w2-sh em, .w2-res small, .w2-own i { color: #8d8d8d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.w2-mods span { border-radius: 0 !important; background: #121212 !important; border: 1px solid #262626; color: #c9c9c9 !important; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400 !important; }
+.w2.s2 .w2-mods span { border-color: #5d5d5d; color: #eeeeee !important; }
+.w2-more { border-radius: 0 !important; border-color: #363636 !important; color: #5d5d5d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.w2-ring { background: #1e1e1e !important; border: 1px solid #5d5d5d !important; box-shadow: 0 0 0 10px rgba(255,255,255,.03), 0 18px 40px rgba(0,0,0,.6) !important; }
+.w2.fin .w2-ring { box-shadow: 0 0 0 14px rgba(255,255,255,.05), 0 18px 40px rgba(0,0,0,.6) !important; }
+@keyframes w2Pulse { 50% { box-shadow: 0 0 0 18px rgba(255,255,255,.06), 0 18px 40px rgba(0,0,0,.6); } }
+.w2-num { color: #eeeeee !important; font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 500 !important; }
+.w2-unit { color: #8d8d8d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400 !important; letter-spacing: .04em; }
+.w2-res > em { border-radius: 0 !important; background: #eeeeee !important; color: #121212 !important; font-family: 'JetBrains Mono', ui-monospace, monospace !important; font-weight: 500 !important; }
+.wx .sc-screen .w2-go { border-radius: 0 !important; background: #eeeeee !important; color: #121212 !important; box-shadow: none !important; font: 600 17px/1 'Manrope', 'Inter', sans-serif !important; }
+.wx .sc-screen .w2-go::after { content: ' \2192'; content: ' \2192' / ''; }
+.wx .sc-screen .w2-go:hover { background: #fff !important; }
+
+/* ------------------------------------------------------------ the final score */
+.wx .cl-screen.fs2 { --ink: #eeeeee; --dim: #8d8d8d; --line: #262626; --card: #181818; --y: #D97706; --y-soft: rgba(217,119,6,.16); --y-ink: #FBBF24; --w: #0891B2; --w-soft: rgba(8,145,178,.18); --w-ink: #67E8F9;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b !important; color: var(--ink); font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+.fs2 .rs-k { font: 400 11px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d; }
+.fs2 .rs-page > h1 { font: 500 clamp(28px, 4vw, 44px)/1.1 'Manrope', 'Inter', sans-serif !important; letter-spacing: -.03em; color: #eeeeee; }
+.fs2 .rs-card, .fs2 .fs2-card, .fs2 .mo2-card { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; }
+.fs2 .fs2-card.y { border-top: 2px solid var(--y) !important; } .fs2 .fs2-card.w { border-top: 2px solid var(--w) !important; }
+.fs2 .rs-card h2, .fs2 .mo2-card h3 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 600 !important; color: #eeeeee; }
+.fs2 .fs2-ck, .fs2 .fs2-sl, .fs2 .mo2-k { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d !important; }
+.fs2 .fs2-card strong { font-weight: 500; letter-spacing: -.02em; }
+.fs2 .fs2-sb, .fs2 .fs2-pips i:not(.y):not(.w) { background: #121212 !important; border-radius: 0 !important; }
+.fs2 .fs2-sb { border: 1px solid #262626; }
+.fs2 .fs2-pips i { border-radius: 0 !important; }
+.fs2 .fs2-table th, .fs2 .fs2-table td { border-bottom-color: #262626 !important; }
+.fs2 .fs2-table thead th { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase !important; }
+.fs2 .fs2-table thead th.y { color: var(--y-ink); } .fs2 .fs2-table thead th.w { color: var(--w-ink); }
+.fs2 .fs2-verdict { background: #121212 !important; border: 1px solid #363636; border-left: 2px solid #eeeeee; border-radius: 0 !important; }
+.fs2 .fs2-v { font-weight: 500 !important; }
+.fs2 .fs2-credit, .fs2 .fs2-closer, .fs2 .mo2-cap, .fs2 .mo2-quote, .fs2 .rs-sub { color: #c9c9c9 !important; }
+.fs2 .mo2-card.meant { border-color: rgba(8,145,178,.45) !important; }
+.fs2 .mo2-quote { border-left-color: #363636 !important; }
+.fs2 .mo2-chips span { background: #121212 !important; border: 1px solid #363636 !important; border-radius: 0 !important; color: #c9c9c9; }
+.fs2 .fs2-q > div { background: #121212 !important; border: 1px solid #262626; border-radius: 0 !important; }
+.fs2 .fs2-lives { background: #121212 !important; border: 1px solid #262626 !important; }
+.fs2 .lv-t { border-radius: 0 !important; background: #181818 !important; border-color: #262626 !important; }
+.fs2 .lv-i { border-radius: 0 !important; background: #121212 !important; border: 1px solid #363636; }
+.fs2 .lv-i .gl { color: #eeeeee !important; }
+.fs2 .lv-k { color: #8d8d8d !important; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400 !important; }
+.fs2 .fs2-next { background: #121212 !important; border: 1px solid #363636 !important; border-left: 2px solid var(--w) !important; }
+.wx .cl-screen.fs2 .fs2-in { border-radius: 0; border-color: #363636; background: #0b0b0b; color: #eeeeee; }
+.fs2 .fs2-nnote { color: var(--w-ink); }
+.fs2 .an-row { border-radius: 0 !important; border: 1px solid #262626 !important; background: linear-gradient(180deg, #1e1e1e, #181818) !important; color: #eeeeee !important; }
+.fs2 .an-row:hover, .fs2 .an-row:focus-visible { border-color: #8d8d8d !important; }
+.fs2 .an-row .lv-i .gl { color: #eeeeee !important; }
+.fs2 .an-t span { color: #8d8d8d !important; }
+.fs2 .an-row > i { color: #5d5d5d !important; }
+.fs2 .an-row:hover > i { color: #eeeeee !important; }
+/* buttons */
+.wx .cl-screen.fs2 .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.fs2 .cb:hover { background: #222; }
+.wx .cl-screen.fs2 .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.fs2 .cb.primary:hover { background: #fff; }
+.wx .cl-screen.fs2 .cb.wake { background: var(--w); border-color: var(--w); color: #fff; }
+.wx .cl-screen.fs2 .cb.ghost { background: transparent; }
+.wx .cl-screen.fs2 .cb.on { border-color: #eeeeee; }
+.fs2 .cl-link { color: #c9c9c9 !important; }
+.fs2 .cl-muted { color: #8d8d8d; }
+/* the report you can view stays a white document */
+.fs2 .report-paper { background: #fff !important; color: #0F172A; border-color: #262626 !important; border-radius: 0 !important; }
+.fs2 .fs2-table tbody th { color: #c9c9c9 !important; }
+.fs2 .fs2-table td.y { color: #FBBF24 !important; }
+.fs2 .fs2-table td.w { color: #67E8F9 !important; }
+.fs2 .fs2-table td.a b { color: #eeeeee !important; }
+.fs2 .fs2-table tbody tr:hover th, .fs2 .fs2-table tbody tr:hover td { background: rgba(255,255,255,.02); }
+.fs2 .dt.mini th, .fs2 .dt.mini td { color: #c9c9c9; border-color: #262626; background: transparent; }
+.fs2 .dt.mini .wt-hl { background: rgba(251,191,36,.18) !important; color: #FDE68A !important; }
+/* Wake in action elsewhere: the ones already watched, greyed with a label, still playable */
+.fs2 .an-row.seen { opacity: .5; background: #121212 !important; }
+.fs2 .an-row.seen:hover, .fs2 .an-row.seen:focus-visible { opacity: .85; }
+.fs2 .an-row.seen .an-t b { text-decoration: line-through; text-decoration-color: rgba(238,238,238,.35); }
+.fs2 .an-t b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fs2 .an-seen { font: 400 10px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border: 1px solid #5d5d5d; color: #c9c9c9; text-decoration: none; display: inline-block; }
+.fs2 .an-seen::before { content: '\2713 '; }
+.fs2 .an-row.seen > i { font: 400 10.5px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .04em; white-space: nowrap; color: #8d8d8d !important; }
+
+/* ------------------------------------------------------------ the meeting (or call) result */
+.wx .cl-screen.rs { --ink: #eeeeee; --dim: #8d8d8d; --line: #262626; --card: #181818; --y: #D97706; --y-soft: rgba(217,119,6,.16); --y-ink: #FBBF24; --w: #0891B2; --w-soft: rgba(8,145,178,.18); --w-ink: #67E8F9;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b !important; color: var(--ink); font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+.rs .rs-k { font: 400 11px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d; }
+.rs .rs-page > h1 { font: 500 clamp(28px, 4vw, 44px)/1.1 'Manrope', 'Inter', sans-serif !important; letter-spacing: -.03em; color: #eeeeee; }
+.rs .rs-card { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; }
+.rs .rs-card.y { border-top: 2px solid var(--y) !important; } .rs .rs-card.w { border-top: 2px solid var(--w) !important; }
+.rs .rs-card h2 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 600 !important; color: #eeeeee; }
+.rs .rs-sub, .rs .rs-tasks p, .rs .rs-done p { color: #c9c9c9 !important; }
+.rs .rs-tlk { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+.rs .rs-tlk.y { color: var(--y-ink); } .rs .rs-tlk.w { color: var(--w-ink); }
+.rs .rs-tlk b { font: 500 22px/1.2 'Manrope', 'Inter', sans-serif; letter-spacing: -.01em; text-transform: none; color: #eeeeee; }
+.rs .rs-tl { background: #121212; border: 1px solid #262626; border-radius: 0; }
+.rs .rs-tl .seg { border-right-color: #181818; }
+.rs .seg.open { background: #262626; }
+.rs .rs-axis span, .rs .rs-legend { color: #8d8d8d; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.rs .rs-legend i { border-radius: 0; }
+.rs .rs-duel th, .rs .rs-duel td { border-bottom-color: #262626 !important; }
+.rs .rs-duel thead th { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase !important; }
+.rs .rs-duel thead th.y { color: var(--y-ink); } .rs .rs-duel thead th.w { color: var(--w-ink); }
+.rs .rs-duel tbody th { color: #eeeeee; }
+.rs .rs-duel th small { color: #8d8d8d; }
+.rs .rs-duel td { color: #eeeeee; }
+.rs .rs-duel td.win.y { color: var(--y-ink); }
+.rs .rs-duel td.win.w { color: var(--w-ink); background: rgba(8,145,178,.1) !important; }
+.rs .rs-tasks em { border-radius: 0; }
+.rs .rs-done li > i { border-radius: 0; }
+.rs .rs-tasks b, .rs .rs-done b { color: #eeeeee; }
+.wx .cl-screen.rs .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.rs .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.rs .cb.primary::after { content: ' \2192'; content: ' \2192' / ''; }
+.wx .cl-screen.rs .cb.primary:hover { background: #fff; }
+
+/* ------------------------------------------------------------ the week (the Slack windows stay as Slack looks) */
+.wx .cl-screen.wd { --ink: #eeeeee; --dim: #8d8d8d; --line: #262626; --card: #181818; --y: #D97706; --y-soft: rgba(217,119,6,.16); --y-ink: #FBBF24; --w: #0891B2; --w-soft: rgba(8,145,178,.18); --w-ink: #67E8F9;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b !important; color: var(--ink); font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+.wd .rs-k { font: 400 11px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d; }
+.wd .wd-head h1 { font: 500 clamp(28px, 4vw, 44px)/1.1 'Manrope', 'Inter', sans-serif !important; letter-spacing: -.03em; color: #eeeeee; }
+.wd .rs-card, .wd .wd-kpi { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; }
+.wd .wd-kpi.y { border-top: 2px solid var(--y) !important; } .wd .wd-kpi.w { border-top: 2px solid var(--w) !important; }
+.wd .wd-kpi span { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8d8d8d; }
+.wd .wd-kpi b { font-weight: 500; color: #eeeeee; } .wd .wd-kpi.w b { color: var(--w-ink); }
+.wd .wd-kpi small { color: #4ADE80; }
+.wd .rs-card h2 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 600 !important; color: #eeeeee; }
+.wd .rs-sub, .wd .wd-note, .wd .wd-small td { color: #c9c9c9 !important; }
+.wd .wd-days { background: #121212; border: 1px solid #262626; border-radius: 0; }
+.wd .wd-day { border-radius: 0; color: #5d5d5d; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+.wd .wd-day.past { color: #c9c9c9; }
+.wd .wd-day.on { background: #eeeeee; color: #121212; }
+.wd .wd-lead { border-radius: 0; background: #121212; border: 1px solid #262626; color: #8d8d8d; }
+.wd .wd-lead.w { background: rgba(8,145,178,.12); color: var(--w-ink); } .wd .wd-lead.y { background: rgba(217,119,6,.12); color: var(--y-ink); }
+.wd .wd-board th, .wd .wd-board td, .wd .wd-probs th, .wd .wd-probs td, .wd .wd-small th, .wd .wd-small td { border-bottom-color: #262626 !important; }
+.wd .wd-board thead th, .wd .wd-probs thead th { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase !important; }
+.wd .wd-board thead th.y, .wd .wd-probs thead th.y { color: var(--y-ink); } .wd .wd-board thead th.w, .wd .wd-probs thead th.w { color: var(--w-ink); }
+.wd .wd-board th, .wd .wd-probs th b { color: #eeeeee; }
+.wd .wd-board td b, .wd .wd-pc .mv { color: #eeeeee; }
+.wd .wd-board tr.ww td.w b { color: var(--w-ink); } .wd .wd-board tr.yw td.y b { color: var(--y-ink); }
+.wd .wd-bar { background: #121212; border-radius: 0; } .wd .wd-bar i { border-radius: 0; }
+.wd .wd-pc .st { border-radius: 0; background: #262626; color: #c9c9c9; }
+.wd .st.waiting { background: rgba(251,191,36,.14); color: #FBBF24; } .wd .st.working { background: rgba(96,165,250,.14); color: #93C5FD; }
+.wd .st.fixed { background: rgba(74,222,128,.14); color: #4ADE80; } .wd .st.worse { background: rgba(248,113,113,.14); color: #FCA5A5; }
+.wd .wd-pc .pm.pos { color: #4ADE80; } .wd .wd-pc .pm.neg { color: #F87171; }
+.wd .wd-spark { color: #8d8d8d; }
+.wd .wd-banner { background: #121212; border: 1px solid #363636; border-left: 2px solid #eeeeee; border-radius: 0; }
+.wd .wd-bn2 > div { background: #181818; border: 1px solid #262626; border-radius: 0; }
+.wd .wd-bn2 span { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; }
+.wd .wd-bn2 b { font-weight: 500; }
+.wd .sl { border-radius: 0; border-color: #262626; box-shadow: 0 18px 40px -18px rgba(0,0,0,.8); }
+.wx .cl-screen.wd .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.wd .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.wd .cb.primary::after { content: ' \2192'; content: ' \2192' / ''; }
+.wx .cl-screen.wd .cb.primary:hover { background: #fff; }
+.wx .cl-screen.wd .cb.ghost { background: transparent; }

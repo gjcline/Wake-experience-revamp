@@ -1,6 +1,8 @@
 // THE INTRO
-// The 18-second intro video (media/wake-intro.mp4, with a WebM copy for browsers without H.264),
-// played full screen after the Start screen and from "Watch the intro" on the title. Both start
+// The 16-second intro video (media/wake-intro.mp4, with a WebM copy for browsers without H.264),
+// played after the Start screen and from "Rewatch intro video" on the title. It opens on the Start
+// button bursting into the first slide, so it fades in over a light page that matches the Start
+// screen, and the surround turns black once the burst fills the frame. Both start
 // from a click, so it plays with sound; if a browser still blocks sound it plays muted with a
 // Sound on button. Skip is always there, and if the video can't play the title follows.
 
@@ -26,6 +28,7 @@ export function playIntro({ mount, onDone }) {
   window.addEventListener('keydown', key);
   skip.onclick = finish;
   sound.onclick = () => { video.muted = false; sound.hidden = true; video.play().catch(() => {}); };
+  video.addEventListener('playing', () => { screen.classList.add('on'); setTimeout(() => screen.classList.add('dark'), 450); }, { once: true });
   video.addEventListener('ended', finish);
   video.lastChild.addEventListener('error', finish);
   video.addEventListener('timeupdate', () => { if (video.duration) bar.style.width = (video.currentTime / video.duration * 100) + '%'; });

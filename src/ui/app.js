@@ -171,6 +171,8 @@ const world = createScenes({
   onSignup: (c) => { contact = c; track.set({ name: c.name, email: c.email, phone: c.phone }); },
   onPicked(shellId, roleId, seed) {
     game = createGame({ shellId, roleId, seed });
+    // who's playing, from the sign-up: their name goes on the score page and the report
+    if (contact && contact.name) game.world.player = contact.name.trim().slice(0, 80);
     world.setMoment('meeting');
     window.WakeExperience = { session: () => game.session(), state: () => game.state, run: () => track.id };
     track.step('arrive', { mode: 'full', shell: shellId, role: roleId, company: game.world.shell.company });
@@ -196,23 +198,23 @@ function roundOneDone() {
   world.office(game, { day: w.shell.mondayLong, time: fmtClock(s.submittedAt), preset: 'office', at: 'office', z: 2.1,
     card: { step: 3, kicker: 'Round 1 complete · briefing locked at ' + fmtClock(s.submittedAt), title: 'That\'s how most Mondays go.',
       body: h('div', { class: 'mc-stats' }, stat(String(s.flags.length), 'findings for your team'), stat(opened + ' of ' + total, 'sources opened'), stat(fmtClock(s.submittedAt), 'briefing ready')),
-      what: 'Next you\'ll run the exact same morning again: same company, same data, same 7:48 AM. This time with Wake.',
-      why: 'Everything stays the same except Wake, so any difference you see comes from Wake, not from luck.',
-      wake: 'Wake doesn\'t wait for a prompt or a question. It reads every report, email and text as they land, connects them across systems, and has the ranked list ready before you sit down.',
+      what: 'Next you\'ll replay this morning from 7:48 AM, this time with Wake.',
+      why: 'Only one thing changes, so any difference you see comes from Wake, not luck.',
+      wake: 'Wake doesn\'t wait for a question. It reads every report, email and text as they land, and has the ranked list ready before you sit down.',
       cta: 'Rewind the morning' },
     done: resetDay });
   sfx.credit();
 }
 
-// The day resets: same Monday, same data, with Wake underneath it this time.
+// The day resets to 7:48 AM, with Wake underneath it this time.
 async function resetDay() {
   const s = game.state, D = game.world.day;
   const clock = h('b', { class: 'mc-clock' }, fmtClock(s.submittedAt));
   const { layer } = await world.office(game, { day: game.world.shell.mondayLong, time: fmtClock(D.start), preset: 'office', at: 'office', z: 2.1,
-    card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Same Monday. Same 7:48 AM.', body: clock,
-      what: 'Same Monday, same data, same ' + ERP_NAME + '. The only difference: Wake gets there first. It reads every report, email and text and hands you what matters, ranked, with the evidence and an owner for each.',
-      why: 'Deciding is the part only you can do. Wake takes the digging off your plate, so you walk into ten o\'clock ready.',
-      wake: 'Nothing to set up and nothing to ask. Wake is already connected to the ' + ERP_NAME + ', the inbox and the calendar, and it has been reading all morning.',
+    card: { step: 3, tone: 'wake', kicker: 'Round 2 · with Wake', title: 'Back to 7:48 AM.', body: clock,
+      what: 'This time Wake gets there first. It reads every report, email and text and hands you what matters, ranked, with the evidence and an owner for each.',
+      why: 'Deciding is the part only you can do. Wake takes the digging off your plate.',
+      wake: 'Nothing to set up and nothing to ask. Wake is already connected to the ' + ERP_NAME + ', the inbox and the calendar.',
       cta: 'Watch Wake work' },
     done: async () => { game.startRound2(); await wakeAtWork({ mount: (el) => { leave(); root.className = 'wx sc-root'; root.replaceChildren(el); window.scrollTo(0, 0); }, game, reduced, sfx, erpName: ERP_NAME }); round2(); } });
   const go = layer.querySelector('.mc-go .ab'); if (go) go.disabled = true;
@@ -231,15 +233,16 @@ function round2() {
 // ------------------------------------------------------------------ your 10:00 AM
 // Both briefings are locked. Now the player picks where to see the difference: the meeting, or
 // one of the calls (moments.js).
-let played = [];
+// the 10:00 AMs watched, first one first; fromReport once one is played again from the report
+let played = [], fromReport = false;
 function pickMoment() {
   leave();
-  played = [];
+  played = []; fromReport = false;
   world.moment(game, (m) => playMoment(m));
 }
 function playMoment(m) {
   game.setMoment(m); world.setMoment(game.world.moment);
-  played.push(game.world.moment);
+  if (!played.includes(game.world.moment)) played.push(game.world.moment);
   track.set(played.length === 1 ? { moment: game.world.moment } : { also: played.slice(1).join(',') });
   walkToMeeting();
 }
@@ -251,8 +254,8 @@ async function walkToMeeting() {
   if (game.world.moment !== 'meeting') return takeTheCall();
   const name = game.world.role.meetingName;
   const watch = h('div', { class: 'mc-box' },
-    h('p', { class: 'mc-l' }, 'Why this meeting'),
-    h('p', {}, 'We picked the weekly ' + name + ' because it\'s where a morning of data turns into decisions. Every answer you have in the room is a decision made today; every answer you don\'t is a follow-up and a lost day.'),
+    h('p', { class: 'mc-l' }, 'About this meeting'),
+    h('p', {}, 'Every department head and location lead, in one room. The goal: leave with this week\'s priorities decided, each with an owner and a start date.'),
     h('p', { class: 'mc-l' }, 'Watch for'),
     h('ul', { class: 'mc-watch' },
       h('li', {}, h('b', { class: 'dec' }, 'Decided'), ' on the spot, with an owner and a start date'),
@@ -260,10 +263,10 @@ async function walkToMeeting() {
       h('li', {}, h('b', {}, 'Leadership hours'), ': people in the room × minutes')));
   world.office(game, { day: 'Monday', time: '10:00 AM', preset: 'meeting', at: 'office', z: 2, route: 'toMeeting', end: 'left', endView: [112, 52, 2.2],
     card: { step: 4, kicker: '10:00 AM · ' + meetingName(), title: 'Time to brief your team.',
-      what: 'Everyone is in the conference room. The meeting runs twice: first with the briefing you built on your own, then with the one you prepared with Wake.',
+      what: 'Everyone is in the conference room. The meeting runs twice: first with your own briefing, then with the one you prepared with Wake.',
       note: 'These meetings are simulated. You don\'t play them: they run on their own, and you watch the difference Wake makes.',
       body: watch,
-      wake: 'Wake isn\'t in the room and doesn\'t speak. It did its work before the meeting: every item you bring has its evidence, an owner and the number to watch.',
+      wake: 'Wake isn\'t in the room. It did its work before the meeting: every item you bring has its evidence, an owner and the number to watch.',
       cta: 'Take your seat' },
     done: () => finale().meeting() });
 }
@@ -272,7 +275,7 @@ async function walkToMeeting() {
 function takeTheCall() {
   const L = game.world.caller, ctrl = game.world.characters.controller, CS = specOf(game.world.moment);
   const watch = h('div', { class: 'mc-box' },
-    h('p', { class: 'mc-l' }, 'Why this call'),
+    h('p', { class: 'mc-l' }, 'About this call'),
     h('p', {}, CS.card.why),
     h('p', { class: 'mc-l' }, 'Watch for'),
     h('ul', { class: 'mc-watch' },
@@ -290,6 +293,8 @@ function takeTheCall() {
 }
 
 function walkBack() {
+  // another 10:00 AM, watched from the report: straight back to it, set to the first one again
+  if (fromReport) return backToReport();
   track.step('week');
   leave();
   if (game.world.moment !== 'meeting') {
@@ -310,13 +315,19 @@ function walkBack() {
     done: () => finale().week() });
 }
 
+function backToReport() {
+  leave();
+  game.setMoment(played[0]); world.setMoment(game.world.moment);
+  finale().ending({ back: true });
+}
+
 // Friday evening, then the final score.
 function friday(then) {
   leave();
   world.office(game, { day: 'Friday', time: '6:10 PM', preset: 'night', night: true, view: [192, 120, 1],
-    card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in.',
+    card: { step: 6, kicker: 'Friday · 6:10 PM', title: 'The week is in' + (game.world.player ? ', ' + game.world.player.split(/\s+/)[0] : '') + '.',
       what: 'Your final score: both weeks side by side, in your company\'s own numbers, and a report to keep.',
-      why: 'Same company, same data, same Monday. The only difference was how the morning was run.',
+      why: 'One company, one Monday. The only difference was how the morning was run.',
       wake: 'Wake didn\'t wait for Friday\'s report. It tracked every measure daily all week and flagged what slipped while there was still time to act.',
       cta: 'See your score' },
     done: then });
@@ -325,10 +336,13 @@ function friday(then) {
 // The finale: meeting, week, final score. Built per game so it reads the current one.
 function finale() {
   return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
-    onFinished: (result) => track.step('score', played.length > 1 ? null : { finished: true, result }),
+    onFinished: (result) => {
+      if (fromReport) { track.step('score'); return; }
+      track.step('score', { finished: true, result });
+    },
     onEmail: contact ? null : (email) => track.set({ email }),
     onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); },
-    onAnother: (m) => playMoment(m), played: played.slice() });
+    onAnother: (m) => { fromReport = true; playMoment(m); }, played: played.slice(), replay: fromReport });
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.

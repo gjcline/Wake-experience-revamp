@@ -51,7 +51,7 @@ export const ICONS = {
   // the Wake mark, traced from media/wake-logo.png: black on a white tile
   wake: svg('0 0 48 48',
     '<rect x="2.5" y="2.5" width="43" height="43" rx="11" fill="#fff" stroke="#D9DEE5"/>' +
-    '<path fill="#111" transform="translate(5.50 14.82) scale(0.1095)" d="' + MARK_D + '"/>'),
+    '<path fill="#111" transform="translate(9.13 16.70) scale(0.088)" d="' + MARK_D + '"/>'),
   erp: svg('0 0 48 48',
     '<rect x="2" y="2" width="44" height="44" rx="11" fill="#1F3A5C"/>' +
     '<rect x="11" y="27" width="6" height="10" rx="1.5" fill="#7FB2E5"/><rect x="21" y="19" width="6" height="18" rx="1.5" fill="#A9CCF0"/><rect x="31" y="12" width="6" height="25" rx="1.5" fill="#fff"/>'),
