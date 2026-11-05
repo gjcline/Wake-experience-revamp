@@ -3303,6 +3303,80 @@ td.y .wd-bar i { background: var(--y); } td.w .wd-bar i { background: var(--w); 
 .fs2 .an-seen { font: 400 10px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border: 1px solid #5d5d5d; color: #c9c9c9; text-decoration: none; display: inline-block; }
 .fs2 .an-seen::before { content: '\2713 '; }
 .fs2 .an-row.seen > i { font: 400 10.5px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .04em; white-space: nowrap; color: #8d8d8d !important; }
+
+/* ------------------------------------------------------------ the meeting (or call) result */
+.wx .cl-screen.rs { --ink: #eeeeee; --dim: #8d8d8d; --line: #262626; --card: #181818; --y: #D97706; --y-soft: rgba(217,119,6,.16); --y-ink: #FBBF24; --w: #0891B2; --w-soft: rgba(8,145,178,.18); --w-ink: #67E8F9;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b !important; color: var(--ink); font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+.rs .rs-k { font: 400 11px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d; }
+.rs .rs-page > h1 { font: 500 clamp(28px, 4vw, 44px)/1.1 'Manrope', 'Inter', sans-serif !important; letter-spacing: -.03em; color: #eeeeee; }
+.rs .rs-card { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; }
+.rs .rs-card.y { border-top: 2px solid var(--y) !important; } .rs .rs-card.w { border-top: 2px solid var(--w) !important; }
+.rs .rs-card h2 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 600 !important; color: #eeeeee; }
+.rs .rs-sub, .rs .rs-tasks p, .rs .rs-done p { color: #c9c9c9 !important; }
+.rs .rs-tlk { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+.rs .rs-tlk.y { color: var(--y-ink); } .rs .rs-tlk.w { color: var(--w-ink); }
+.rs .rs-tlk b { font: 500 22px/1.2 'Manrope', 'Inter', sans-serif; letter-spacing: -.01em; text-transform: none; color: #eeeeee; }
+.rs .rs-tl { background: #121212; border: 1px solid #262626; border-radius: 0; }
+.rs .rs-tl .seg { border-right-color: #181818; }
+.rs .seg.open { background: #262626; }
+.rs .rs-axis span, .rs .rs-legend { color: #8d8d8d; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.rs .rs-legend i { border-radius: 0; }
+.rs .rs-duel th, .rs .rs-duel td { border-bottom-color: #262626 !important; }
+.rs .rs-duel thead th { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase !important; }
+.rs .rs-duel thead th.y { color: var(--y-ink); } .rs .rs-duel thead th.w { color: var(--w-ink); }
+.rs .rs-duel tbody th { color: #eeeeee; }
+.rs .rs-duel th small { color: #8d8d8d; }
+.rs .rs-duel td { color: #eeeeee; }
+.rs .rs-duel td.win.y { color: var(--y-ink); }
+.rs .rs-duel td.win.w { color: var(--w-ink); background: rgba(8,145,178,.1) !important; }
+.rs .rs-tasks em { border-radius: 0; }
+.rs .rs-done li > i { border-radius: 0; }
+.rs .rs-tasks b, .rs .rs-done b { color: #eeeeee; }
+.wx .cl-screen.rs .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.rs .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.rs .cb.primary::after { content: ' \2192'; content: ' \2192' / ''; }
+.wx .cl-screen.rs .cb.primary:hover { background: #fff; }
+
+/* ------------------------------------------------------------ the week (the Slack windows stay as Slack looks) */
+.wx .cl-screen.wd { --ink: #eeeeee; --dim: #8d8d8d; --line: #262626; --card: #181818; --y: #D97706; --y-soft: rgba(217,119,6,.16); --y-ink: #FBBF24; --w: #0891B2; --w-soft: rgba(8,145,178,.18); --w-ink: #67E8F9;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 1px, transparent 1px 10px), #0b0b0b !important; color: var(--ink); font-family: 'Manrope', 'Inter', system-ui, sans-serif; }
+.wd .rs-k { font: 400 11px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .08em; text-transform: uppercase !important; color: #8d8d8d; }
+.wd .wd-head h1 { font: 500 clamp(28px, 4vw, 44px)/1.1 'Manrope', 'Inter', sans-serif !important; letter-spacing: -.03em; color: #eeeeee; }
+.wd .rs-card, .wd .wd-kpi { background: linear-gradient(180deg, #1e1e1e, #181818) !important; border: 1px solid #262626 !important; border-radius: 0 !important; }
+.wd .wd-kpi.y { border-top: 2px solid var(--y) !important; } .wd .wd-kpi.w { border-top: 2px solid var(--w) !important; }
+.wd .wd-kpi span { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8d8d8d; }
+.wd .wd-kpi b { font-weight: 500; color: #eeeeee; } .wd .wd-kpi.w b { color: var(--w-ink); }
+.wd .wd-kpi small { color: #4ADE80; }
+.wd .rs-card h2 { font-family: 'Manrope', 'Inter', sans-serif !important; font-weight: 600 !important; color: #eeeeee; }
+.wd .rs-sub, .wd .wd-note, .wd .wd-small td { color: #c9c9c9 !important; }
+.wd .wd-days { background: #121212; border: 1px solid #262626; border-radius: 0; }
+.wd .wd-day { border-radius: 0; color: #5d5d5d; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; }
+.wd .wd-day.past { color: #c9c9c9; }
+.wd .wd-day.on { background: #eeeeee; color: #121212; }
+.wd .wd-lead { border-radius: 0; background: #121212; border: 1px solid #262626; color: #8d8d8d; }
+.wd .wd-lead.w { background: rgba(8,145,178,.12); color: var(--w-ink); } .wd .wd-lead.y { background: rgba(217,119,6,.12); color: var(--y-ink); }
+.wd .wd-board th, .wd .wd-board td, .wd .wd-probs th, .wd .wd-probs td, .wd .wd-small th, .wd .wd-small td { border-bottom-color: #262626 !important; }
+.wd .wd-board thead th, .wd .wd-probs thead th { font: 400 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace !important; letter-spacing: .06em; text-transform: uppercase !important; }
+.wd .wd-board thead th.y, .wd .wd-probs thead th.y { color: var(--y-ink); } .wd .wd-board thead th.w, .wd .wd-probs thead th.w { color: var(--w-ink); }
+.wd .wd-board th, .wd .wd-probs th b { color: #eeeeee; }
+.wd .wd-board td b, .wd .wd-pc .mv { color: #eeeeee; }
+.wd .wd-board tr.ww td.w b { color: var(--w-ink); } .wd .wd-board tr.yw td.y b { color: var(--y-ink); }
+.wd .wd-bar { background: #121212; border-radius: 0; } .wd .wd-bar i { border-radius: 0; }
+.wd .wd-pc .st { border-radius: 0; background: #262626; color: #c9c9c9; }
+.wd .st.waiting { background: rgba(251,191,36,.14); color: #FBBF24; } .wd .st.working { background: rgba(96,165,250,.14); color: #93C5FD; }
+.wd .st.fixed { background: rgba(74,222,128,.14); color: #4ADE80; } .wd .st.worse { background: rgba(248,113,113,.14); color: #FCA5A5; }
+.wd .wd-pc .pm.pos { color: #4ADE80; } .wd .wd-pc .pm.neg { color: #F87171; }
+.wd .wd-spark { color: #8d8d8d; }
+.wd .wd-banner { background: #121212; border: 1px solid #363636; border-left: 2px solid #eeeeee; border-radius: 0; }
+.wd .wd-bn2 > div { background: #181818; border: 1px solid #262626; border-radius: 0; }
+.wd .wd-bn2 span { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; }
+.wd .wd-bn2 b { font-weight: 500; }
+.wd .sl { border-radius: 0; border-color: #262626; box-shadow: 0 18px 40px -18px rgba(0,0,0,.8); }
+.wx .cl-screen.wd .cb { border-radius: 0; border-color: #363636; background: #181818; color: #eeeeee; font-family: 'Manrope', 'Inter', sans-serif; }
+.wx .cl-screen.wd .cb.primary { background: #eeeeee; border-color: #eeeeee; color: #121212; }
+.wx .cl-screen.wd .cb.primary::after { content: ' \2192'; content: ' \2192' / ''; }
+.wx .cl-screen.wd .cb.primary:hover { background: #fff; }
+.wx .cl-screen.wd .cb.ghost { background: transparent; }
 </style>
 <div id="wx" class="wx cl-root"></div>
 <script>window.WAKE_HOST="artifact";window.WAKE_CONFIG=window.WAKE_CONFIG||{"logEndpoint":"","bookUrl":"https://cal.com/bliztic/wake"};</script>
