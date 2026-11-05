@@ -337,23 +337,12 @@ function friday(then) {
 function finale() {
   return createFinale({ game, show, root, reduced, setCleanup: (fn) => { cleanup = fn; }, onWalkBack: walkBack, onFriday: friday, onRestart: restart, post, HOST,
     onFinished: (result) => {
-      if (fromReport) { track.step('score'); return mailedTo; }
-      const { rows, ...summary } = result;
-      track.step('score', { finished: true, result: summary });
-      return (mailedTo = emailReport(result));
+      if (fromReport) { track.step('score'); return; }
+      track.step('score', { finished: true, result });
     },
     onEmail: contact ? null : (email) => track.set({ email }),
     onMeeting: (has) => { track.set({ hasMeeting: has }); if (!has && CFG.bookUrl) book(contact && contact.email); },
     onAnother: (m) => { fromReport = true; playMoment(m); }, played: played.slice(), replay: fromReport });
-}
-
-// The report by email, to the address from the sign-up (see api/report.js). Resolves to that
-// address once it's sent, or null: no email, the artifact build, or sending isn't set up.
-let mailedTo = null; // the send, kept so the report says where it went on every return
-function emailReport(result) {
-  if (HOST !== 'web' || !contact || !contact.email || !track.id) return Promise.resolve(null);
-  return fetch('/api/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: track.id, result }) })
-    .then((r) => r.json()).then((j) => (j && j.ok ? j.to : null)).catch(() => null);
 }
 
 // Optional: send the finished session to an endpoint for aggregate analysis.

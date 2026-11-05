@@ -33,7 +33,7 @@ Add `?seed=123` to the URL to replay the same company.
     src/ui/intro.js      plays the intro video (media/wake-intro.mp4, .webm fallback) full screen with
                          sound after the Start screen (scenes.js), then the title (?intro=0 skips both)
     src/dashboard.html  the team's runs dashboard, served at /dashboard
-    api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings), /api/report (the report email)
+    api/           Vercel functions: /api/track (store a run), /api/runs (dashboard data), /api/cal (Cal.com bookings)
     test/          paths.test.mjs (run on every change) and audit.mjs (balance across thousands of games)
     dist/          built output, committed so the page can be opened or hosted without a build
 
